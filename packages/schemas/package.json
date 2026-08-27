@@ -1,0 +1,22 @@
+{
+  "name": "@unsa/schemas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./auth": "./src/auth.ts",
+    "./registry": "./src/registry.ts",
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@unsa/config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

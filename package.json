@@ -1,0 +1,20 @@
+{
+  "name": "website",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*", "packages/*"],
+  "scripts": {
+    "dev": "bun --filter @unsa/website dev",
+    "build": "bun --filter \"*\" build",
+    "typecheck": "bun --filter \"*\" typecheck",
+    "lint:check": "biome check .",
+    "lint:format": "biome format --write .",
+    "check": "bun run typecheck && bun run lint:check"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.0",
+    "@types/bun": "latest",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}
