@@ -6,6 +6,8 @@ services:
       POSTGRES_USER: registry
       POSTGRES_PASSWORD: registrypassword
       POSTGRES_DB: registry_db
+    ports:
+      - "47002:5432"
     volumes:
       - pgdata-registry:/var/lib/postgresql/data
     healthcheck:
@@ -21,6 +23,8 @@ services:
       POSTGRES_USER: idp
       POSTGRES_PASSWORD: idppassword
       POSTGRES_DB: idp_db
+    ports:
+      - "47003:5432"
     volumes:
       - pgdata-auth:/var/lib/postgresql/data
     healthcheck:
@@ -36,6 +40,9 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
+    ports:
+      - "47004:9000"
+      - "47005:9001"
     volumes:
       - miniodata:/data
     healthcheck:
@@ -49,7 +56,7 @@ services:
     pull_policy: always
     container_name: website-dev-registry
     ports:
-      - "3001:3001"
+      - "47000:3001"
     environment:
       DATABASE_URL: postgresql://registry:registrypassword@postgres-registry:5432/registry_db
       S3_ENDPOINT: http://minio:9000
@@ -82,13 +89,13 @@ services:
     pull_policy: always
     container_name: website-dev-auth
     ports:
-      - "3002:3002"
+      - "47001:3002"
+    env_file:
+      - .env.dev
     environment:
       DATABASE_URL: postgresql://idp:idppassword@postgres-auth:5432/idp_db
       IDP_ISSUER: http://auth:3000
       IDP_PORT: 3002
-      GOOGLE_CLIENT_ID: ""
-      GOOGLE_CLIENT_SECRET: ""
       GITHUB_CLIENT_ID: ""
       GITHUB_CLIENT_SECRET: ""
       IDP_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173

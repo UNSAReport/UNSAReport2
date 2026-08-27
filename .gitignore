@@ -1,9 +1,16 @@
+# tanstack
 node_modules
 dist
 .tanstack
-.env
-*.tsbuildinfo
+.tsbuildinfo
 .output
 .nitro
 vinxi
+
+# nix
 .direnv
+
+# env
+.env.*
+!secrets/*
+!.env.example
