@@ -53,12 +53,12 @@ services:
 
   registry:
     image: ghcr.io/unsareport/registry:latest-dev
-    pull_policy: always
     container_name: website-dev-registry
     ports:
       - "47000:3001"
     environment:
       DATABASE_URL: postgresql://registry:registrypassword@postgres-registry:5432/registry_db
+      AUTO_MIGRATE: "true"
       S3_ENDPOINT: http://minio:9000
       S3_BUCKET: unsareport-registry
       S3_ACCESS_KEY: minioadmin
