@@ -1,16 +1,16 @@
 import { z } from "zod";
 
 const serverEnvSchema = z.object({
-  IDP_ISSUER: z.string().url().default("https://auth.unsareport.org"),
+  IDP_ISSUER: z.string().url().default("http://localhost:9876/api/auth"),
   IDP_JWKS_URL: z.string().url().optional(),
-  REGISTRY_URL: z.string().url().default("http://localhost:3001"),
-  BASE_URL: z.string().url().default("http://localhost:3000"),
-  CLIENT_REDIRECT_URL: z.string().url().default("http://localhost:3000"),
+  REGISTRY_URL: z.string().url().default("http://localhost:9876/api/registry"),
+  BASE_URL: z.string().url().default("http://localhost:9876"),
+  CLIENT_REDIRECT_URL: z.string().url().default("http://localhost:9876"),
   PORT: z.coerce.number().default(3000),
 });
 
 const clientEnvSchema = z.object({
-  BASE_URL: z.string().url().default("http://localhost:3000"),
+  BASE_URL: z.string().url().default("http://localhost:9876"),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -39,10 +39,9 @@ function getServerEnv(): ServerEnv {
 }
 
 export const serverEnv: ServerEnv = getServerEnv();
-
 export const clientEnv: ClientEnv = clientEnvSchema.parse({
   BASE_URL:
     typeof window !== "undefined"
       ? window.location.origin
-      : process.env.BASE_URL || "http://localhost:3000",
+      : process.env.BASE_URL || "http://localhost:9876",
 });

@@ -1,4 +1,21 @@
 services:
+  traefik:
+    image: traefik:v3.3
+    container_name: website-traefik
+    command:
+      - --providers.docker=true
+      - --providers.docker.exposedByDefault=false
+      - --providers.docker.network=unsareport-dev
+      - --entryPoints.web.address=:80
+      - --log.level=INFO
+      - --api.dashboard=true
+      - --api.insecure=true
+    ports:
+      - "9876:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks: [unsareport-dev]
+
   postgres-registry:
     image: postgres:16-alpine
     container_name: website-dev-postgres-registry
@@ -6,10 +23,9 @@ services:
       POSTGRES_USER: registry
       POSTGRES_PASSWORD: registrypassword
       POSTGRES_DB: registry_db
-    ports:
-      - "47002:5432"
     volumes:
       - pgdata-registry:/var/lib/postgresql/data
+    networks: [unsareport-dev]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U registry -d registry_db"]
       interval: 5s
@@ -23,10 +39,9 @@ services:
       POSTGRES_USER: idp
       POSTGRES_PASSWORD: idppassword
       POSTGRES_DB: idp_db
-    ports:
-      - "47003:5432"
     volumes:
       - pgdata-auth:/var/lib/postgresql/data
+    networks: [unsareport-dev]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U idp -d idp_db"]
       interval: 5s
@@ -40,11 +55,9 @@ services:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
-    ports:
-      - "47004:9000"
-      - "47005:9001"
     volumes:
       - miniodata:/data
+    networks: [unsareport-dev]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 5s
@@ -54,8 +67,6 @@ services:
   registry:
     image: ghcr.io/unsareport/registry:latest-dev
     container_name: website-dev-registry
-    ports:
-      - "47000:3001"
     environment:
       DATABASE_URL: postgresql://registry:registrypassword@postgres-registry:5432/registry_db
       AUTO_MIGRATE: "true"
@@ -65,10 +76,10 @@ services:
       S3_SECRET_KEY: minioadmin
       S3_REGION: us-east-1
       S3_FORCE_PATH_STYLE: "true"
-      IDP_ISSUER: http://auth:3000
+      IDP_ISSUER: http://localhost:9876/api/auth
       IDP_JWKS_URL: http://auth:3000/.well-known/jwks.json
       PORT: 3001
-      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
+      ALLOWED_ORIGINS: http://localhost:9876
       MAX_PENDING_PACKAGES: 5
     depends_on:
       postgres-registry:
@@ -77,6 +88,16 @@ services:
         condition: service_healthy
       auth:
         condition: service_healthy
+    networks: [unsareport-dev]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.registry.rule=PathPrefix(`/api/registry`)
+      - traefik.http.routers.registry.entryPoints=web
+      - traefik.http.routers.registry.priority=10
+      - traefik.http.routers.registry.middlewares=registry-strip
+      - traefik.http.middlewares.registry-strip.stripprefix.prefixes=/api
+      - traefik.http.middlewares.registry-strip.stripprefix.forceSlash=false
+      - traefik.http.services.registry.loadbalancer.server.port=3001
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
@@ -88,24 +109,32 @@ services:
     image: ghcr.io/unsareport/auth:latest-dev
     pull_policy: always
     container_name: website-dev-auth
-    ports:
-      - "47001:3002"
     env_file:
       - .env.dev
     environment:
       DATABASE_URL: postgresql://idp:idppassword@postgres-auth:5432/idp_db
-      IDP_ISSUER: http://auth:3000
-      IDP_PORT: 3002
+      IDP_ISSUER: http://localhost:9876/api/auth
+      IDP_PORT: 3000
       GITHUB_CLIENT_ID: ""
       GITHUB_CLIENT_SECRET: ""
-      IDP_ALLOWED_ORIGINS: http://localhost:3000,http://localhost:5173
-      CLIENT_REDIRECT_URL: http://localhost:3000
+      IDP_ALLOWED_ORIGINS: http://localhost:9876
+      CLIENT_REDIRECT_URL: http://localhost:9876
       ADMIN_API_KEY: admin-secret-key-12345
       ACCESS_TOKEN_TTL: 900
       REFRESH_TOKEN_TTL: 2592000
     depends_on:
       postgres-auth:
         condition: service_healthy
+    networks: [unsareport-dev]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.auth.rule=PathPrefix(`/api/auth`) || Path(`/.well-known/jwks.json`)
+      - traefik.http.routers.auth.entryPoints=web
+      - traefik.http.routers.auth.priority=10
+      - traefik.http.routers.auth.middlewares=auth-strip
+      - traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api
+      - traefik.http.middlewares.auth-strip.stripprefix.forceSlash=false
+      - traefik.http.services.auth.loadbalancer.server.port=3000
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:'+(process.env.IDP_PORT||3000)+'/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
@@ -113,7 +142,36 @@ services:
       retries: 5
       start_period: 15s
 
+  website:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: website-dev-website
+    environment:
+      IDP_ISSUER: http://localhost:9876/api/auth
+      IDP_JWKS_URL: http://localhost:9876/.well-known/jwks.json
+      REGISTRY_URL: http://localhost:9876/api/registry
+      BASE_URL: http://localhost:9876
+      CLIENT_REDIRECT_URL: http://localhost:9876
+      PORT: 3000
+    depends_on:
+      auth:
+        condition: service_healthy
+      registry:
+        condition: service_healthy
+    networks: [unsareport-dev]
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.website.rule=PathPrefix(`/`)
+      - traefik.http.routers.website.entryPoints=web
+      - traefik.http.routers.website.priority=1
+      - traefik.http.services.website.loadbalancer.server.port=3000
+
 volumes:
   pgdata-registry:
   pgdata-auth:
   miniodata:
+
+networks:
+  unsareport-dev:
+    external: true
