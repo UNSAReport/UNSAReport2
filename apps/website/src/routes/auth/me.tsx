@@ -20,7 +20,7 @@ function MeComponent() {
         <p>Not authenticated — no valid token found.</p>
       )}
       <p>
-        Raw endpoint: <code>GET /api/v1/auth/me</code> (proxied to IDP)
+        Raw endpoint: <code>GET /api/auth/v1/me</code> (proxied to IDP)
       </p>
     </div>
   );

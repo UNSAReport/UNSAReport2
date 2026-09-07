@@ -21,7 +21,7 @@ export interface PatItem {
 async function fetchUserFromIDP(token: string): Promise<AuthUser | null> {
   const issuer = serverEnv.IDP_ISSUER;
   try {
-    const res = await fetch(`${issuer.replace(/\/$/, "")}/v1/auth/me`, {
+    const res = await fetch(`${issuer.replace(/\/$/, "")}/v1/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -62,7 +62,7 @@ export const logoutFn = createServerFn({ method: "POST" }).handler(async () => {
   const refreshToken = getCookie("refresh_token");
   const issuer = serverEnv.IDP_ISSUER;
   try {
-    await fetch(`${issuer.replace(/\/$/, "")}/v1/auth/logout`, {
+    await fetch(`${issuer.replace(/\/$/, "")}/v1/logout`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -82,14 +82,14 @@ export const getGoogleLoginUrlServerFn = createServerFn({
   method: "GET",
 }).handler(async () => {
   const issuer = serverEnv.IDP_ISSUER;
-  return `${issuer.replace(/\/$/, "")}/v1/auth/google`;
+  return `${issuer.replace(/\/$/, "")}/v1/google`;
 });
 
 export const getGithubLoginUrlServerFn = createServerFn({
   method: "GET",
 }).handler(async () => {
   const issuer = serverEnv.IDP_ISSUER;
-  return `${issuer.replace(/\/$/, "")}/v1/auth/github`;
+  return `${issuer.replace(/\/$/, "")}/v1/github`;
 });
 
 export const getAuthUserServerFn = createServerFn({ method: "GET" }).handler(
@@ -105,7 +105,7 @@ export const listPatsServerFn = createServerFn({ method: "GET" }).handler(
     const token = getCookie("access_token");
     if (!token) throw new Error("Unauthorized");
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, "");
-    const res = await fetch(`${issuer}/v1/auth/pat`, {
+    const res = await fetch(`${issuer}/v1/pat`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return [];
@@ -120,7 +120,7 @@ export const createPatServerFn = createServerFn({ method: "POST" })
     const token = getCookie("access_token");
     if (!token) throw new Error("Unauthorized");
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, "");
-    const res = await fetch(`${issuer}/v1/auth/pat`, {
+    const res = await fetch(`${issuer}/v1/pat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export const deletePatServerFn = createServerFn({ method: "POST" })
     const token = getCookie("access_token");
     if (!token) throw new Error("Unauthorized");
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, "");
-    const res = await fetch(`${issuer}/v1/auth/pat/${data.id}`, {
+    const res = await fetch(`${issuer}/v1/pat/${data.id}`, {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
     });

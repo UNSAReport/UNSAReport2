@@ -6,6 +6,8 @@ services:
       - --providers.docker=true
       - --providers.docker.exposedByDefault=false
       - --providers.docker.network=unsareport-dev
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
       - --entryPoints.web.address=:80
       - --log.level=INFO
       - --api.dashboard=true
@@ -14,6 +16,9 @@ services:
       - "9876:80"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     networks: [unsareport-dev]
 
   postgres-registry:
@@ -95,7 +100,7 @@ services:
       - traefik.http.routers.registry.entryPoints=web
       - traefik.http.routers.registry.priority=10
       - traefik.http.routers.registry.middlewares=registry-strip
-      - traefik.http.middlewares.registry-strip.stripprefix.prefixes=/api
+      - traefik.http.middlewares.registry-strip.stripprefix.prefixes=/api/registry
       - traefik.http.middlewares.registry-strip.stripprefix.forceSlash=false
       - traefik.http.services.registry.loadbalancer.server.port=3001
     healthcheck:
@@ -132,7 +137,7 @@ services:
       - traefik.http.routers.auth.entryPoints=web
       - traefik.http.routers.auth.priority=10
       - traefik.http.routers.auth.middlewares=auth-strip
-      - traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api
+      - traefik.http.middlewares.auth-strip.stripprefix.prefixes=/api/auth
       - traefik.http.middlewares.auth-strip.stripprefix.forceSlash=false
       - traefik.http.services.auth.loadbalancer.server.port=3000
     healthcheck:
@@ -141,31 +146,6 @@ services:
       timeout: 3s
       retries: 5
       start_period: 15s
-
-  website:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: website-dev-website
-    environment:
-      IDP_ISSUER: http://localhost:9876/api/auth
-      IDP_JWKS_URL: http://localhost:9876/.well-known/jwks.json
-      REGISTRY_URL: http://localhost:9876/api/registry
-      BASE_URL: http://localhost:9876
-      CLIENT_REDIRECT_URL: http://localhost:9876
-      PORT: 3000
-    depends_on:
-      auth:
-        condition: service_healthy
-      registry:
-        condition: service_healthy
-    networks: [unsareport-dev]
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.website.rule=PathPrefix(`/`)
-      - traefik.http.routers.website.entryPoints=web
-      - traefik.http.routers.website.priority=1
-      - traefik.http.services.website.loadbalancer.server.port=3000
 
 volumes:
   pgdata-registry:

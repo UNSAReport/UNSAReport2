@@ -1,0 +1,14 @@
+http:
+  routers:
+    website:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: website-service
+
+  services:
+    website-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"

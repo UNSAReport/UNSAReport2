@@ -10,8 +10,8 @@ export const Route = createFileRoute("/auth/login")({
 });
 
 function LoginComponent() {
-  const [googleUrl, setGoogleUrl] = useState<string>("/api/v1/auth/google");
-  const [githubUrl, setGithubUrl] = useState<string>("/api/v1/auth/github");
+  const [googleUrl, setGoogleUrl] = useState<string>("/api/auth/v1/google");
+  const [githubUrl, setGithubUrl] = useState<string>("/api/auth/v1/github");
 
   useEffect(() => {
     getGoogleLoginUrlServerFn()
@@ -35,8 +35,8 @@ function LoginComponent() {
         </a>
       </div>
       <p>
-        Direct endpoints: <code>/api/v1/auth/google</code>,{" "}
-        <code>/api/v1/auth/github</code>
+        Direct endpoints: <code>/api/auth/v1/google</code>,{" "}
+        <code>/api/auth/v1/github</code>
       </p>
     </div>
   );
