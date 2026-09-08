@@ -10,7 +10,6 @@ services:
     container_name: unsareport-traefik
     # Bridge mode: the gateway reaches natively-run dev servers via
     # host.docker.internal (Linux: host-gateway mapping below; Docker Desktop
-    # provides the name natively). Allow TCP 3000/3001/3100 from the Docker
     # bridge subnet on the host firewall (see README.md firewall section).
     networks: [unsareport-dev]
     extra_hosts:
@@ -43,7 +42,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+  postgres-slides:
+    image: postgres:16-alpine
+    container_name: unsareport-postgres-slides
+    environment:
+      POSTGRES_USER: slides
+      POSTGRES_PASSWORD: slidespassword
+      POSTGRES_DB: slides_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-slides:/var/lib/postgresql/data
+    networks: [unsareport-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slides -d slides_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   postgres-auth:
     image: postgres:16-alpine
     container_name: unsareport-postgres-auth
@@ -84,4 +99,5 @@ services:
 volumes:
   pgdata-registry:
   pgdata-auth:
+  pgdata-slides:
   miniodata:
