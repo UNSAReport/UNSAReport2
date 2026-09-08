@@ -1,0 +1,30 @@
+{
+  "name": "@unsa-slides/db",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./client": "./src/client.ts",
+    "./schema/users": "./src/schema/users.ts",
+    "./schema/orgs": "./src/schema/orgs.ts",
+    "./schema/presentations": "./src/schema/presentations.ts",
+    "./schema/tokens": "./src/schema/tokens.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.14.0",
+    "drizzle-orm": "^0.38.3"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@unsa-slides/config": "workspace:*",
+    "drizzle-kit": "^0.30.2",
+    "typescript": "^7.0.2"
+  }
+}

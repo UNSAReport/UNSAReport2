@@ -1,0 +1,12 @@
+{
+  "extends": "../../packages/config/react.json",
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "skipLibCheck": true,
+    "strictNullChecks": true,
+    "composite": true
+  },
+  "include": ["src/**/*"]
+}

@@ -1,0 +1,27 @@
+{
+  "name": "@unsa-slides/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "slides": "./bin/slides.js",
+    "unsa-slides": "./bin/slides.js"
+  },
+  "scripts": {
+    "dev": "bun run src/cli.ts",
+    "build": "bun build src/cli.ts --outfile dist/cli.js --target bun",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@clack/prompts": "^0.10.0",
+    "@unsa-slides/schemas": "workspace:*",
+    "commander": "^13.1.0",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/node": "^26.2.0",
+    "@unsa-slides/config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

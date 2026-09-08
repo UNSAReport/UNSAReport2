@@ -1,0 +1,16 @@
+{
+  "name": "@unsa-slides/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base.json": "./base.json",
+    "./react.json": "./react.json",
+    "./node.json": "./node.json"
+  },
+  "files": [
+    "base.json",
+    "react.json",
+    "node.json"
+  ]
+}

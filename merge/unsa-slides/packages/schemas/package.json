@@ -1,0 +1,24 @@
+{
+  "name": "@unsa-slides/schemas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./auth": "./src/auth.ts",
+    "./orgs": "./src/orgs.ts",
+    "./presentations": "./src/presentations.ts",
+    "./manifest": "./src/manifest.ts",
+    "./cli-api": "./src/cli-api.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@unsa-slides/config": "workspace:*",
+    "@types/node": "^26.2.0",
+    "typescript": "^7.0.2"
+  }
+}
