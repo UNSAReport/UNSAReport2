@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: website-config
+data:
+  # in-cluster service DNS; external issuer remains https://auth.unsareport.org
+  IDP_ISSUER: "http://auth-service:3000"
+  IDP_JWKS_URL: "http://auth-service:3000/.well-known/jwks.json"
+  REGISTRY_URL: "http://registry-service:3001"
+  BASE_URL: "https://unsareport.org"
+  CLIENT_REDIRECT_URL: "https://unsareport.org"
+  PORT: "3000"

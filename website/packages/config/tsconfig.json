@@ -1,0 +1,5 @@
+{
+  "extends": "./base.json",
+  "compilerOptions": { "composite": true },
+  "include": ["*.json"]
+}
