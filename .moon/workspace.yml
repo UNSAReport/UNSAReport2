@@ -1,0 +1,12 @@
+projects:
+  root: '.'
+  tui: 'tui'
+  website: 'website/apps/website'
+  auth: 'auth'
+  registry: 'registry'
+  schemas: 'website/packages/schemas'
+  api: 'website/packages/api'
+  uconfig: 'website/packages/config'
+vcs:
+  defaultBranch: main
+defaultProject: root

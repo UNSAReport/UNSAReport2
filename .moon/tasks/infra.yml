@@ -1,0 +1,32 @@
+tasks:
+  decrypt:
+    description: 'Materialize .env.dev from .env.example (dev defaults; no keys required)'
+    command: bash
+    args:
+      - -c
+      - 'cp "${MOON_WORKSPACE_ROOT:-.}"/.env.example "${MOON_WORKSPACE_ROOT:-.}"/.env.dev && echo "materialized .env.dev from .env.example"'
+    options:
+      cache: false
+      runInCI: false
+
+  infra-up:
+    description: 'Create dev network and start gateway, databases, and object storage'
+    command: bash
+    args:
+      - -c
+      - 'docker network create unsareport-dev 2>/dev/null || true; docker compose -f "${MOON_WORKSPACE_ROOT:-.}/compose.dev.yml" up -d'
+    deps:
+      - decrypt
+    options:
+      cache: false
+      runInCI: false
+
+  infra-down:
+    description: 'Stop gateway, databases, and object storage'
+    command: bash
+    args:
+      - -c
+      - 'docker compose -f "${MOON_WORKSPACE_ROOT:-.}/compose.dev.yml" down'
+    options:
+      cache: false
+      runInCI: false

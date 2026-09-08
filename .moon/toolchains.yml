@@ -1,0 +1,12 @@
+javascript:
+  packageManager: bun
+  inferTasksFromScripts: false
+
+bun: {}
+
+node: {}
+go:
+  bins:
+    - 'github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2'
+typescript:
+  syncProjectReferences: false

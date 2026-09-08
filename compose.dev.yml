@@ -1,0 +1,84 @@
+name: unsareport-dev
+
+networks:
+  unsareport-dev:
+    external: true
+
+services:
+  traefik:
+    image: traefik:v3.3
+    container_name: unsareport-traefik
+    # Host network mode: the gateway must reach natively-run dev servers on
+    # host loopback (127.0.0.1). Container-to-host traffic is filtered by the
+    # host firewall, so bridge networking + host.docker.internal cannot work
+    # here. Linux-only; Docker Desktop (macOS/Windows) needs bridge mode +
+    # firewall rules instead.
+    network_mode: host
+    command:
+      - --providers.file.filename=/etc/traefik/dynamic.yml
+      - --providers.file.watch=true
+      - --entryPoints.web.address=:9876
+      - --log.level=INFO
+      - --api.dashboard=true
+      - --api.insecure=true
+    volumes:
+      - ./traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
+  postgres-registry:
+    image: postgres:16-alpine
+    container_name: unsareport-postgres-registry
+    environment:
+      POSTGRES_USER: registry
+      POSTGRES_PASSWORD: registrypassword
+      POSTGRES_DB: registry_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-registry:/var/lib/postgresql/data
+    networks: [unsareport-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry -d registry_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-auth:
+    image: postgres:16-alpine
+    container_name: unsareport-postgres-auth
+    environment:
+      POSTGRES_USER: idp
+      POSTGRES_PASSWORD: idppassword
+      POSTGRES_DB: idp_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-auth:/var/lib/postgresql/data
+    networks: [unsareport-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U idp -d idp_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio:latest
+    container_name: unsareport-minio
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - miniodata:/data
+    networks: [unsareport-dev]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata-registry:
+  pgdata-auth:
+  miniodata:

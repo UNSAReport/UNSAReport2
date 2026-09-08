@@ -18,7 +18,7 @@ func TestValidateAndStore(t *testing.T) {
 			return
 		}
 		if r.URL.Path == "/v1/me" {
-			json.NewEncoder(w).Encode(map[string]any{
+			_ = json.NewEncoder(w).Encode(map[string]any{
 				"user": map[string]any{"id": "u1", "name": "Alice", "email": "alice@example.com"},
 				"roles": map[string]string{"admin": "true"},
 			})
@@ -76,7 +76,7 @@ func TestValidateAndStoreInvalid(t *testing.T) {
 func TestLoginWithToken(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/me" {
-			json.NewEncoder(w).Encode(UserInfo{ID: "u2", Name: "Bob", Email: "bob@example.com"})
+			_ = json.NewEncoder(w).Encode(UserInfo{ID: "u2", Name: "Bob", Email: "bob@example.com"})
 			return
 		}
 		w.WriteHeader(404)

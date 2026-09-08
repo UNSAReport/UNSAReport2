@@ -1,5 +1,5 @@
 {
-  "name": "registry",
+  "name": "@unsa/registry",
   "type": "module",
   "scripts": {
     "dev": "bun run --hot src/index.ts",
@@ -15,6 +15,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1118.0",
     "@aws-sdk/s3-request-presigner": "^3.1118.0",
+    "@unsa/schemas": "workspace:*",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.4",
     "jose": "^6.2.10",

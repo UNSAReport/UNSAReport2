@@ -83,7 +83,7 @@ func (c *Client) ListTemplates(ctx context.Context) ([]TemplateInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("registry unavailable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("registry unavailable: status %d", resp.StatusCode)
 	}
@@ -142,7 +142,7 @@ func (c *Client) GetTemplate(ctx context.Context, name string) (TemplateInfo, er
 	if err != nil {
 		return TemplateInfo{}, fmt.Errorf("registry unavailable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	switch resp.StatusCode {
 	case 200:
 		var pkg TemplateInfo
@@ -210,7 +210,7 @@ func (c *Client) GetTemplateVersion(ctx context.Context, name, rangeSpec string)
 			c.setAuth(req)
 			resp, err := c.HTTPClient.Do(req)
 			if err == nil {
-				defer resp.Body.Close()
+				defer func() { _ = resp.Body.Close() }()
 				if resp.StatusCode == 200 {
 					var payload struct {
 						Versions []struct {

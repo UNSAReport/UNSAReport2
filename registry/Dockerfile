@@ -1,31 +1,47 @@
 # syntax=docker/dockerfile:1
+# Context: monorepo root. Build with: docker build -f registry/Dockerfile .
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+COPY auth/package.json ./auth/package.json
+COPY registry/package.json ./registry/package.json
+COPY website/apps/website/package.json ./website/apps/website/package.json
+COPY website/packages/api/package.json ./website/packages/api/package.json
+COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
+COPY website/packages/config/package.json ./website/packages/config/package.json
+RUN bun install --frozen-lockfile --filter @unsa/registry
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
-COPY package.json bun.lock tsconfig.json drizzle.config.ts ./
-COPY src ./src
+COPY --from=deps /app/registry ./registry
+COPY package.json bun.lock ./
+COPY registry ./registry
+COPY website/packages ./website/packages
+WORKDIR /app/registry
 RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile --production && bun pm cache rm
+COPY auth/package.json ./auth/package.json
+COPY registry/package.json ./registry/package.json
+COPY website/apps/website/package.json ./website/apps/website/package.json
+COPY website/packages/api/package.json ./website/packages/api/package.json
+COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
+COPY website/packages/config/package.json ./website/packages/config/package.json
+RUN bun install --frozen-lockfile --production --filter @unsa/registry && bun pm cache rm
 
 FROM base AS release
 ENV NODE_ENV=production
 ENV PORT=3001
 COPY --from=production-deps /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
+COPY --from=production-deps /app/registry ./registry
+COPY --from=build /app/registry/dist ./dist
 COPY package.json ./
-
-COPY src/db/migrations ./src/db/migrations
-COPY drizzle.config.ts ./
-COPY docker/docker-entrypoint.sh /app/docker-entrypoint.sh
+COPY registry/src/db/migrations ./src/db/migrations
+COPY registry/drizzle.config.ts ./
+COPY registry/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 RUN chown -R bun:bun /app
 USER bun

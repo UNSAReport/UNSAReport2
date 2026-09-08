@@ -1,0 +1,21 @@
+# git
+.git/
+
+# deps (reinstalled in builder stages)
+node_modules/
+
+# build output
+dist/
+
+# moon cache
+.moon/cache/
+
+# nix
+.direnv/
+
+# generated / decrypted env (never baked into images)
+.env.dev
+secrets/*.decrypted.env
+
+# go workspace cache
+.go/

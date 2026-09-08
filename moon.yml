@@ -1,0 +1,21 @@
+tasks:
+  dev:
+    description: 'Run all services natively (gateway must be up via infra-up)'
+    deps:
+      - auth:dev
+      - registry:dev
+      - website:dev
+
+  check:
+    description: 'Typecheck, lint, and test everything'
+    deps:
+      - auth:typecheck
+      - auth:lint
+      - registry:typecheck
+      - registry:lint
+      - registry:test
+      - website:typecheck
+      - api:typecheck
+      - schemas:typecheck
+      - tui:test
+      - tui:lint

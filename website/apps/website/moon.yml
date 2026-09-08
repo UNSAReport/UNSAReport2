@@ -1,0 +1,35 @@
+language: typescript
+
+tasks:
+  dev:
+    command: bash
+    args:
+      - -c
+      - 'set -a; source ../../../.env.dev; exec bun run dev'
+    deps:
+      - root:infra-up
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+
+  build:
+    command: bun
+    args:
+      - run
+      - build
+
+  preview:
+    command: bun
+    args:
+      - run
+      - preview
+    options:
+      cache: false
+      runInCI: false
+
+  typecheck:
+    command: bun
+    args:
+      - run
+      - typecheck

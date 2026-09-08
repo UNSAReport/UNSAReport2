@@ -16,7 +16,6 @@ func (i updateItem) FilterValue() string { return i.name }
 type DocsUpdateModel struct {
 	list          list.Model
 	viewport      viewport.Model
-	loading       bool
 	width, height int
 }
 

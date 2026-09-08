@@ -32,15 +32,21 @@ func TestReadConfigDefaults(t *testing.T) {
 	if cfgWith.Capture.Prompt != DefaultPrompt {
 		t.Fatalf("prompt %q", cfgWith.Capture.Prompt)
 	}
-	os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"mode":"invalid"}`), PermFilePublic)
+	if err := os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"mode":"invalid"}`), PermFilePublic); err != nil {
+		t.Fatal(err)
+	}
 	if _, _, err := ReadConfig(tmp); err == nil {
 		t.Fatal("should error invalid mode")
 	}
-	os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"mode":"multi"}`), PermFilePublic)
+	if err := os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"mode":"multi"}`), PermFilePublic); err != nil {
+		t.Fatal(err)
+	}
 	if _, _, err := ReadConfig(tmp); err == nil {
 		t.Fatal("should error multi without sessions")
 	}
-	os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"template":"lab","mode":"single"}`), PermFilePublic)
+	if err := os.WriteFile(filepath.Join(tmp, ConfigFileName), []byte(`{"template":"lab","mode":"single"}`), PermFilePublic); err != nil {
+		t.Fatal(err)
+	}
 	cfg, ok, err = ReadConfig(tmp)
 	if err != nil || !ok {
 		t.Fatalf("valid single err %v ok %v", err, ok)

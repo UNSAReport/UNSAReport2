@@ -1,0 +1,37 @@
+language: go
+
+tasks:
+  dev:
+    command: bash
+    args:
+      - -c
+      - 'set -a; source ../.env.dev; exec go run ./cmd/unsarep'
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+
+  build:
+    command: bash
+    args:
+      - -c
+      - 'go build ${VERSION:+-ldflags "-X github.com/UNSAReport/tui/internal/config.Version=$VERSION"} -o dist/unsarep ./cmd/unsarep'
+    outputs:
+      - dist/unsarep
+
+  test:
+    command: go
+    args:
+      - test
+      - ./...
+
+  lint:
+    command: golangci-lint
+    args:
+      - run
+
+  vet:
+    command: go
+    args:
+      - vet
+      - ./...

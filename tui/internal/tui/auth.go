@@ -145,9 +145,6 @@ func (m *AuthModel) SetMode(mode authMode) {
 			huh.NewConfirm().Title("Confirm logout?").Value(&confirm),
 		))
 		_ = confirm
-	case authStatus:
-	}
-	if m.form != nil {
 	}
 }
 

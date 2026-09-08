@@ -6,7 +6,7 @@ import { defineConfig } from "vite";
 export default defineConfig({
   base: "/",
   server: {
-    port: 3000,
+    port: 3100,
   },
   resolve: {
     alias: {

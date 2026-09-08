@@ -1,0 +1,25 @@
+{
+  "name": "unsareport-monorepo",
+  "private": true,
+  "type": "module",
+  "workspaces": ["website/apps/*", "website/packages/*", "auth", "registry"],
+  "scripts": {
+    "dev": "moon run auth:dev registry:dev website:dev",
+    "check": "moon run :check",
+    "infra:up": "moon run infra-up",
+    "infra:down": "moon run infra-down"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.4",
+    "jose": "^6.2.10",
+    "postgres": "^3.4.9",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@types/bun": "latest",
+    "@types/node": "^26.3.0",
+    "drizzle-kit": "^0.31.10"
+  }
+}

@@ -142,7 +142,7 @@ func (c *Client) whoamiWithToken(ctx context.Context, token string) (UserInfo, m
 }
 
 func readAll(resp *http.Response) ([]byte, error) {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	buf := make([]byte, 0, 1024)
 	tmp := make([]byte, 1024)
 	for {
@@ -291,7 +291,7 @@ func (c *Client) revokePat(tok string) error {
 	req.Header.Set("User-Agent", "unsarep-tui")
 	resp, err := c.HTTPClient.Do(req)
 	if err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 	return nil
 }

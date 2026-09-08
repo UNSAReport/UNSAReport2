@@ -1,0 +1,17 @@
+# deps
+node_modules/
+
+# generated root env (service .env.dev files are committed dev defaults)
+/.env.dev
+
+# build output
+dist/
+
+# moon cache
+.moon/cache/
+
+# direnv
+.direnv/
+
+# sops decrypted scratch
+secrets/*.decrypted.env
