@@ -4,6 +4,7 @@ projects:
   website: 'web/app'
   auth: 'auth'
   registry: 'registry'
+  slides: 'slides'
   schemas: 'web/packages/schemas'
   api: 'web/packages/api'
   uconfig: 'web/packages/config'

@@ -1,0 +1,50 @@
+language: typescript
+
+tasks:
+  dev:
+    command: bash
+    args:
+      - -c
+      - 'set -a; source ../.env.${ENV:-dev}; source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
+    deps:
+      - root:infra-up
+    options:
+      cache: false
+      persistent: true
+      runInCI: false
+
+  build:
+    command: bun
+    args:
+      - build
+      - --target=bun
+      - --minify
+      - --outdir=./dist
+      - src/index.ts
+      - src/db/migrate.ts
+
+  test:
+    command: bun
+    args:
+      - test
+
+  typecheck:
+    command: bun
+    args:
+      - run
+      - check:ts
+
+  lint:
+    command: bun
+    args:
+      - run
+      - check:biome
+
+  db-migrate:
+    command: bun
+    args:
+      - run
+      - db:migrate
+    options:
+      cache: false
+      runInCI: false
