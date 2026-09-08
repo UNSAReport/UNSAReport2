@@ -10,9 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as PresentationsRouteRouteImport } from './routes/presentations/route'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthMeRouteImport } from './routes/auth/me'
 import { Route as AuthPatRouteImport } from './routes/auth/pat'
+import { Route as PresentationsIndexRouteImport } from './routes/presentations/index'
+import { Route as PresentationsTopicRouteImport } from './routes/presentations/$topic'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
 import { Route as RegistryUploadRouteImport } from './routes/registry/upload'
@@ -21,6 +24,11 @@ import { Route as RegistryNameVersionRouteImport } from './routes/registry/$name
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PresentationsRouteRoute = PresentationsRouteRouteImport.update({
+  id: '/presentations',
+  path: '/presentations',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -37,6 +45,16 @@ const AuthPatRoute = AuthPatRouteImport.update({
   id: '/auth/pat',
   path: '/auth/pat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const PresentationsIndexRoute = PresentationsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PresentationsRouteRoute,
+} as any)
+const PresentationsTopicRoute = PresentationsTopicRouteImport.update({
+  id: '/$topic',
+  path: '/$topic',
+  getParentRoute: () => PresentationsRouteRoute,
 } as any)
 const RegistryIndexRoute = RegistryIndexRouteImport.update({
   id: '/registry/',
@@ -61,11 +79,14 @@ const RegistryNameVersionRoute = RegistryNameVersionRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/presentations': typeof PresentationsRouteRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
+  '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/presentations/': typeof PresentationsIndexRoute
   '/registry/': typeof RegistryIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
@@ -74,19 +95,24 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
+  '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/presentations': typeof PresentationsIndexRoute
   '/registry': typeof RegistryIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/presentations': typeof PresentationsRouteRouteWithChildren
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
+  '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/presentations/': typeof PresentationsIndexRoute
   '/registry/': typeof RegistryIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
@@ -94,11 +120,14 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/presentations'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
+    | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/presentations/'
     | '/registry/'
     | '/registry/$name/$version'
   fileRoutesByTo: FileRoutesByTo
@@ -107,24 +136,30 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
+    | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/presentations'
     | '/registry'
     | '/registry/$name/$version'
   id:
     | '__root__'
     | '/'
+    | '/presentations'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
+    | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/presentations/'
     | '/registry/'
     | '/registry/$name/$version'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  PresentationsRouteRoute: typeof PresentationsRouteRouteWithChildren
   AuthLoginRoute: typeof AuthLoginRoute
   AuthMeRoute: typeof AuthMeRoute
   AuthPatRoute: typeof AuthPatRoute
@@ -140,6 +175,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/presentations': {
+      id: '/presentations'
+      path: '/presentations'
+      fullPath: '/presentations'
+      preLoaderRoute: typeof PresentationsRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -162,6 +204,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/pat'
       preLoaderRoute: typeof AuthPatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/presentations/': {
+      id: '/presentations/'
+      path: '/'
+      fullPath: '/presentations/'
+      preLoaderRoute: typeof PresentationsIndexRouteImport
+      parentRoute: typeof PresentationsRouteRoute
+    }
+    '/presentations/$topic': {
+      id: '/presentations/$topic'
+      path: '/$topic'
+      fullPath: '/presentations/$topic'
+      preLoaderRoute: typeof PresentationsTopicRouteImport
+      parentRoute: typeof PresentationsRouteRoute
     }
     '/registry/': {
       id: '/registry/'
@@ -194,6 +250,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PresentationsRouteRouteChildren {
+  PresentationsTopicRoute: typeof PresentationsTopicRoute
+  PresentationsIndexRoute: typeof PresentationsIndexRoute
+}
+
+const PresentationsRouteRouteChildren: PresentationsRouteRouteChildren = {
+  PresentationsTopicRoute: PresentationsTopicRoute,
+  PresentationsIndexRoute: PresentationsIndexRoute,
+}
+
+const PresentationsRouteRouteWithChildren =
+  PresentationsRouteRoute._addFileChildren(PresentationsRouteRouteChildren)
+
 interface RegistryNameRouteChildren {
   RegistryNameVersionRoute: typeof RegistryNameVersionRoute
 }
@@ -208,6 +277,7 @@ const RegistryNameRouteWithChildren = RegistryNameRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  PresentationsRouteRoute: PresentationsRouteRouteWithChildren,
   AuthLoginRoute: AuthLoginRoute,
   AuthMeRoute: AuthMeRoute,
   AuthPatRoute: AuthPatRoute,

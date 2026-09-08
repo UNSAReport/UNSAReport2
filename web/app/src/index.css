@@ -1,9 +1,8 @@
-* {
-  box-sizing: border-box;
-}
-html,
-body {
-  margin: 0;
-  padding: 0;
-  font-family: system-ui, -apple-system, sans-serif;
+@import "tailwindcss";
+
+@layer base {
+  /* Reverts a preflight rule on hidden that breaks some reveal.js */
+  [hidden] {
+    display: revert !important;
+  }
 }
