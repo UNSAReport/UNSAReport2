@@ -28,7 +28,7 @@ func xdgDir() string {
 	return ""
 }
 
-func xdgConfigPath() string { return filepath.Join(xdgDir(), XDGConfigFileName) }
+func xdgConfigPath() string    { return filepath.Join(xdgDir(), XDGConfigFileName) }
 func defaultTokenPath() string { return filepath.Join(xdgDir(), TokenFileName) }
 
 func writeAtomic(path string, data []byte, perm os.FileMode) error {
@@ -93,6 +93,16 @@ func GetRegistryURL() string {
 	return DefaultRegistryURL
 }
 
+func GetSlidesURL() string {
+	if v := os.Getenv(EnvSlidesURL); v != "" {
+		return v
+	}
+	if w := os.Getenv(EnvWebsiteURL); w != "" {
+		return strings.TrimSuffix(w, "/") + "/api/slides"
+	}
+	return DefaultSlidesURL
+}
+
 func GetAuthURL() string {
 	if v := os.Getenv(EnvIDPIssuer); v != "" {
 		return v
@@ -144,7 +154,6 @@ func SaveToken(token string) error {
 	return nil
 }
 
-
 func ClearToken() error {
 	cfg, _ := LoadXDGConfig()
 	path := defaultTokenPath()
@@ -174,7 +183,7 @@ func GetLocale() string {
 	return ""
 }
 
-func GetDest() string      { return os.Getenv(EnvDest) }
-func GetSession() string   { return os.Getenv(EnvSession) }
-func GetLocal() string     { return os.Getenv(EnvLocal) }
+func GetDest() string        { return os.Getenv(EnvDest) }
+func GetSession() string     { return os.Getenv(EnvSession) }
+func GetLocal() string       { return os.Getenv(EnvLocal) }
 func GetFreezeFlags() string { return os.Getenv(EnvFreezeFlags) }

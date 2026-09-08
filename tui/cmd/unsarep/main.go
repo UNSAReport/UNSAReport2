@@ -8,11 +8,12 @@ import (
 	"os"
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/UNSAReport/tui/internal/auth"
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/i18n"
+	"github.com/UNSAReport/tui/internal/slides"
 	"github.com/UNSAReport/tui/internal/tui"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 var version = config.Version
@@ -42,6 +43,9 @@ func main() {
 				fmt.Fprintln(os.Stderr, "usage: unsarep auth status")
 				os.Exit(1)
 			}
+		case "slides":
+			slides.Run(args[1:])
+			return
 		case "help", "--help", "-h":
 			printHelp()
 			os.Exit(0)
@@ -189,6 +193,7 @@ Commands:
   login [--no-browser] [--token <PAT>]   Browser login via website provider picker (loopback 127.0.0.1)
   logout                                 Clear stored credentials
   whoami [--json]                         Show authenticated user (also: auth status, status)
+  slides <init|dev|login|link|deploy|whoami>  Author, preview, and deploy slide decks
   help                                   Show help
   version                                Show version
 

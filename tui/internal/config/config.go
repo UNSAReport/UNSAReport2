@@ -35,15 +35,15 @@ type PrepareConfig struct {
 }
 
 type UnsareportConfig struct {
-	Schema          string                     `json:"$schema,omitempty"`
-	Template        string                     `json:"template"`
-	TemplateVersion string                     `json:"templateVersion,omitempty"`
-	Mode            string                     `json:"mode"`
-	LocalSource     string                     `json:"localSource,omitempty"`
-	Sessions        []string                   `json:"sessions"`
-	Capture         CaptureConfig              `json:"capture"`
-	Prepare         PrepareConfig              `json:"prepare"`
-	Components      map[string]string          `json:"components,omitempty"`
+	Schema          string            `json:"$schema,omitempty"`
+	Template        string            `json:"template"`
+	TemplateVersion string            `json:"templateVersion,omitempty"`
+	Mode            string            `json:"mode"`
+	LocalSource     string            `json:"localSource,omitempty"`
+	Sessions        []string          `json:"sessions"`
+	Capture         CaptureConfig     `json:"capture"`
+	Prepare         PrepareConfig     `json:"prepare"`
+	Components      map[string]string `json:"components,omitempty"`
 }
 
 type ProjectContext struct {
@@ -52,8 +52,6 @@ type ProjectContext struct {
 	IsProject          bool
 	PreselectedSession string
 }
-
-
 
 func FindProjectRoot(startDir string) (string, UnsareportConfig, bool, error) {
 	currentDir := startDir

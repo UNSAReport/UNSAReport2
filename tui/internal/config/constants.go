@@ -7,10 +7,11 @@ import (
 
 // Default URLs and endpoints
 const (
-	DefaultRegistryURL = "https://registry.unsareport.org"
-	DefaultAuthURL     = "https://auth.unsareport.org"
-	SchemaBaseURL      = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
-	DefaultCallbackHost = "127.0.0.1:0"
+	DefaultRegistryURL    = "https://registry.unsareport.org"
+	DefaultAuthURL        = "https://auth.unsareport.org"
+	DefaultSlidesURL      = "https://slides.unsareport.org"
+	SchemaBaseURL         = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
+	DefaultCallbackHost   = "127.0.0.1:0"
 	CallbackBaseURLPrefix = "http://"
 	CallbackPath          = "/callback"
 )
@@ -20,15 +21,15 @@ var Version = "dev"
 
 // Defaults for project config
 const (
-	DefaultPrompt         = "❯ "
-	DefaultColumns        = 120
-	DefaultRows           = 500
-	DefaultSrcDir         = "src"
-	DefaultSubmissionDir  = "submission"
-	DefaultReportFile     = "report.typ"
-	DefaultReportWord     = "Informe"
-	DefaultCodeWord       = "Código Fuente"
-	DefaultFileTemplate   = "{output_type}_{lab_number}"
+	DefaultPrompt        = "❯ "
+	DefaultColumns       = 120
+	DefaultRows          = 500
+	DefaultSrcDir        = "src"
+	DefaultSubmissionDir = "submission"
+	DefaultReportFile    = "report.typ"
+	DefaultReportWord    = "Informe"
+	DefaultCodeWord      = "Código Fuente"
+	DefaultFileTemplate  = "{output_type}_{lab_number}"
 )
 
 // Credentials / keyring
@@ -44,9 +45,9 @@ const (
 )
 
 var (
-	AuthTimeout             = 10 * time.Second
-	RegistryTimeout         = 30 * time.Second
-	CallbackTimeout         = 5 * time.Minute
+	AuthTimeout               = 10 * time.Second
+	RegistryTimeout           = 30 * time.Second
+	CallbackTimeout           = 5 * time.Minute
 	CallbackReadHeaderTimeout = 5 * time.Second
 )
 
@@ -62,6 +63,7 @@ const (
 const (
 	EnvRegistryURL     = "UNSAREP_REGISTRY_URL"
 	EnvIDPIssuer       = "UNSAREP_IDP_ISSUER"
+	EnvSlidesURL       = "UNSAREP_SLIDES_URL"
 	EnvToken           = "UNSAREP_TOKEN"
 	EnvTokenPath       = "UNSAREP_TOKEN_PATH"
 	EnvCredentialsPath = "UNSAREP_CREDENTIALS_PATH"
@@ -83,13 +85,13 @@ const (
 
 // XDG / file layout
 const (
-	AppDirName           = "unsareport"
-	ConfigFileName       = "unsareport.json"
-	XDGConfigFileName    = "config.json"
-	CredentialsFileName  = "credentials.json"
-	TokenFileName        = "token"
-	CacheFileName        = "registry.json"
-	LockFileName         = ".unsareport.lock"
+	AppDirName          = "unsareport"
+	ConfigFileName      = "unsareport.json"
+	XDGConfigFileName   = "config.json"
+	CredentialsFileName = "credentials.json"
+	TokenFileName       = "token"
+	CacheFileName       = "registry.json"
+	LockFileName        = ".unsareport.lock"
 )
 
 // Regexes (compiled)
@@ -127,6 +129,7 @@ const RegistryPackagesPath = "/v1/packages"
 var EnvNames = []string{
 	EnvRegistryURL,
 	EnvIDPIssuer,
+	EnvSlidesURL,
 	EnvToken,
 	EnvTokenPath,
 	EnvCredentialsPath,
