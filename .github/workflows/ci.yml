@@ -68,7 +68,7 @@ jobs:
             registry:
               - 'registry/**'
             website:
-              - 'website/**'
+              - 'web/**'
 
   image-auth:
     name: Image auth
@@ -210,7 +210,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./website/Dockerfile
+          file: ./web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

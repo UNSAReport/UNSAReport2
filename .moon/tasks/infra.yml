@@ -9,11 +9,11 @@ tasks:
         cp ${MOON_WORKSPACE_ROOT:-.}/.env.example ${MOON_WORKSPACE_ROOT:-.}/.env.${ENV:-dev}
         cp ${MOON_WORKSPACE_ROOT:-.}/auth/.env.example ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
         cp ${MOON_WORKSPACE_ROOT:-.}/registry/.env.example ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
-        cp ${MOON_WORKSPACE_ROOT:-.}/website/.env.example ${MOON_WORKSPACE_ROOT:-.}/website/.env.${ENV:-dev}
+        cp ${MOON_WORKSPACE_ROOT:-.}/web/.env.example ${MOON_WORKSPACE_ROOT:-.}/web/.env.${ENV:-dev}
         sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/.env.${ENV:-dev}
         sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
         sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
-        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/website/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/web/.env.${ENV:-dev}
         sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/auth.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
         sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/registry.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
         echo materialized .env.${ENV:-dev} + per-app env files

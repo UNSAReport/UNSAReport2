@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-# Context: monorepo root. Build with: docker build -f registry/Dockerfile .
 FROM oven/bun:1-alpine AS base
 WORKDIR /app
 
@@ -11,16 +10,15 @@ COPY web/app/package.json ./web/app/package.json
 COPY web/packages/api/package.json ./web/packages/api/package.json
 COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
 COPY web/packages/config/package.json ./web/packages/config/package.json
-RUN bun install --frozen-lockfile --filter @unsa/registry
+RUN bun install --frozen-lockfile
 
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/registry ./registry
-COPY package.json bun.lock ./
-COPY registry ./registry
+COPY --from=deps /app/web/app/node_modules ./web/app/node_modules
+COPY package.json bun.lock web/tsconfig.json web/biome.json ./
+COPY web/app ./web/app
 COPY web/packages ./web/packages
-WORKDIR /app/registry
-RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
+RUN bun --filter @unsa/website build
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
@@ -29,23 +27,22 @@ COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
 COPY web/packages/api/package.json ./web/packages/api/package.json
 COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
-RUN bun install --frozen-lockfile --production --filter @unsa/registry && bun pm cache rm
+COPY web/packages/config/package.json ./web/packages/config/package.json
+RUN bun install --frozen-lockfile --production && bun pm cache rm
 
 FROM base AS release
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=3000
 COPY --from=production-deps /app/node_modules ./node_modules
-COPY --from=production-deps /app/registry ./registry
-COPY --from=build /app/registry/dist ./dist
-COPY package.json ./
-COPY registry/src/db/migrations ./src/db/migrations
-COPY registry/drizzle.config.ts ./
-COPY registry/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
-RUN chmod +x /app/docker-entrypoint.sh
-RUN chown -R bun:bun /app
+COPY --from=production-deps /app/web/app/node_modules ./web/app/node_modules
+COPY --from=build /app/web/app/dist ./dist
+COPY --from=build /app/web/app/package.json ./package.json
+RUN cp -RL ./web/app/node_modules/* ./node_modules/ 2>/dev/null || true; \
+    mkdir -p ./node_modules/.bin && cp -RL ./web/app/node_modules/.bin/* ./node_modules/.bin/ 2>/dev/null || true; \
+    cp -RL ./node_modules/.bun/*/node_modules/* ./node_modules/ 2>/dev/null || true; \
+    chown -R bun:bun /app
 USER bun
-
+EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
-  CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3001)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-ENTRYPOINT ["/app/docker-entrypoint.sh"]
-CMD ["bun", "./dist/index.js"]
+  CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
+CMD ["bun", "./dist/server/server.js"]

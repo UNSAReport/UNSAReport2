@@ -7,10 +7,10 @@ FROM base AS deps
 COPY package.json bun.lock ./
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
-COPY website/apps/website/package.json ./website/apps/website/package.json
-COPY website/packages/api/package.json ./website/packages/api/package.json
-COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
-COPY website/packages/config/package.json ./website/packages/config/package.json
+COPY web/app/package.json ./web/app/package.json
+COPY web/packages/api/package.json ./web/packages/api/package.json
+COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
+COPY web/packages/config/package.json ./web/packages/config/package.json
 RUN bun install --frozen-lockfile --filter @unsa/auth
 
 FROM base AS build
@@ -18,7 +18,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/auth ./auth
 COPY package.json bun.lock ./
 COPY auth ./auth
-COPY website/packages ./website/packages
+COPY web/packages ./web/packages
 WORKDIR /app/auth
 RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
@@ -26,10 +26,9 @@ FROM base AS production-deps
 COPY package.json bun.lock ./
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
-COPY website/apps/website/package.json ./website/apps/website/package.json
-COPY website/packages/api/package.json ./website/packages/api/package.json
-COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
-COPY website/packages/config/package.json ./website/packages/config/package.json
+COPY web/app/package.json ./web/app/package.json
+COPY web/packages/api/package.json ./web/packages/api/package.json
+COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
 RUN bun install --frozen-lockfile --production --filter @unsa/auth && bun pm cache rm
 
 FROM base AS release

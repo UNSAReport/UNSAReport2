@@ -5,7 +5,11 @@
   "type": "module",
   "exports": {
     "./auth": "./src/auth.ts",
-    "./registry": "./src/registry.ts"
+    "./registry": "./src/registry.ts",
+    "./manifest": "./src/manifest.ts",
+    "./presentations": "./src/presentations.ts",
+    "./orgs": "./src/orgs.ts",
+    "./cli-api": "./src/cli-api.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

@@ -3,8 +3,8 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "website/apps/*",
-    "website/packages/*",
+    "web/app",
+    "web/packages/*",
     "auth",
     "registry"
   ],

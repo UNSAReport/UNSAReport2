@@ -1,7 +1,7 @@
 # UNSAReport monorepo
 
 Moon 2.5.4 + bun + go monorepo: `auth/` (IdP), `registry/` (package registry),
-`website/` (TanStack Start frontend + packages), `tui/` (Go CLI).
+`web/` (unified TanStack Start frontend + packages), `tui/` (Go CLI).
 Gateway: single Traefik entrypoint `http://localhost:9876`.
 
 Run `just decrypt dev`, then `just infra-up dev`, then `just dev dev`.

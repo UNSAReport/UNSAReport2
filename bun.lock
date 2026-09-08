@@ -58,7 +58,7 @@
         "typescript": "^5.7.3",
       },
     },
-    "website/apps/website": {
+    "web/app": {
       "name": "@unsa/website",
       "version": "0.1.0",
       "dependencies": {
@@ -82,7 +82,7 @@
         "vite": "^8.2.2",
       },
     },
-    "website/packages/api": {
+    "web/packages/api": {
       "name": "@unsa/api",
       "version": "0.1.0",
       "dependencies": {
@@ -94,11 +94,11 @@
         "typescript": "^7.0.2",
       },
     },
-    "website/packages/config": {
+    "web/packages/config": {
       "name": "@unsa/config",
       "version": "0.1.0",
     },
-    "website/packages/schemas": {
+    "web/packages/schemas": {
       "name": "@unsa/schemas",
       "version": "0.1.0",
       "dependencies": {
@@ -409,17 +409,17 @@
 
     "@typescript/typescript-win32-x64": ["@typescript/typescript-win32-x64@7.0.2", "", { "os": "win32", "cpu": "x64" }, "sha512-0BQ3HkAHHlKLSp1qRvf3SUhGpGsDuhB/jgFw75guyqbxJqEaS0Cw/VFO8i2nHglJUzQCRtMMR/IBAKE3ETMC4g=="],
 
-    "@unsa/api": ["@unsa/api@workspace:website/packages/api"],
+    "@unsa/api": ["@unsa/api@workspace:web/packages/api"],
 
     "@unsa/auth": ["@unsa/auth@workspace:auth"],
 
-    "@unsa/config": ["@unsa/config@workspace:website/packages/config"],
+    "@unsa/config": ["@unsa/config@workspace:web/packages/config"],
 
     "@unsa/registry": ["@unsa/registry@workspace:registry"],
 
-    "@unsa/schemas": ["@unsa/schemas@workspace:website/packages/schemas"],
+    "@unsa/schemas": ["@unsa/schemas@workspace:web/packages/schemas"],
 
-    "@unsa/website": ["@unsa/website@workspace:website/apps/website"],
+    "@unsa/website": ["@unsa/website@workspace:web/app"],
 
     "@vitejs/plugin-react": ["@vitejs/plugin-react@6.1.1", "", { "dependencies": { "@rolldown/pluginutils": "^1.0.1" }, "peerDependencies": { "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0", "babel-plugin-react-compiler": "^1.0.0", "oxc-transform-react": "^0.145.0", "vite": "^8.0.0" }, "optionalPeers": ["@rolldown/plugin-babel", "babel-plugin-react-compiler", "oxc-transform-react"] }, "sha512-yxLaQV9gkhS8ezJqCM6+ndU7mDY6gqAg75NQ+0IjwEI8IYOmQCgkRwHKVSfWXW076DsqMo0Dk+0FK1U+M5RgFw=="],
 

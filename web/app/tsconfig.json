@@ -1,5 +1,5 @@
 {
-  "extends": "../../packages/config/react.json",
+  "extends": "../packages/config/react.json",
   "compilerOptions": {
     "composite": true,
     "paths": {
