@@ -1,0 +1,10 @@
+# deps
+node_modules/
+
+# nix
+.direnv
+
+# env
+.env.*
+!secrets/*
+!.env.example
