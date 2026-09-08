@@ -13,13 +13,13 @@ describe('Slides service auth guards', () => {
     expect(data.status).toBe('ok');
     expect(data.service).toBe('unsareport-slides');
     expect(
-      data.endpoints.some((e) => e.includes('/slides/presentations/deploy')),
+      data.endpoints.some((e) => e.includes('/presentations/deploy')),
     ).toBe(true);
   });
 
-  it('POST /slides/presentations/deploy without credentials returns 401', async () => {
+  it('POST /presentations/deploy without credentials returns 401', async () => {
     const res = await app.fetch(
-      new Request('http://localhost/slides/presentations/deploy', {
+      new Request('http://localhost/presentations/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -28,21 +28,19 @@ describe('Slides service auth guards', () => {
     expect(res.status).toBe(401);
   });
 
-  it('GET /slides/presentations without credentials returns 401', async () => {
-    const res = await app.fetch(
-      new Request('http://localhost/slides/presentations'),
-    );
+  it('GET /presentations without credentials returns 401', async () => {
+    const res = await app.fetch(new Request('http://localhost/presentations'));
     expect(res.status).toBe(401);
   });
 
-  it('GET /slides/orgs without credentials returns 401', async () => {
-    const res = await app.fetch(new Request('http://localhost/slides/orgs'));
+  it('GET /orgs without credentials returns 401', async () => {
+    const res = await app.fetch(new Request('http://localhost/orgs'));
     expect(res.status).toBe(401);
   });
 
   it('malformed Bearer token returns 401 without reaching handlers', async () => {
     const res = await app.fetch(
-      new Request('http://localhost/slides/presentations/deploy', {
+      new Request('http://localhost/presentations/deploy', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,7 +58,7 @@ describe('Slides service auth guards', () => {
     // path (verify -> 401 vs role -> 403) is exercised deterministically.
     // Here the signature is unknown, so verification must fail closed.
     const res = await app.fetch(
-      new Request('http://localhost/slides/orgs', {
+      new Request('http://localhost/orgs', {
         headers: {
           Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln',
         },

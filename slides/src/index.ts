@@ -29,11 +29,8 @@ app.use(
 
 app.onError(globalErrorHandler);
 
-const slides = new Hono<HonoEnv>();
-slides.route('/presentations', presentationsRouter);
-slides.route('/orgs', orgsRouter);
-
-app.route('/slides', slides);
+app.route('/presentations', presentationsRouter);
+app.route('/orgs', orgsRouter);
 
 /**
  * Health check endpoint handler returning service operational status, current timestamp, and available API endpoints.

@@ -107,10 +107,11 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	return nil
 }
 
-// Deploy publishes a validated bundle to the slides service.
+// Deploy publishes a validated bundle to the slides service. Path is the
+// post-strip service path: the gateway removes the `/api/slides` prefix.
 func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (*DeployResponse, error) {
 	var out DeployResponse
-	if err := c.doJSON(ctx, "POST", "/slides/presentations/deploy", token, req, &out); err != nil {
+	if err := c.doJSON(ctx, "POST", "/presentations/deploy", token, req, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil
@@ -120,5 +121,5 @@ func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (
 // nil when the credential is accepted, even if the user owns nothing yet.
 func (c *Client) Reachable(ctx context.Context, token string) error {
 	var out map[string]any
-	return c.doJSON(ctx, "GET", "/slides/orgs", token, nil, &out)
+	return c.doJSON(ctx, "GET", "/orgs", token, nil, &out)
 }

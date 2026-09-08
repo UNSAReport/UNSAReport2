@@ -136,7 +136,7 @@ func TestDeploy_ClientContract(t *testing.T) {
 	if err != nil {
 		t.Fatalf("err %v", err)
 	}
-	if gotPath != "/slides/presentations/deploy" {
+	if gotPath != "/presentations/deploy" {
 		t.Errorf("path = %s", gotPath)
 	}
 	if gotAuth != "Bearer unsareport_pat_test" {
@@ -170,7 +170,7 @@ func TestDeploy_UnauthorizedSurfaces(t *testing.T) {
 
 func TestReachable(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/slides/orgs" {
+		if r.URL.Path != "/orgs" {
 			w.WriteHeader(404)
 			return
 		}
