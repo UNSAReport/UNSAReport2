@@ -1,8 +1,8 @@
 # deps
 node_modules/
 
-# generated root env (service .env.dev files are committed dev defaults)
-/.env.dev
+# generated env files (all .env.<env> at root and per-service)
+/.env.*
 
 # build output
 dist/

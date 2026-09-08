@@ -1,6 +1,6 @@
-import { z } from "zod";
+import { z } from 'zod';
 
-export const RoleSchema = z.enum(["user", "admin"]);
+export const RoleSchema = z.enum(['user', 'admin']);
 export type Role = z.infer<typeof RoleSchema>;
 
 export const UserPayloadSchema = z.object({
@@ -18,7 +18,7 @@ export const AccessTokenClaimsSchema = UserPayloadSchema.extend({
   iat: z.number(),
   exp: z.number(),
   jti: z.string(),
-  type: z.literal("access"),
+  type: z.literal('access'),
 });
 export type AccessTokenClaims = z.infer<typeof AccessTokenClaimsSchema>;
 
@@ -43,7 +43,7 @@ export const PatSchema = z.object({
 export type Pat = z.infer<typeof PatSchema>;
 
 export const CreatePatResponseSchema = z.object({
-  token: z.string().startsWith("unsareport_pat_"),
+  token: z.string().startsWith('unsareport_pat_'),
   pat: PatSchema,
 });
 export type CreatePatResponse = z.infer<typeof CreatePatResponseSchema>;

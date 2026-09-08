@@ -1,13 +1,13 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
-import { requireAuthServerFn } from "@/lib/auth/server";
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { useState } from 'react';
+import { requireAuthServerFn } from '@/lib/auth/server';
 
-export const Route = createFileRoute("/registry/upload")({
+export const Route = createFileRoute('/registry/upload')({
   beforeLoad: async () => {
     try {
       await requireAuthServerFn();
     } catch {
-      throw redirect({ to: "/auth/login" });
+      throw redirect({ to: '/auth/login' });
     }
   },
   component: UploadComponent,
@@ -22,21 +22,21 @@ function UploadComponent() {
     setError(null);
     setSuccess(null);
     const form = e.currentTarget;
-    const fileInput = form.elements.namedItem("file") as HTMLInputElement;
+    const fileInput = form.elements.namedItem('file') as HTMLInputElement;
     const file = fileInput.files?.[0];
     if (!file) {
-      setError("No file selected");
+      setError('No file selected');
       return;
     }
 
     const formData = new FormData();
-    formData.append("file", file);
+    formData.append('file', file);
 
     try {
-      const res = await fetch("/api/registry/v1/packages", {
-        method: "POST",
+      const res = await fetch('/api/registry/v1/packages', {
+        method: 'POST',
         body: formData,
-        credentials: "include",
+        credentials: 'include',
       });
       if (!res.ok) {
         const text = await res.text();
@@ -52,8 +52,8 @@ function UploadComponent() {
   return (
     <div>
       <h1>Upload Package</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {success && <pre style={{ color: "green" }}>{success}</pre>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+      {success && <pre style={{ color: 'green' }}>{success}</pre>}
       <form onSubmit={handleSubmit} encType="multipart/form-data">
         <input type="file" name="file" accept=".zip,.tgz,.tar.gz" required />
         <button type="submit">Upload</button>

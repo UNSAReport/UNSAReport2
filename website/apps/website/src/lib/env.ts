@@ -1,16 +1,16 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 const serverEnvSchema = z.object({
-  IDP_ISSUER: z.string().url().default("http://localhost:9876/api/auth"),
+  IDP_ISSUER: z.string().url().default('http://localhost:9876/api/auth'),
   IDP_JWKS_URL: z.string().url().optional(),
-  REGISTRY_URL: z.string().url().default("http://localhost:9876/api/registry"),
-  BASE_URL: z.string().url().default("http://localhost:9876"),
-  CLIENT_REDIRECT_URL: z.string().url().default("http://localhost:9876"),
+  REGISTRY_URL: z.string().url().default('http://localhost:9876/api/registry'),
+  BASE_URL: z.string().url().default('http://localhost:9876'),
+  CLIENT_REDIRECT_URL: z.string().url().default('http://localhost:9876'),
   PORT: z.coerce.number().default(3000),
 });
 
 const clientEnvSchema = z.object({
-  BASE_URL: z.string().url().default("http://localhost:9876"),
+  BASE_URL: z.string().url().default('http://localhost:9876'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;
@@ -33,7 +33,7 @@ function getServerEnv(): ServerEnv {
   const env = parsed.data;
   // derive JWKS url if not set
   if (!env.IDP_JWKS_URL) {
-    env.IDP_JWKS_URL = `${env.IDP_ISSUER.replace(/\/$/, "")}/.well-known/jwks.json`;
+    env.IDP_JWKS_URL = `${env.IDP_ISSUER.replace(/\/$/, '')}/.well-known/jwks.json`;
   }
   return env;
 }
@@ -41,7 +41,7 @@ function getServerEnv(): ServerEnv {
 export const serverEnv: ServerEnv = getServerEnv();
 export const clientEnv: ClientEnv = clientEnvSchema.parse({
   BASE_URL:
-    typeof window !== "undefined"
+    typeof window !== 'undefined'
       ? window.location.origin
-      : process.env.BASE_URL || "http://localhost:9876",
+      : process.env.BASE_URL || 'http://localhost:9876',
 });

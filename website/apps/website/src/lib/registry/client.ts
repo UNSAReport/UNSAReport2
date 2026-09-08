@@ -1,6 +1,6 @@
-import { createServerFn } from "@tanstack/react-start";
-import { getCookie } from "@tanstack/react-start/server";
-import { serverEnv } from "@/lib/env";
+import { createServerFn } from '@tanstack/react-start';
+import { getCookie } from '@tanstack/react-start/server';
+import { serverEnv } from '@/lib/env';
 
 export interface RegistryPackage {
   name: string;
@@ -22,10 +22,10 @@ async function registryFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
-  const base = serverEnv.REGISTRY_URL.replace(/\/$/, "");
-  const token = getCookie("access_token");
+  const base = serverEnv.REGISTRY_URL.replace(/\/$/, '');
+  const token = getCookie('access_token');
   const headers = new Headers(init.headers);
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (token) headers.set('Authorization', `Bearer ${token}`);
   return fetch(`${base}${path}`, { ...init, headers });
 }
 
@@ -34,9 +34,9 @@ async function fetchPackagesInternal(opts?: {
   tag?: string;
 }): Promise<RegistryPackage[]> {
   const params = new URLSearchParams();
-  if (opts?.search) params.set("search", opts.search);
-  if (opts?.tag) params.set("tag", opts.tag);
-  const qs = params.toString() ? `?${params}` : "";
+  if (opts?.search) params.set('search', opts.search);
+  if (opts?.tag) params.set('tag', opts.tag);
+  const qs = params.toString() ? `?${params}` : '';
   const res = await registryFetch(`/v1/packages${qs}`);
   if (!res.ok) {
     if (res.status === 404) return [];
@@ -83,18 +83,18 @@ async function fetchVersionInternal(
 }
 
 // ServerFn wrappers for client usage
-export const fetchPackagesServerFn = createServerFn({ method: "GET" })
+export const fetchPackagesServerFn = createServerFn({ method: 'GET' })
   .validator((data: { search?: string; tag?: string } = {}) => data)
   .handler(async ({ data }) => fetchPackagesInternal(data));
 
-export const fetchPackageServerFn = createServerFn({ method: "GET" })
+export const fetchPackageServerFn = createServerFn({ method: 'GET' })
   .validator((data: { name: string }) => data)
   .handler(async ({ data }) => fetchPackageInternal(data.name));
 
-export const fetchVersionsServerFn = createServerFn({ method: "GET" })
+export const fetchVersionsServerFn = createServerFn({ method: 'GET' })
   .validator((data: { name: string }) => data)
   .handler(async ({ data }) => fetchVersionsInternal(data.name));
 
-export const fetchVersionServerFn = createServerFn({ method: "GET" })
+export const fetchVersionServerFn = createServerFn({ method: 'GET' })
   .validator((data: { name: string; version: string }) => data)
   .handler(async ({ data }) => fetchVersionInternal(data.name, data.version));

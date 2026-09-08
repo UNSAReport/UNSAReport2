@@ -7,9 +7,9 @@ export async function authFetch(
 ): Promise<Response> {
   const headers = new Headers(opts.headers);
   if (opts.token) {
-    headers.set("Authorization", `Bearer ${opts.token}`);
+    headers.set('Authorization', `Bearer ${opts.token}`);
   }
-  const url = `${baseUrl.replace(/\/$/, "")}${path}`;
+  const url = `${baseUrl.replace(/\/$/, '')}${path}`;
   const res = await fetch(url, { ...opts, headers });
   return res;
 }
@@ -21,18 +21,18 @@ export async function registryFetch(
 ): Promise<Response> {
   const headers = new Headers(opts.headers);
   if (opts.token) {
-    headers.set("Authorization", `Bearer ${opts.token}`);
+    headers.set('Authorization', `Bearer ${opts.token}`);
   }
-  const url = `${baseUrl.replace(/\/$/, "")}${path}`;
+  const url = `${baseUrl.replace(/\/$/, '')}${path}`;
   return fetch(url, { ...opts, headers });
 }
 
 function extractMessage(json: unknown, fallback: string): string {
   if (
     json !== null &&
-    typeof json === "object" &&
-    "message" in json &&
-    typeof json.message === "string"
+    typeof json === 'object' &&
+    'message' in json &&
+    typeof json.message === 'string'
   ) {
     return json.message;
   }

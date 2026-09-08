@@ -1,12 +1,12 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 export const ManifestSchema = z.object({
   name: z
     .string()
     .min(3)
     .max(64)
-    .regex(/^[a-z0-9]+([._-][a-z0-9]+)*$/, "Invalid package name"),
-  version: z.string().regex(/^\d+\.\d+\.\d+/, "Invalid semver"),
+    .regex(/^[a-z0-9]+([._-][a-z0-9]+)*$/, 'Invalid package name'),
+  version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
   displayName: z.string().min(1).max(100).optional(),
   description: z.string().max(500).optional(),
   entry: z.string().optional(),

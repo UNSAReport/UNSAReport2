@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { fetchPackagesServerFn } from "@/lib/registry/client";
+import { createFileRoute, Link } from '@tanstack/react-router';
+import { fetchPackagesServerFn } from '@/lib/registry/client';
 
-export const Route = createFileRoute("/registry/")({
+export const Route = createFileRoute('/registry/')({
   validateSearch: (search: Record<string, unknown>) => ({
     search: (search.search as string) || undefined,
     tag: (search.tag as string) || undefined,
@@ -31,7 +31,7 @@ function RegistryIndexComponent() {
         <input
           name="search"
           placeholder="Search packages"
-          defaultValue={search.search ?? ""}
+          defaultValue={search.search ?? ''}
         />
         <button type="submit">Search</button>
       </form>
@@ -47,10 +47,10 @@ function RegistryIndexComponent() {
               <Link to="/registry/$name" params={{ name: pkg.name }}>
                 {pkg.name}
               </Link>
-              {pkg.displayName ? ` — ${pkg.displayName}` : ""}
-              {pkg.description ? ` — ${pkg.description}` : ""}
-              {pkg.tags?.length ? ` [${pkg.tags.join(", ")}]` : ""}
-              {pkg.latestVersion ? ` (latest: ${pkg.latestVersion})` : ""}
+              {pkg.displayName ? ` — ${pkg.displayName}` : ''}
+              {pkg.description ? ` — ${pkg.description}` : ''}
+              {pkg.tags?.length ? ` [${pkg.tags.join(', ')}]` : ''}
+              {pkg.latestVersion ? ` (latest: ${pkg.latestVersion})` : ''}
             </li>
           ))}
         </ul>

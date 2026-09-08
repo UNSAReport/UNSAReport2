@@ -6,16 +6,40 @@ tasks:
       - registry:dev
       - website:dev
 
-  check:
-    description: 'Typecheck, lint, and test everything'
+  lint:
+    description: 'Lint everything (services via biome, tui via golangci-lint + go vet)'
+    deps:
+      - auth:lint
+      - registry:lint
+      - tui:lint
+      - tui:vet
+      - website:lint
+
+  typecheck:
+    description: 'Typecheck everything'
     deps:
       - auth:typecheck
-      - auth:lint
       - registry:typecheck
-      - registry:lint
-      - registry:test
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+
+  test:
+    description: 'Test everything (auth:test stays local-only: needs live OAuth, run via moon run auth:test)'
+    deps:
+      - registry:test
       - tui:test
+
+  check:
+    description: 'Lint and typecheck everything (no tests; use :test)'
+    deps:
+      - auth:lint
+      - registry:lint
       - tui:lint
+      - tui:vet
+      - website:lint
+      - auth:typecheck
+      - registry:typecheck
+      - website:typecheck
+      - api:typecheck
+      - schemas:typecheck

@@ -1,16 +1,17 @@
-import { fileURLToPath, URL } from "node:url";
-import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { fileURLToPath, URL } from 'node:url';
+import { tanstackStart } from '@tanstack/react-start/plugin/vite';
+import react from '@vitejs/plugin-react';
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-  base: "/",
+  base: '/',
   server: {
+    host: true,
     port: 3100,
   },
   resolve: {
     alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   plugins: [tanstackStart(), react()],

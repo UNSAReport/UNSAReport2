@@ -1,7 +1,7 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
-import { fetchVersionServerFn } from "@/lib/registry/client";
+import { createFileRoute, notFound } from '@tanstack/react-router';
+import { fetchVersionServerFn } from '@/lib/registry/client';
 
-export const Route = createFileRoute("/registry/$name/$version")({
+export const Route = createFileRoute('/registry/$name/$version')({
   loader: async ({ params }) => {
     try {
       const data = await fetchVersionServerFn({
@@ -35,7 +35,7 @@ function VersionComponent() {
         {name}@{version}
       </h1>
       <p>
-        Install:{" "}
+        Install:{' '}
         <code>
           unsarep install {name}@{version}
         </code>

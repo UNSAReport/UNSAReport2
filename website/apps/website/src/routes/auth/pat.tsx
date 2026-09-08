@@ -1,10 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, redirect } from '@tanstack/react-router';
+import { useState } from 'react';
 import {
   createPatServerFn,
   deletePatServerFn,
   listPatsServerFn,
-} from "@/lib/auth/server";
+} from '@/lib/auth/server';
 
 type PatItem = {
   id: string;
@@ -13,13 +13,13 @@ type PatItem = {
   createdAt?: string;
 };
 
-export const Route = createFileRoute("/auth/pat")({
+export const Route = createFileRoute('/auth/pat')({
   loader: async () => {
     try {
       const pats = (await listPatsServerFn()) as unknown as PatItem[];
       return { pats };
     } catch {
-      throw redirect({ to: "/auth/login" });
+      throw redirect({ to: '/auth/login' });
     }
   },
   component: PatComponent,
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/auth/pat")({
 function PatComponent() {
   const loaderData = Route.useLoaderData();
   const [pats, setPats] = useState<PatItem[]>(loaderData.pats);
-  const [name, setName] = useState("");
+  const [name, setName] = useState('');
   const [newToken, setNewToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,7 +39,7 @@ function PatComponent() {
     try {
       const res = await createPatServerFn({ data: { name } });
       setNewToken(res.token);
-      setName("");
+      setName('');
       window.location.reload();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -59,9 +59,9 @@ function PatComponent() {
   return (
     <div>
       <h1>Personal Access Tokens</h1>
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p style={{ color: 'red' }}>{error}</p>}
       {newToken && (
-        <div style={{ border: "1px solid green", padding: "0.5rem" }}>
+        <div style={{ border: '1px solid green', padding: '0.5rem' }}>
           <p>Copy token now — it will not be shown again:</p>
           <code>{newToken}</code>
         </div>

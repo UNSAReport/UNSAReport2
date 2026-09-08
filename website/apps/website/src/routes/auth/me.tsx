@@ -1,7 +1,7 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { fetchCurrentUser } from "@/lib/auth/server";
+import { createFileRoute } from '@tanstack/react-router';
+import { fetchCurrentUser } from '@/lib/auth/server';
 
-export const Route = createFileRoute("/auth/me")({
+export const Route = createFileRoute('/auth/me')({
   loader: async () => {
     const user = await fetchCurrentUser();
     return { user };

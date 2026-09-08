@@ -8,12 +8,15 @@ services:
   traefik:
     image: traefik:v3.3
     container_name: unsareport-traefik
-    # Host network mode: the gateway must reach natively-run dev servers on
-    # host loopback (127.0.0.1). Container-to-host traffic is filtered by the
-    # host firewall, so bridge networking + host.docker.internal cannot work
-    # here. Linux-only; Docker Desktop (macOS/Windows) needs bridge mode +
-    # firewall rules instead.
-    network_mode: host
+    # Bridge mode: the gateway reaches natively-run dev servers via
+    # host.docker.internal (Linux: host-gateway mapping below; Docker Desktop
+    # provides the name natively). Allow TCP 3000/3001/3100 from the Docker
+    # bridge subnet on the host firewall (see README.md firewall section).
+    networks: [unsareport-dev]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9876:9876"
     command:
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --providers.file.watch=true

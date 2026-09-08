@@ -5,7 +5,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../.env.dev; source .env.dev; exec bun run --hot src/index.ts'
+      - 'set -a; source ../.env.${ENV:-dev}; source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
     deps:
       - root:infra-up
     options:

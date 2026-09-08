@@ -1,20 +1,32 @@
 tasks:
   decrypt:
-    description: 'Materialize .env.dev from .env.example (dev defaults; no keys required)'
+    description: 'Materialize .env.<ENV> from examples + sops vaults (fail fast without age key)'
     command: bash
     args:
       - -c
-      - 'cp "${MOON_WORKSPACE_ROOT:-.}"/.env.example "${MOON_WORKSPACE_ROOT:-.}"/.env.dev && echo "materialized .env.dev from .env.example"'
+      - |
+        set -euo pipefail
+        cp ${MOON_WORKSPACE_ROOT:-.}/.env.example ${MOON_WORKSPACE_ROOT:-.}/.env.${ENV:-dev}
+        cp ${MOON_WORKSPACE_ROOT:-.}/auth/.env.example ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
+        cp ${MOON_WORKSPACE_ROOT:-.}/registry/.env.example ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
+        cp ${MOON_WORKSPACE_ROOT:-.}/website/.env.example ${MOON_WORKSPACE_ROOT:-.}/website/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/global.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/website/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/auth.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/auth/.env.${ENV:-dev}
+        sops decrypt ${MOON_WORKSPACE_ROOT:-.}/secrets/registry.${ENV:-dev}.enc.env >> ${MOON_WORKSPACE_ROOT:-.}/registry/.env.${ENV:-dev}
+        echo materialized .env.${ENV:-dev} + per-app env files
     options:
       cache: false
       runInCI: false
 
   infra-up:
-    description: 'Create dev network and start gateway, databases, and object storage'
+    description: 'Create <ENV> network and start gateway, databases, and object storage'
     command: bash
     args:
       - -c
-      - 'docker network create unsareport-dev 2>/dev/null || true; docker compose -f "${MOON_WORKSPACE_ROOT:-.}/compose.dev.yml" up -d'
+      - 'docker network create unsareport-${ENV:-dev} 2>/dev/null || true; docker compose -f ${MOON_WORKSPACE_ROOT:-.}/compose.${ENV:-dev}.yml up -d'
     deps:
       - decrypt
     options:
@@ -26,7 +38,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'docker compose -f "${MOON_WORKSPACE_ROOT:-.}/compose.dev.yml" down'
+      - 'docker compose -f ${MOON_WORKSPACE_ROOT:-.}/compose.${ENV:-dev}.yml down'
     options:
       cache: false
       runInCI: false

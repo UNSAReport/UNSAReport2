@@ -44,6 +44,7 @@
               age
               docker-client
               jq
+              just
             ])
             (with unstable; [
             ])

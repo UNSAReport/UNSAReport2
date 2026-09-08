@@ -3,9 +3,9 @@ import {
   HeadContent,
   Outlet,
   Scripts,
-} from "@tanstack/react-router";
-import { fetchCurrentUser } from "@/lib/auth/server";
-import "@/index.css";
+} from '@tanstack/react-router';
+import { fetchCurrentUser } from '@/lib/auth/server';
+import '@/index.css';
 
 export const Route = createRootRoute({
   beforeLoad: async () => {
@@ -14,9 +14,9 @@ export const Route = createRootRoute({
   },
   head: () => ({
     meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "UNSAReport" },
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { title: 'UNSAReport' },
     ],
   }),
   component: RootComponent,
@@ -26,19 +26,19 @@ function RootComponent() {
   const { user } = Route.useRouteContext();
   return (
     <RootDocument>
-      <nav style={{ padding: "1rem", borderBottom: "1px solid #ccc" }}>
-        <a href="/">/</a> | <a href="/registry">Registry</a> |{" "}
-        <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{" "}
+      <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
+        <a href="/">/</a> | <a href="/registry">Registry</a> |{' '}
+        <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{' '}
         <a href="/auth/pat">PATs</a>
         {user ? (
-          <span style={{ marginLeft: "1rem" }}>
+          <span style={{ marginLeft: '1rem' }}>
             — {user.email} ({user.name})
           </span>
         ) : (
-          <span style={{ marginLeft: "1rem" }}>— not logged in</span>
+          <span style={{ marginLeft: '1rem' }}>— not logged in</span>
         )}
       </nav>
-      <main style={{ padding: "1rem" }}>
+      <main style={{ padding: '1rem' }}>
         <Outlet />
       </main>
     </RootDocument>

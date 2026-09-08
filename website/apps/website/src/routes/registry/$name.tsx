@@ -1,10 +1,10 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from '@tanstack/react-router';
 import {
   fetchPackageServerFn,
   fetchVersionsServerFn,
-} from "@/lib/registry/client";
+} from '@/lib/registry/client';
 
-export const Route = createFileRoute("/registry/$name")({
+export const Route = createFileRoute('/registry/$name')({
   loader: async ({ params }) => {
     const name = params.name;
     try {
@@ -47,7 +47,7 @@ function PackageComponent() {
               >
                 {v.version}
               </Link>
-              {v.files?.length ? ` — ${v.files.length} files` : ""}
+              {v.files?.length ? ` — ${v.files.length} files` : ''}
             </li>
           ))}
         </ul>
