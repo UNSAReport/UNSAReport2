@@ -9,6 +9,17 @@ Run `just decrypt dev`, then `just infra-up dev`, then `just dev dev`.
 `compose.<env>.yml`, `.env.<env>.example`, and `secrets/*.<env>.enc.env`
 following the `dev` pattern. Per-command override: `ENV=staging just <recipe>`.
 
+## Environment setup & local overrides
+
+Running `just decrypt <env>` materializes `.env.<ENV>` at the root and in all sub-services (`auth/`, `registry/`, `slides/`, `web/`, `tui/`):
+
+1. **Base Defaults**: Copied from `.env.example` and `<service>/.env.example`.
+2. **SOPS Vaults (Automatic)**: If SOPS age keys are configured, encrypted secrets (`secrets/global.<ENV>.enc.env` and `secrets/<app>.<ENV>.enc.env`) are decrypted and appended. If keys are not present (e.g. external open-source contributors), vault decryption is cleanly skipped with an informational notice.
+3. **Global Contributor Overrides**: If `.env.<ENV>.override` (e.g. `.env.dev.override`) exists in the repository root, its variables are appended to root and all services.
+4. **Service-Specific Overrides**: If `<service>/.env.<ENV>.override` (e.g. `auth/.env.dev.override`) exists, its variables are appended to that service's env file, taking highest precedence.
+
+All `.env.*.override` files are gitignored so personal credentials or custom ports are never committed.
+
 ## Ports & host firewall (dev)
 
 Traefik runs in bridge mode and reaches natively-run dev servers through

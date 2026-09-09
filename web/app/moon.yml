@@ -5,7 +5,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../../.env.${ENV:-dev}; exec bun run dev'
+      - 'set -a; [ -f ../../.env.${ENV:-dev} ] && source ../../.env.${ENV:-dev}; [ -f ../.env.${ENV:-dev} ] && source ../.env.${ENV:-dev}; exec bun run dev'
     deps:
       - root:infra-up
     options:
