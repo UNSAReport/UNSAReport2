@@ -1,7 +1,7 @@
 export const config = {
   databaseUrl:
     process.env.DATABASE_URL ||
-    'postgresql://registry:registrypassword@localhost:5432/registry_db',
+    'postgresql://registry:registrypassword@localhost:5433/registry_db',
   idpIssuer: process.env.IDP_ISSUER || 'https://auth.unsareport.org',
   idpJwksUrl:
     process.env.IDP_JWKS_URL ||

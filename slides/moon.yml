@@ -5,9 +5,9 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../.env.${ENV:-dev}; source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
     deps:
-      - root:infra-up
+      - db-migrate
     options:
       cache: false
       persistent: true
@@ -41,10 +41,12 @@ tasks:
       - check:biome
 
   db-migrate:
-    command: bun
+    command: bash
     args:
-      - run
-      - db:migrate
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run src/db/migrate.ts'
+    deps:
+      - root:infra-up
     options:
       cache: false
       runInCI: false

@@ -5,9 +5,9 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../.env.${ENV:-dev}; source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
     deps:
-      - root:infra-up
+      - db-migrate
     options:
       cache: false
       persistent: true
@@ -26,9 +26,10 @@ tasks:
   # E2E/roles suites fail identically in the source repos (need live OAuth);
   # keep runnable locally via `moon run auth:test`, out of the CI gate.
   test:
-    command: bun
+    command: bash
     args:
-      - test
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun test'
     deps:
       - db-migrate
     options:
@@ -48,9 +49,12 @@ tasks:
       - check:biome
 
   db-migrate:
-    command: bun
+    command: bash
     args:
-      - run
-      - db:migrate
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run src/db/migrate.ts'
+    deps:
+      - root:infra-up
     options:
       cache: false
+      runInCI: false

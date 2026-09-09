@@ -41,9 +41,6 @@
           packages = pkgs.lib.flatten [
             (with pkgs; [
               sops
-              age
-              docker-client
-              jq
               just
             ])
             (with unstable; [

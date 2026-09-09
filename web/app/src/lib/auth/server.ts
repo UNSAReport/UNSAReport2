@@ -1,6 +1,15 @@
 import { createServerFn } from '@tanstack/react-start';
-import { deleteCookie, getCookie } from '@tanstack/react-start/server';
+import {
+  deleteCookie,
+  getCookie,
+  setCookie,
+} from '@tanstack/react-start/server';
 import { serverEnv } from '@/lib/env';
+
+export const COOKIE_ACCESS_TOKEN = 'access_token';
+export const COOKIE_REFRESH_TOKEN = 'refresh_token';
+export const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 900;
+export const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 2592000;
 
 export interface AuthUser {
   id: string;
@@ -41,15 +50,77 @@ async function fetchUserFromIDP(token: string): Promise<AuthUser | null> {
 
 export const fetchCurrentUser = createServerFn({ method: 'GET' }).handler(
   async (): Promise<AuthUser | null> => {
-    const token = getCookie('access_token');
-    if (!token) return null;
-    return fetchUserFromIDP(token);
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
+    if (token) {
+      const user = await fetchUserFromIDP(token);
+      if (user) {
+        return user;
+      }
+    }
+
+    const refreshToken = getCookie(COOKIE_REFRESH_TOKEN);
+    if (!refreshToken) {
+      return null;
+    }
+
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    try {
+      const res = await fetch(`${issuer}/v1/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      if (!res.ok) {
+        deleteCookie(COOKIE_ACCESS_TOKEN);
+        deleteCookie(COOKIE_REFRESH_TOKEN);
+        return null;
+      }
+
+      const data = (await res.json()) as {
+        access_token: string;
+        refresh_token: string;
+        expires_in?: number;
+      };
+
+      setCookie(COOKIE_ACCESS_TOKEN, data.access_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: data.expires_in ?? DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+        path: '/',
+      });
+
+      setCookie(COOKIE_REFRESH_TOKEN, data.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: DEFAULT_REFRESH_TOKEN_TTL_SECONDS,
+        path: '/',
+      });
+
+      return fetchUserFromIDP(data.access_token);
+    } catch {
+      return null;
+    }
   },
 );
 
+export const setSessionTokenServerFn = createServerFn({ method: 'POST' })
+  .validator((data: { accessToken: string; expiresIn?: number }) => data)
+  .handler(async ({ data }) => {
+    setCookie(COOKIE_ACCESS_TOKEN, data.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: data.expiresIn ?? DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
+      path: '/',
+    });
+    return { success: true };
+  });
+
 export const requireAuthServerFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<AuthUser> => {
-    const token = getCookie('access_token');
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
     const user = await fetchUserFromIDP(token);
     if (!user) throw new Error('Unauthorized');
@@ -58,8 +129,8 @@ export const requireAuthServerFn = createServerFn({ method: 'GET' }).handler(
 );
 
 export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
-  const token = getCookie('access_token');
-  const refreshToken = getCookie('refresh_token');
+  const token = getCookie(COOKIE_ACCESS_TOKEN);
+  const refreshToken = getCookie(COOKIE_REFRESH_TOKEN);
   const issuer = serverEnv.IDP_ISSUER;
   try {
     await fetch(`${issuer.replace(/\/$/, '')}/v1/logout`, {
@@ -73,8 +144,8 @@ export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
   } catch {
     // ignore network errors on logout
   }
-  deleteCookie('access_token');
-  deleteCookie('refresh_token');
+  deleteCookie(COOKIE_ACCESS_TOKEN);
+  deleteCookie(COOKIE_REFRESH_TOKEN);
   return { success: true };
 });
 
@@ -94,7 +165,7 @@ export const getGithubLoginUrlServerFn = createServerFn({
 
 export const getAuthUserServerFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<AuthUser | null> => {
-    const token = getCookie('access_token');
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) return null;
     return fetchUserFromIDP(token);
   },
@@ -102,7 +173,7 @@ export const getAuthUserServerFn = createServerFn({ method: 'GET' }).handler(
 
 export const listPatsServerFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<PatItem[]> => {
-    const token = getCookie('access_token');
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
     const res = await fetch(`${issuer}/v1/pat`, {
@@ -117,7 +188,7 @@ export const listPatsServerFn = createServerFn({ method: 'GET' }).handler(
 export const createPatServerFn = createServerFn({ method: 'POST' })
   .validator((data: { name: string }) => data)
   .handler(async ({ data }) => {
-    const token = getCookie('access_token');
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
     const res = await fetch(`${issuer}/v1/pat`, {
@@ -138,7 +209,7 @@ export const createPatServerFn = createServerFn({ method: 'POST' })
 export const deletePatServerFn = createServerFn({ method: 'POST' })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => {
-    const token = getCookie('access_token');
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
     const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
     const res = await fetch(`${issuer}/v1/pat/${data.id}`, {

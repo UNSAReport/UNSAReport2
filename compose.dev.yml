@@ -8,9 +8,6 @@ services:
   traefik:
     image: traefik:v3.3
     container_name: unsareport-traefik
-    # Bridge mode: the gateway reaches natively-run dev servers via
-    # host.docker.internal (Linux: host-gateway mapping below; Docker Desktop
-    # bridge subnet on the host firewall (see README.md firewall section).
     networks: [unsareport-dev]
     extra_hosts:
       - "host.docker.internal:host-gateway"

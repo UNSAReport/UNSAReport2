@@ -104,6 +104,14 @@ async function handleOAuthCallback(c: Context, providerName: string) {
 
     const refreshToken = await createRefreshToken(user.id);
 
+    setCookie(c, 'access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+      maxAge: config.accessTokenTtl,
+      path: '/',
+    });
+
     setCookie(c, 'refresh_token', refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -182,6 +190,14 @@ authRouter.post('/refresh', async (c) => {
       roles,
     });
 
+    setCookie(c, 'access_token', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+      maxAge: config.accessTokenTtl,
+      path: '/',
+    });
+
     setCookie(c, 'refresh_token', newRefreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -223,6 +239,7 @@ authRouter.post('/logout', async (c) => {
     await revokeRefreshToken(refreshTokenInput);
   }
 
+  deleteCookie(c, 'access_token', { path: '/' });
   deleteCookie(c, 'refresh_token', { path: '/' });
 
   return c.json({ success: true, message: 'Logged out successfully' });

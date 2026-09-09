@@ -34,6 +34,15 @@ tasks:
       - slides:test
       - tui:test
 
+  db-migrate:
+    description: 'Run database migrations across all database-backed services'
+    deps:
+      - auth:db-migrate
+      - registry:db-migrate
+      - slides:db-migrate
+    options:
+      runInCI: false
+
   check:
     description: 'Lint and typecheck everything (no tests; use :test)'
     deps:
