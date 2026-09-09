@@ -8,7 +8,13 @@ import (
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/zalando/go-keyring"
 )
+
+func TestMain(m *testing.M) {
+	keyring.MockInit()
+	os.Exit(m.Run())
+}
 
 func TestFileStorePermAndAtomic(t *testing.T) {
 	tmp := t.TempDir()

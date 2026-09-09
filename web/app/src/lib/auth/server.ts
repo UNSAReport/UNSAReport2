@@ -203,7 +203,7 @@ export const createPatServerFn = createServerFn({ method: 'POST' })
       const text = await res.text();
       throw new Error(text);
     }
-    return (await res.json()) as { token: string; pat: { id: string } };
+    return (await res.json()) as { token: string; pat: PatItem };
   });
 
 export const deletePatServerFn = createServerFn({ method: 'POST' })

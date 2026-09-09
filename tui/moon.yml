@@ -5,7 +5,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../.env.${ENV:-dev}; exec go run ./cmd/unsarep'
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec go run ./cmd/unsarep'
     options:
       cache: false
       persistent: true
