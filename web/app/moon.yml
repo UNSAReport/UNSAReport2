@@ -5,7 +5,7 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; [ -f ../../.env.${ENV:-dev} ] && source ../../.env.${ENV:-dev}; [ -f ../.env.${ENV:-dev} ] && source ../.env.${ENV:-dev}; exec bun run dev'
+      - 'set -a; [ -f ../.env.${ENV:-dev} ] && source ../.env.${ENV:-dev}; exec bun run dev'
     deps:
       - root:infra-up
     options:
@@ -20,10 +20,10 @@ tasks:
       - build
 
   preview:
-    command: bun
+    command: bash
     args:
-      - run
-      - preview
+      - -c
+      - 'set -a; [ -f ../.env.${ENV:-dev} ] && source ../.env.${ENV:-dev}; exec bun run preview'
     options:
       cache: false
       runInCI: false

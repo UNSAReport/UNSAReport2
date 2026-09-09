@@ -24,9 +24,10 @@ tasks:
       - src/db/migrate.ts
 
   test:
-    command: bun
+    command: bash
     args:
-      - test
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun test'
 
   typecheck:
     command: bun
