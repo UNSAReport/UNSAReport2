@@ -91,7 +91,7 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	if err != nil {
 		return fmt.Errorf("slides service unreachable: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var apiErr ErrorResponse
 		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {

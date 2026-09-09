@@ -29,6 +29,7 @@ COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
 COPY web/packages/api/package.json ./web/packages/api/package.json
 COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
+COPY web/packages/config/package.json ./web/packages/config/package.json
 RUN bun install --frozen-lockfile --production --filter @unsa/registry && bun pm cache rm
 
 FROM base AS release

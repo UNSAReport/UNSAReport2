@@ -60,7 +60,10 @@ func ServePreview(addr, dir, title string) error {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
-			fmt.Fprint(w, page)
+			if _, err := fmt.Fprint(w, page); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
 			return
 		}
 		rel := strings.TrimPrefix(r.URL.Path, "/")
