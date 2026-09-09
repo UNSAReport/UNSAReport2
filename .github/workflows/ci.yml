@@ -75,6 +75,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.auth == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -96,7 +99,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/auth
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/auth
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -125,6 +128,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.registry == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -146,7 +152,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/registry
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/registry
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -175,6 +181,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.website == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -196,7 +205,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/website
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/website
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
