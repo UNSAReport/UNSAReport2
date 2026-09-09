@@ -6,7 +6,7 @@ const serverEnvSchema = z.object({
   REGISTRY_URL: z.string().url().default('http://localhost:9876/api/registry'),
   BASE_URL: z.string().url().default('http://localhost:9876'),
   CLIENT_REDIRECT_URL: z.string().url().default('http://localhost:9876'),
-  PORT: z.coerce.number().default(3000),
+  PORT: z.coerce.number().default(3100),
 });
 
 const clientEnvSchema = z.object({
@@ -25,12 +25,7 @@ function getServerEnv(): ServerEnv {
     CLIENT_REDIRECT_URL: process.env.CLIENT_REDIRECT_URL,
     PORT: process.env.PORT,
   };
-  const parsed = serverEnvSchema.safeParse(raw);
-  if (!parsed.success) {
-    // allow missing env in dev — use defaults
-    return serverEnvSchema.parse({});
-  }
-  const env = parsed.data;
+  const env = serverEnvSchema.parse(raw);
   // derive JWKS url if not set
   if (!env.IDP_JWKS_URL) {
     env.IDP_JWKS_URL = `${env.IDP_ISSUER.replace(/\/$/, '')}/.well-known/jwks.json`;

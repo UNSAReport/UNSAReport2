@@ -11,7 +11,9 @@ let jwksClient: ReturnType<typeof createRemoteJWKSet> | null = null;
  */
 function getJWKS() {
   if (!jwksClient) {
-    jwksClient = createRemoteJWKSet(new URL(config.idpJwksUrl));
+    jwksClient = createRemoteJWKSet(new URL(config.idpJwksUrl), {
+      timeoutDuration: config.idpTimeoutMs,
+    });
   }
   return jwksClient;
 }
