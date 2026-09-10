@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/UNSAReport/tui/internal/i18n"
@@ -10,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -42,6 +44,7 @@ type RegistryModel struct {
 	spinner       spinner.Model
 	list          list.Model
 	textInput     textinput.Model
+	details       viewport.Model
 	templates     []registry.TemplateInfo
 	filtered      []registry.TemplateInfo
 	selected      *registry.TemplateInfo
@@ -49,6 +52,7 @@ type RegistryModel struct {
 	err           string
 	width, height int
 	focusSearch   bool
+	styles        Styles
 }
 
 func NewRegistryModel() RegistryModel {
@@ -62,13 +66,16 @@ func NewRegistryModel() RegistryModel {
 	l.Title = i18n.T("category.templates") + " — " + i18n.T("function.browse")
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
+	vp := viewport.New(36, 10)
 	return RegistryModel{
 		client:    registry.NewClient(),
 		spinner:   s,
 		list:      l,
 		textInput: ti,
+		details:   vp,
 		loading:   true,
 		mode:      registryBrowse,
+		styles:    newStyles(defaultTheme()),
 	}
 }
 
@@ -84,22 +91,33 @@ func (m RegistryModel) fetchCmd() tea.Cmd {
 	}
 }
 
+// InputCaptured reports whether the search input owns the keyboard.
+func (m RegistryModel) InputCaptured() bool {
+	return m.mode == registrySearch && m.focusSearch
+}
+
+// EnterSearch moves the model into search mode and focuses the input.
+func (m *RegistryModel) EnterSearch() {
+	m.mode = registrySearch
+	m.focusSearch = true
+	m.textInput.Focus()
+}
+
+// ExitToBrowse leaves search or details and returns to the browse list.
+func (m *RegistryModel) ExitToBrowse() {
+	m.mode = registryBrowse
+	m.focusSearch = false
+	m.selected = nil
+	m.textInput.Blur()
+}
+
 func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		h := m.height - 6
-		if h < 10 {
-			h = 10
-		}
-		w := m.width/2 - 4
-		if w < 30 {
-			w = 30
-		}
-		m.list.SetSize(w, h)
-		_ = h
+		m.SetSize(m.width, m.height)
 	case registryFetchedMsg:
 		m.loading = false
 		if msg.err != nil {
@@ -109,43 +127,35 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 		m.err = ""
 		m.templates = msg.templates
 		m.filtered = msg.templates
-		items := make([]list.Item, len(msg.templates))
-		for i, t := range msg.templates {
-			desc := t.Description
-			if desc == "" {
-				desc = t.Version
-			}
-			items[i] = registryItem{title: t.Name, desc: desc, info: t}
+		m.setItems(msg.templates)
+		if m.mode == registryDetails && m.selected != nil {
+			m.refreshDetails()
 		}
-		m.list.SetItems(items)
 		return m, nil
 	case tea.KeyMsg:
 		if m.mode == registrySearch {
 			switch msg.String() {
 			case "esc":
-				m.mode = registryBrowse
-				m.focusSearch = false
-				m.textInput.Blur()
+				m.textInput.SetValue("")
+				m.filtered = m.templates
+				m.setItems(m.templates)
+				m.ExitToBrowse()
 				return m, nil
 			case "enter":
-				m.mode = registryBrowse
-				m.focusSearch = false
-				m.textInput.Blur()
+				m.ExitToBrowse()
 				return m, nil
 			}
 		}
 		switch msg.String() {
 		case "r":
-			if m.err != "" {
+			if m.err != "" || len(m.templates) == 0 {
 				m.loading = true
 				m.err = ""
 				return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
 			}
 		case "/":
 			if m.mode == registryBrowse {
-				m.mode = registrySearch
-				m.focusSearch = true
-				m.textInput.Focus()
+				m.EnterSearch()
 				return m, textinput.Blink
 			}
 		case "enter":
@@ -153,13 +163,13 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 				if it, ok := m.list.SelectedItem().(registryItem); ok {
 					m.selected = &it.info
 					m.mode = registryDetails
+					m.refreshDetails()
 					return m, nil
 				}
 			}
 		case "esc", "b":
 			if m.mode == registryDetails {
-				m.mode = registryBrowse
-				m.selected = nil
+				m.ExitToBrowse()
 				return m, nil
 			}
 		}
@@ -187,11 +197,13 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 			}
 			m.filtered = out
 		}
-		items := make([]list.Item, len(m.filtered))
-		for i, t := range m.filtered {
-			items[i] = registryItem{title: t.Name, desc: t.Description, info: t}
-		}
-		m.list.SetItems(items)
+		m.setItems(m.filtered)
+		return m, tea.Batch(cmds...)
+	}
+	if m.mode == registryDetails {
+		var cmd tea.Cmd
+		m.details, cmd = m.details.Update(msg)
+		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
 	if m.mode == registryBrowse {
@@ -203,47 +215,108 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+func (m *RegistryModel) setItems(templates []registry.TemplateInfo) {
+	items := make([]list.Item, len(templates))
+	for i, t := range templates {
+		desc := t.Description
+		if desc == "" {
+			desc = t.Version
+		}
+		items[i] = registryItem{title: t.Name, desc: desc, info: t}
+	}
+	m.list.SetItems(items)
+}
+
+// refreshDetails rebuilds the scrollable details pane for the selection.
+func (m *RegistryModel) refreshDetails() {
+	if m.selected == nil {
+		return
+	}
+	width := m.width - 4
+	if width < 20 {
+		width = 20
+	}
+	var b strings.Builder
+	b.WriteString(lipgloss.NewStyle().Bold(true).Render(m.selected.Name) + "\n\n")
+	for _, line := range wrapLines("Description: "+m.selected.Description, width) {
+		b.WriteString(line + "\n")
+	}
+	if m.selected.Version != "" {
+		b.WriteString("Latest: " + m.selected.Version + "\n")
+	}
+	if len(m.selected.DistTags) > 0 {
+		b.WriteString("Dist-tags:\n")
+		keys := make([]string, 0, len(m.selected.DistTags))
+		for k := range m.selected.DistTags {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			for _, line := range wrapLines(fmt.Sprintf("  %s: %s", k, m.selected.DistTags[k]), width) {
+				b.WriteString(line + "\n")
+			}
+		}
+	}
+	if len(m.selected.Versions) > 0 {
+		vers := make([]string, 0, len(m.selected.Versions))
+		for k := range m.selected.Versions {
+			vers = append(vers, k)
+		}
+		sort.Strings(vers)
+		b.WriteString("Versions:\n")
+		for _, line := range wrapLines("  "+strings.Join(vers, ", "), width) {
+			b.WriteString(line + "\n")
+		}
+	}
+	b.WriteString("\nesc/b back")
+	m.details.SetContent(b.String())
+}
+
+// wrapLines word-wraps s to width columns.
+func wrapLines(s string, width int) []string {
+	if width < 10 {
+		width = 10
+	}
+	var out []string
+	for _, para := range strings.Split(s, "\n") {
+		for len(para) > width {
+			cut := strings.LastIndex(para[:width], " ")
+			if cut <= 0 {
+				cut = width
+			}
+			out = append(out, para[:cut])
+			para = strings.TrimLeft(para[cut:], " ")
+		}
+		out = append(out, para)
+	}
+	return out
+}
+
 func (m RegistryModel) View() string {
 	if m.loading {
 		return lipgloss.NewStyle().Padding(1).Render(m.spinner.View() + " Loading templates...")
 	}
 	if m.err != "" {
-		return lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")).Padding(1).Render(fmt.Sprintf("Error: %s\nPress [r] to retry", m.err))
+		return lipgloss.NewStyle().Foreground(m.styles.Theme.Error).Padding(1).Render(fmt.Sprintf("Error: %s\nPress r to retry", m.err))
+	}
+	if len(m.templates) == 0 {
+		return lipgloss.NewStyle().Padding(1).Render("No templates found\nPress / to search · r to retry")
 	}
 	switch m.mode {
 	case registryDetails:
 		if m.selected != nil {
-			var b strings.Builder
-			b.WriteString(lipgloss.NewStyle().Bold(true).Render(m.selected.Name) + "\n\n")
-			b.WriteString("Description: " + m.selected.Description + "\n")
-			if m.selected.Version != "" {
-				b.WriteString("Latest: " + m.selected.Version + "\n")
-			}
-			if len(m.selected.DistTags) > 0 {
-				b.WriteString("Dist-tags:\n")
-				for k, v := range m.selected.DistTags {
-					fmt.Fprintf(&b, "  %s: %s\n", k, v)
-				}
-			}
-			if len(m.selected.Versions) > 0 {
-				b.WriteString("Versions: ")
-				var vers []string
-				for k := range m.selected.Versions {
-					vers = append(vers, k)
-				}
-				b.WriteString(strings.Join(vers, ", "))
-				b.WriteString("\n")
-			}
-			b.WriteString("\nPress [esc/b] to back, [enter] to install (Phase 2)")
-			return lipgloss.NewStyle().Padding(1).Render(b.String())
+			return lipgloss.JoinVertical(lipgloss.Left,
+				m.details.View(),
+				lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("esc/b back · pgup/pgdn scroll"),
+			)
 		}
 	case registrySearch:
 		return lipgloss.JoinVertical(lipgloss.Left,
-			lipgloss.NewStyle().Padding(1, 1, 0, 1).Render("Search: "+m.textInput.View()+" (esc to cancel, enter to apply)"),
+			lipgloss.NewStyle().Padding(1, 1, 0, 1).Render("Search: "+m.textInput.View()+" (esc clear · enter done)"),
 			m.list.View(),
 		)
 	}
-	helpLine := lipgloss.NewStyle().Foreground(lipgloss.Color("#888")).Render("Press / to search, enter for details, r to retry")
+	helpLine := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("Press / to search, enter for details, r to retry")
 	return lipgloss.JoinVertical(lipgloss.Left, m.list.View(), helpLine)
 }
 
@@ -251,13 +324,18 @@ func (m RegistryModel) IsLoading() bool { return m.loading }
 func (m *RegistryModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
-	h2 := h - 6
-	if h2 < 10 {
-		h2 = 10
+	lw := w - 4
+	if lw < 20 {
+		lw = 20
 	}
-	w2 := w - 4
-	if w2 < 30 {
-		w2 = 30
+	lh := h - 4
+	if lh < 5 {
+		lh = 5
 	}
-	m.list.SetSize(w2, h2)
+	m.list.SetSize(lw, lh)
+	m.details.Width = lw
+	m.details.Height = lh
+	if m.mode == registryDetails && m.selected != nil {
+		m.refreshDetails()
+	}
 }

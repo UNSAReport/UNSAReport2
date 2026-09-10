@@ -2,8 +2,8 @@ package tui
 
 import (
 	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
+
 type Theme struct {
 	Primary lipgloss.AdaptiveColor
 	Muted   lipgloss.AdaptiveColor
@@ -14,8 +14,6 @@ type Theme struct {
 }
 
 func defaultTheme() Theme {
-	_ = lipgloss.HasDarkBackground()
-	_ = termenv.HasDarkBackground()
 	return Theme{
 		Primary: lipgloss.AdaptiveColor{Light: "#1a2b4a", Dark: "#89b4fa"},
 		Muted:   lipgloss.AdaptiveColor{Light: "#6c7086", Dark: "#9399b2"},
@@ -33,6 +31,7 @@ type Styles struct {
 	TopBarActive lipgloss.Style
 	TopBarMuted  lipgloss.Style
 	Sidebar      lipgloss.Style
+	SidebarPlain lipgloss.Style
 	SidebarSel   lipgloss.Style
 	Main         lipgloss.Style
 	HelpBar      lipgloss.Style
@@ -48,7 +47,7 @@ func newStyles(t Theme) Styles {
 			Padding(0, 1),
 		TopBarActive: lipgloss.NewStyle().
 			Bold(true).
-			Foreground(lipgloss.Color("#ffffff")).
+			Foreground(lipgloss.AdaptiveColor{Light: "#ffffff", Dark: "#11111b"}).
 			Background(t.Primary).
 			Padding(0, 1),
 		TopBarMuted: lipgloss.NewStyle().
@@ -57,6 +56,8 @@ func newStyles(t Theme) Styles {
 		Sidebar: lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(t.Border).
+			Padding(0, 1),
+		SidebarPlain: lipgloss.NewStyle().
 			Padding(0, 1),
 		SidebarSel: lipgloss.NewStyle().
 			Bold(true).

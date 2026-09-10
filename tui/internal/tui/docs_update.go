@@ -17,17 +17,17 @@ type DocsUpdateModel struct {
 	list          list.Model
 	viewport      viewport.Model
 	width, height int
+	styles        Styles
 }
 
 func NewDocsUpdateModel() DocsUpdateModel {
-	l := list.New([]list.Item{
-		updateItem{"report.typ", "M - modified"},
-		updateItem{"lib.typ", "A - added"},
-	}, list.NewDefaultDelegate(), 30, 10)
+	l := list.New(nil, list.NewDefaultDelegate(), 30, 10)
 	l.Title = "Update — Check"
+	l.SetShowHelp(false)
+	l.SetFilteringEnabled(false)
 	vp := viewport.New(40, 10)
-	vp.SetContent("Diff preview will appear here.\nPress y to apply, n to skip, a for all, f force")
-	return DocsUpdateModel{list: l, viewport: vp}
+	vp.SetContent("Check is unavailable in this build.\nDiff/apply/rollback land with the update backend.\n\nPress tab to return to the sidebar.")
+	return DocsUpdateModel{list: l, viewport: vp, styles: newStyles(defaultTheme())}
 }
 
 func (m DocsUpdateModel) Init() tea.Cmd { return nil }
@@ -40,19 +40,13 @@ func (m DocsUpdateModel) Update(msg tea.Msg) (DocsUpdateModel, tea.Cmd) {
 		m.list.SetSize(m.width/2, m.height-6)
 		m.viewport.Width = m.width / 2
 		m.viewport.Height = m.height - 6
+		return m, nil
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "y":
-			return m, nil
-		case "n":
-			return m, nil
-		case "a":
-			return m, nil
-		case "f":
-			return m, nil
-		case "r":
-			return m, nil
-		}
+		var vcmd tea.Cmd
+		m.viewport, vcmd = m.viewport.Update(msg)
+		var lcmd tea.Cmd
+		m.list, lcmd = m.list.Update(msg)
+		return m, tea.Batch(vcmd, lcmd)
 	}
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
@@ -60,7 +54,7 @@ func (m DocsUpdateModel) Update(msg tea.Msg) (DocsUpdateModel, tea.Cmd) {
 }
 
 func (m DocsUpdateModel) View() string {
-	help := lipgloss.NewStyle().Foreground(lipgloss.Color("#888")).Render("y apply, n skip, a all, q quit, f force, r retry")
+	help := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("tab back to menu · 1-3 apps")
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		lipgloss.NewStyle().Width(m.width/2).Render(m.list.View()),
 		lipgloss.JoinVertical(lipgloss.Left, m.viewport.View(), help),
@@ -74,5 +68,3 @@ func (m *DocsUpdateModel) SetSize(w, h int) {
 	m.viewport.Width = w / 2
 	m.viewport.Height = h - 6
 }
-
-func (m DocsUpdateModel) Placeholder() string { return "Update placeholder" }

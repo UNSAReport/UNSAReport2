@@ -42,6 +42,9 @@
             (with pkgs; [
               sops
               just
+              bun
+              go
+              moon
             ])
             (with unstable; [
             ])
