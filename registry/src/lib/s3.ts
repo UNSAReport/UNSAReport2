@@ -37,7 +37,9 @@ export async function ensureBucketExists(): Promise<void> {
       );
       bucketChecked = true;
     } catch (createErr) {
-      console.warn('Could not ensure S3 bucket exists:', createErr);
+      throw new Error(
+        `Failed to ensure S3 bucket "${config.s3.bucket}" exists: ${createErr instanceof Error ? createErr.message : String(createErr)}`,
+      );
     }
   }
 }
@@ -91,16 +93,12 @@ export async function getPresignedUrl(
  * @param key - S3 object key path to delete.
  */
 export async function deleteS3Object(key: string): Promise<void> {
-  try {
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: config.s3.bucket,
-        Key: key,
-      }),
-    );
-  } catch (err) {
-    console.warn(`Failed to delete S3 key ${key}:`, err);
-  }
+  await s3Client.send(
+    new DeleteObjectCommand({
+      Bucket: config.s3.bucket,
+      Key: key,
+    }),
+  );
 }
 
 /**

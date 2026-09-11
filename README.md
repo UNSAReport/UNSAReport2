@@ -33,7 +33,7 @@ so allow the backend ports before starting the gateway:
 | 3100      | website (vite, native) | ALLOW TCP from bridge subnet only |
 | 9876      | traefik (published gateway) | normal inbound as needed   |
 
-`5432`/`5433` (postgres) and `9000`/`9001` (minio) are already-published
+`5432`/`5433` (postgres) and `8333`/`23646` (seaweedfs) are already-published
 container ports and need no new rule.
 
 Find the bridge subnet (after `just infra-up dev`):

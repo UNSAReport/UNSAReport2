@@ -74,21 +74,22 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    image: minio/minio:latest
-    container_name: unsareport-minio
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: unsareport-seaweedfs
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      AWS_ACCESS_KEY_ID: seaweedadmin
+      AWS_SECRET_ACCESS_KEY: seaweedadmin
+      S3_BUCKET: unsareport-registry
+    command: mini -dir=/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8333:8333"
+      - "23646:23646"
     volumes:
-      - miniodata:/data
+      - seaweedfsdata:/data
     networks: [unsareport-dev]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9333/dir/status"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -97,4 +98,4 @@ volumes:
   pgdata-registry:
   pgdata-auth:
   pgdata-slides:
-  miniodata:
+  seaweedfsdata:

@@ -44,9 +44,10 @@
               just
               bun
               go
-              moon
+              nodejs
             ])
             (with unstable; [
+              moon
             ])
           ];
           shellHook = "";
