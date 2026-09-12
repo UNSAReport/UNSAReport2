@@ -18,6 +18,7 @@ type authMode int
 const (
 	authStatus authMode = iota
 	authLogin
+	authLoginToken
 	authLogout
 )
 
@@ -32,6 +33,8 @@ type AuthModel struct {
 	spinner        spinner.Model
 	loading        bool
 	waitingBrowser bool
+	browserURL     string
+	loginFlow      *auth.LoginFlow
 	status         string
 	user           string
 	form           *huh.Form
@@ -60,20 +63,38 @@ func (m AuthModel) Init() tea.Cmd { return tea.Batch(m.spinner.Tick, m.fetchStat
 
 func (m AuthModel) fetchStatus() tea.Cmd {
 	return func() tea.Msg {
-		token := config.GetToken()
-		if token == "" {
-			return authStatusMsg{loggedIn: false}
-		}
-		client := auth.NewClient()
-		u, err := client.Whoami(context.Background())
+		client := m.client
+		cred, u, err := client.Status(context.Background())
 		if err != nil {
 			msg := strings.ToLower(err.Error())
+			if strings.Contains(msg, "not logged in") {
+				return authStatusMsg{loggedIn: false}
+			}
 			if strings.Contains(msg, "401") || strings.Contains(msg, "unauthorized") {
 				return authStatusMsg{loggedIn: false, invalidToken: true}
 			}
-			return authStatusMsg{loggedIn: true, user: "unknown (offline)", err: err.Error()}
+			if cred != nil {
+				name := cred.Name
+				if name == "" {
+					name = cred.UserID
+				}
+				userStr := name
+				if cred.Email != "" {
+					userStr += " <" + cred.Email + ">"
+				}
+				return authStatusMsg{loggedIn: true, user: userStr, err: err.Error()}
+			}
+			return authStatusMsg{loggedIn: false, err: err.Error()}
 		}
-		return authStatusMsg{loggedIn: true, user: u.Name + " <" + u.Email + ">"}
+		name := u.Name
+		if name == "" {
+			name = u.ID
+		}
+		userStr := name
+		if u.Email != "" {
+			userStr += " <" + u.Email + ">"
+		}
+		return authStatusMsg{loggedIn: true, user: userStr}
 	}
 }
 
@@ -90,10 +111,10 @@ type browserLoginMsg struct {
 	err   error
 }
 
-func (m AuthModel) browserLoginCmd() tea.Cmd {
+func (m AuthModel) browserLoginCmd(flow *auth.LoginFlow) tea.Cmd {
 	client := m.client
 	return func() tea.Msg {
-		cred, err := client.Login(context.Background(), false)
+		cred, err := client.FinishLoginFlow(context.Background(), flow)
 		if err != nil {
 			return browserLoginMsg{err: err}
 		}
@@ -128,11 +149,15 @@ func (m AuthModel) Update(msg tea.Msg) (AuthModel, tea.Cmd) {
 		} else {
 			m.status = "Not logged in — run Login"
 			m.user = ""
+			if msg.err != "" {
+				m.status += " (" + msg.err + ")"
+			}
 		}
 		return m, nil
 	case browserLoginMsg:
 		m.waitingBrowser = false
 		m.loading = false
+		m.loginFlow = nil
 		if msg.err != nil {
 			m.result = "Login failed: " + msg.err.Error()
 			return m, nil
@@ -148,13 +173,28 @@ func (m AuthModel) Update(msg tea.Msg) (AuthModel, tea.Cmd) {
 		case "r":
 			if m.form == nil && !m.waitingBrowser {
 				m.loading = true
+				m.result = ""
 				return m, tea.Batch(m.spinner.Tick, m.fetchStatus())
 			}
 		case "esc":
 			if m.waitingBrowser {
+				if m.loginFlow != nil {
+					m.loginFlow.CallbackServer.Close()
+					m.loginFlow = nil
+				}
 				m.waitingBrowser = false
 				m.loading = false
 				m.result = "Cancelled"
+				return m, nil
+			}
+			if m.form != nil {
+				m.form = nil
+				m.result = "Cancelled"
+				m.mode = authStatus
+				return m, nil
+			}
+			if m.result != "" && m.form == nil {
+				m.result = ""
 				return m, nil
 			}
 		}
@@ -179,25 +219,65 @@ func (m AuthModel) Update(msg tea.Msg) (AuthModel, tea.Cmd) {
 					if m.loginMethod == loginMethodBrowser {
 						m.form = nil
 						m.result = ""
+						flow, err := m.client.StartLoginFlow()
+						if err != nil {
+							m.result = "Failed to start login: " + err.Error()
+							return m, nil
+						}
+						_ = auth.OpenBrowser(flow.AuthURL)
+						m.loginFlow = flow
+						m.browserURL = flow.AuthURL
 						m.waitingBrowser = true
 						m.loading = true
-						return m, tea.Batch(m.spinner.Tick, m.browserLoginCmd())
+						return m, tea.Batch(m.spinner.Tick, m.browserLoginCmd(flow))
 					}
-					_, err := m.client.LoginWithToken(context.Background(), m.tokenInput)
+					// Transition to token input form
+					m.mode = authLoginToken
+					m.tokenInput = ""
+					m.form = huh.NewForm(huh.NewGroup(
+						huh.NewInput().
+							Title("Paste personal access token").
+							Placeholder("unsareport_pat_...").
+							Value(&m.tokenInput).
+							Validate(func(s string) error {
+								if len(strings.TrimSpace(s)) < 5 {
+									return fmt.Errorf("token too short")
+								}
+								return nil
+							}),
+					))
+					return m, m.form.Init()
+				case authLoginToken:
+					tok := strings.TrimSpace(m.tokenInput)
+					m.form = nil
+					cred, err := m.client.LoginWithToken(context.Background(), tok)
 					if err != nil {
 						m.result = "Login failed: " + err.Error()
-						m.form = nil
 						return m, nil
 					}
 					m.result = "Login saved"
+					if cred.Name != "" {
+						m.result += " as " + cred.Name
+					}
+					m.loading = true
+					return m, tea.Batch(m.spinner.Tick, m.fetchStatus())
 				case authLogout:
 					if !m.confirmLogout {
 						m.result = "Cancelled"
 						m.form = nil
 						return m, nil
 					}
-					_ = m.client.Logout()
+					if err := m.client.Logout(); err != nil {
+						m.result = "Logout failed: " + err.Error()
+						m.form = nil
+						return m, nil
+					}
 					m.result = "Logged out"
+					m.user = ""
+					m.status = "Not logged in — run Login"
+					m.form = nil
+					m.loading = true
+					return m, tea.Batch(m.spinner.Tick, m.fetchStatus())
 				}
 				m.form = nil
 				m.loading = true
@@ -215,13 +295,17 @@ func (m AuthModel) Update(msg tea.Msg) (AuthModel, tea.Cmd) {
 }
 
 func (m *AuthModel) SetMode(mode authMode) tea.Cmd {
-	m.mode = mode
 	m.result = ""
 	m.form = nil
+	if m.waitingBrowser && m.loginFlow != nil {
+		m.loginFlow.CallbackServer.Close()
+		m.loginFlow = nil
+	}
 	m.waitingBrowser = false
+
 	switch mode {
-	case authLogin:
-		m.tokenInput = ""
+	case authLogin, authLoginToken:
+		m.mode = authLogin
 		m.loginMethod = loginMethodBrowser
 		m.form = huh.NewForm(huh.NewGroup(
 			huh.NewSelect[string]().
@@ -231,22 +315,21 @@ func (m *AuthModel) SetMode(mode authMode) tea.Cmd {
 					huh.NewOption("Paste token", loginMethodToken),
 				).
 				Value(&m.loginMethod),
-			huh.NewInput().Title("Paste personal access token").Placeholder("unsareport_pat_...").Value(&m.tokenInput).Validate(func(s string) error {
-				if m.loginMethod != loginMethodToken {
-					return nil
-				}
-				if len(s) < 5 {
-					return fmt.Errorf("token too short")
-				}
-				return nil
-			}),
 		))
 	case authLogout:
-		m.confirmLogout = false
+		m.mode = authLogout
+		m.confirmLogout = true
 		m.form = huh.NewForm(huh.NewGroup(
-			huh.NewConfirm().Title("Confirm logout?").Value(&m.confirmLogout),
+			huh.NewConfirm().
+				Title("Confirm logout?").
+				Affirmative("Yes").
+				Negative("No").
+				Value(&m.confirmLogout),
 		))
+	default:
+		m.mode = authStatus
 	}
+
 	if m.form != nil {
 		m.loading = false
 		return m.form.Init()
@@ -256,7 +339,13 @@ func (m *AuthModel) SetMode(mode authMode) tea.Cmd {
 
 func (m AuthModel) View() string {
 	if m.waitingBrowser {
-		return lipgloss.NewStyle().Padding(1).Render(m.spinner.View() + " Waiting for browser... Press esc to cancel")
+		urlStyle := lipgloss.NewStyle().Foreground(m.styles.Theme.Primary).Bold(true)
+		var s strings.Builder
+		s.WriteString(m.spinner.View() + " Waiting for browser authorization... (Press esc to cancel)\n\n")
+		s.WriteString("If your browser did not open automatically, visit this URL:\n\n")
+		s.WriteString("  " + urlStyle.Render(m.browserURL) + "\n\n")
+		s.WriteString("After authorizing in the browser, return to this terminal window.")
+		return lipgloss.NewStyle().Padding(1).Render(s.String())
 	}
 	if m.loading {
 		return lipgloss.NewStyle().Padding(1).Render(m.spinner.View() + " Checking auth...")
@@ -270,20 +359,20 @@ func (m AuthModel) View() string {
 	var b string
 	b += "Auth Status\n\n"
 	b += "Endpoint: " + config.GetAuthURL() + "\n"
-	b += "Status: " + m.status + "\n"
+	b += "Status:   " + m.status + "\n"
 	if m.user != "" {
-		b += "User: " + m.user + "\n"
+		b += "User:     " + m.user + "\n"
 	}
 	token := m.client.GetToken()
 	if token != "" {
-		b += "Token: " + token[:min(10, len(token))] + "... (active)\n"
+		b += "Token:    " + token[:min(10, len(token))] + "... (active)\n"
 	} else {
-		b += "Token: none\n"
+		b += "Token:    none\n"
 	}
-	b += "\nSelect Login/Logout via sidebar, enter to execute, r to refresh"
-	b += "\nOr run: unsarep login  (browser, loopback 127.0.0.1)  | unsarep login --token <PAT>"
+	b += "\nSelect Login/Logout via sidebar, press enter to execute, r to refresh"
+	b += "\nOr run: unsarep login  (browser)  |  unsarep login --token <PAT>"
 	switch m.mode {
-	case authLogin:
+	case authLogin, authLoginToken:
 		b += "\n\n[Login form ready - press enter]"
 	case authLogout:
 		b += "\n\n[Logout confirm ready]"

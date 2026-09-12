@@ -4,7 +4,7 @@ import { db } from '@/db/index';
 import { type User, users } from '@/db/schema';
 import app from '@/index';
 import { signAccessToken } from '@/lib/jwt';
-import { createRefreshToken } from '@/lib/tokens';
+import { createPAT, createRefreshToken } from '@/lib/tokens';
 
 /**
  * Represents a personal access token item returned by PAT listing endpoint.
@@ -187,5 +187,34 @@ describe('IDP API Endpoints E2E', () => {
       }),
     );
     expect(refreshRes.status).toBe(401);
+  });
+
+  test('POST /v1/logout revokes PAT token', async () => {
+    const { token } = await createPAT(testUser.id, 'Logout Test PAT');
+    const meResBefore = await app.fetch(
+      new Request('http://localhost:3000/v1/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+    expect(meResBefore.status).toBe(200);
+
+    const logoutRes = await app.fetch(
+      new Request('http://localhost:3000/v1/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ pat: token }),
+      }),
+    );
+    expect(logoutRes.status).toBe(200);
+
+    const meResAfter = await app.fetch(
+      new Request('http://localhost:3000/v1/me', {
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    );
+    expect(meResAfter.status).toBe(401);
   });
 });

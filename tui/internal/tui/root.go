@@ -220,7 +220,7 @@ func (m RootModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.auth, cmd = m.auth.Update(msg)
 		cmds = appendCmd(cmds, cmd)
 		return m, tea.Batch(cmds...)
-	case docsCreateFetchedMsg, prepareLoadedMsg, authStatusMsg, registryFetchedMsg:
+	case docsCreateFetchedMsg, prepareLoadedMsg, authStatusMsg, registryFetchedMsg, browserLoginMsg:
 		var cmds []tea.Cmd
 		var cmd tea.Cmd
 		m.registry, cmd = m.registry.Update(msg)
@@ -300,18 +300,28 @@ func (m RootModel) updateCaptured(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == "ctrl+c" {
 		return m, tea.Quit
 	}
-	if key.Matches(msg, m.keys.Back) {
-		if m.showHelp {
+	if m.showHelp {
+		if key.Matches(msg, m.keys.Back) || key.Matches(msg, m.keys.Help) {
 			m.showHelp = false
 			return m, nil
 		}
-		return m.forwardToFocused(msg)
 	}
-	if m.showHelp && key.Matches(msg, m.keys.Help) {
-		m.showHelp = false
-		return m, nil
+	if msg.Type == tea.KeyEsc || msg.String() == "esc" {
+		res, cmd := m.forwardToFocused(msg)
+		if root, ok := res.(RootModel); ok {
+			root.sidebarFocus = true
+			return root, cmd
+		}
+		return res, cmd
 	}
-	return m.forwardToFocused(msg)
+	res, cmd := m.forwardToFocused(msg)
+	if root, ok := res.(RootModel); ok {
+		if !root.inputCaptured() {
+			root.sidebarFocus = true
+		}
+		return root, cmd
+	}
+	return res, cmd
 }
 
 // updateBack handles b/esc when no input is captured.
@@ -337,6 +347,15 @@ func (m RootModel) updateBack(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.auth.form != nil {
 			var cmd tea.Cmd
 			m.auth, cmd = m.auth.Update(msg)
+			if m.auth.form == nil {
+				m.sidebarFocus = true
+			}
+			return m, cmd
+		}
+		if m.auth.result != "" {
+			var cmd tea.Cmd
+			m.auth, cmd = m.auth.Update(msg)
+			m.sidebarFocus = true
 			return m, cmd
 		}
 		m.sidebarFocus = true
@@ -442,18 +461,14 @@ func (m RootModel) retryFocused() (tea.Model, tea.Cmd) {
 
 // forwardToFocused routes a message to the active child by stable nav ID.
 func (m RootModel) forwardToFocused(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if m.activeApp == AppRegistry {
-		var cmd tea.Cmd
+	wasCaptured := m.inputCaptured()
+	var cmd tea.Cmd
+	switch m.activeApp {
+	case AppRegistry:
 		m.registry, cmd = m.registry.Update(msg)
-		return m, cmd
-	}
-	if m.activeApp == AppAuth {
-		var cmd tea.Cmd
+	case AppAuth:
 		m.auth, cmd = m.auth.Update(msg)
-		return m, cmd
-	}
-	if m.activeApp == AppDocs {
-		var cmd tea.Cmd
+	case AppDocs:
 		switch m.curNav().ID {
 		case NavDocsNewProject:
 			m.docsCreate, cmd = m.docsCreate.Update(msg)
@@ -462,9 +477,13 @@ func (m RootModel) forwardToFocused(msg tea.Msg) (tea.Model, tea.Cmd) {
 		default:
 			m.docsUpdate, cmd = m.docsUpdate.Update(msg)
 		}
-		return m, cmd
+	default:
+		return m, nil
 	}
-	return m, nil
+	if wasCaptured && !m.inputCaptured() {
+		m.sidebarFocus = true
+	}
+	return m, cmd
 }
 func appTabNumber(app AppID) int {
 	for i, a := range visibleApps() {

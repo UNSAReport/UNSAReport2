@@ -59,6 +59,23 @@ function AuthHashConsumer() {
           window.location.pathname + window.location.search,
         );
         router.invalidate();
+
+        const pending = sessionStorage.getItem('tui_auth_pending');
+        if (pending) {
+          try {
+            const { tui_callback, state } = JSON.parse(pending) as {
+              tui_callback?: string;
+              state?: string;
+            };
+            sessionStorage.removeItem('tui_auth_pending');
+            if (tui_callback) {
+              window.location.href = `/auth/login?tui_callback=${encodeURIComponent(tui_callback)}&state=${encodeURIComponent(state ?? '')}`;
+              return;
+            }
+          } catch {
+            sessionStorage.removeItem('tui_auth_pending');
+          }
+        }
       })
       .catch((err: unknown) => {
         console.error('Failed to consume auth token from URL hash:', err);

@@ -114,6 +114,17 @@ func GetAuthURL() string {
 	return DefaultAuthURL
 }
 
+func GetWebsiteURL() string {
+	if v := os.Getenv(EnvWebsiteURL); v != "" {
+		return strings.TrimSuffix(v, "/")
+	}
+	cfg, _ := LoadXDGConfig()
+	if cfg != nil && cfg.APIURL != "" {
+		return strings.TrimSuffix(cfg.APIURL, "/")
+	}
+	return DefaultWebsiteURL
+}
+
 func GetToken() string {
 	if v := os.Getenv(EnvToken); v != "" {
 		return strings.TrimSpace(v)

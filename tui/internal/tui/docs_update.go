@@ -7,11 +7,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-type updateItem struct{ name, status string }
-
-func (i updateItem) Title() string       { return i.name }
-func (i updateItem) Description() string { return i.status }
-func (i updateItem) FilterValue() string { return i.name }
 
 type DocsUpdateModel struct {
 	list          list.Model

@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"io"
+	"net/http"
 	"strings"
 	"testing"
 	"time"
@@ -166,10 +168,27 @@ func TestAuthLogoutNoCancels(t *testing.T) {
 		t.Fatal("SetMode should return the form init command")
 	}
 	m = drainCmd(m, cmd)
-	next, c := m.Update(keyMsg("enter"))
+	next, c := m.Update(keyMsg("esc"))
 	next = drainCmd(next, c)
 	if next.result != "Cancelled" {
 		t.Fatalf("declined logout result = %q", next.result)
+	}
+}
+
+func TestAuthLogoutConfirmLogsOut(t *testing.T) {
+	m := NewAuthModel()
+	cmd := m.SetMode(authLogout)
+	if cmd == nil {
+		t.Fatal("SetMode should return the form init command")
+	}
+	m = drainCmd(m, cmd)
+	next, c := m.Update(keyMsg("enter"))
+	next = drainCmd(next, c)
+	if next.result != "Logged out" {
+		t.Fatalf("confirmed logout result = %q want 'Logged out'", next.result)
+	}
+	if next.user != "" {
+		t.Fatalf("user should be cleared after logout, got %q", next.user)
 	}
 }
 
@@ -185,3 +204,170 @@ func TestRootNavigation(t *testing.T) {
 	tm.Send(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
 	tm.WaitFinished(t, teatest.WithFinalTimeout(3*time.Second))
 }
+
+func TestAuthLoginEsc(t *testing.T) {
+	root := testRootModel()
+	root = updateRoot(root, keyMsg("3")) // Nav to Auth
+	// Select Login
+	root.cursor = 1 // Login
+	next, initCmd := root.Update(keyMsg("enter"))
+	root = drainRootCmd(next.(RootModel), initCmd)
+	if root.sidebarFocus {
+		t.Fatal("expected focus in main panel after enter")
+	}
+	if !root.inputCaptured() {
+		t.Fatal("expected input captured in login form")
+	}
+	next, escCmd := root.Update(keyMsg("esc"))
+	root = drainRootCmd(next.(RootModel), escCmd)
+	if !root.sidebarFocus {
+		t.Fatalf("expected sidebar focus after pressing esc in login form, but got sidebarFocus = false")
+	}
+	if root.inputCaptured() {
+		t.Fatal("expected input not captured after esc")
+	}
+}
+
+
+func drainRootCmd(m RootModel, seed tea.Cmd) RootModel {
+	queue := []tea.Cmd{seed}
+	for len(queue) > 0 {
+		cmd := queue[0]
+		queue = queue[1:]
+		if cmd == nil {
+			continue
+		}
+		msg := cmd()
+		if msg == nil {
+			continue
+		}
+		if batch, ok := msg.(tea.BatchMsg); ok {
+			queue = append(queue, batch...)
+			continue
+		}
+		var c2 tea.Cmd
+		res, c2 := m.Update(msg)
+		if r, ok := res.(RootModel); ok {
+			m = r
+		}
+		queue = append(queue, c2)
+	}
+	return m
+}
+
+func TestAuthLogoutFlow(t *testing.T) {
+	root := testRootModel()
+	root = updateRoot(root, keyMsg("3")) // Nav to Auth
+	// Select Logout
+	root.cursor = 2 // Logout
+	next, initCmd := root.Update(keyMsg("enter"))
+	root = drainRootCmd(next.(RootModel), initCmd)
+	// Now user presses enter on confirm prompt:
+	next, confirmCmd := root.Update(keyMsg("enter"))
+	root = drainRootCmd(next.(RootModel), confirmCmd)
+	if !root.sidebarFocus {
+		t.Fatal("expected sidebar focus after logout completion")
+	}
+	if root.auth.result != "Logged out" {
+		t.Fatalf("expected result 'Logged out', got %q", root.auth.result)
+	}
+	if root.inputCaptured() {
+		t.Fatal("expected input not captured after logout completion")
+	}
+}
+
+func drainUntilWaitingBrowser(m RootModel, seed tea.Cmd) RootModel {
+	queue := []tea.Cmd{seed}
+	for len(queue) > 0 {
+		if m.auth.waitingBrowser {
+			break
+		}
+		cmd := queue[0]
+		queue = queue[1:]
+		if cmd == nil {
+			continue
+		}
+		msg := cmd()
+		if msg == nil {
+			continue
+		}
+		if batch, ok := msg.(tea.BatchMsg); ok {
+			queue = append(queue, batch...)
+			continue
+		}
+		var c2 tea.Cmd
+		res, c2 := m.Update(msg)
+		if r, ok := res.(RootModel); ok {
+			m = r
+		}
+		if m.auth.waitingBrowser {
+			break
+		}
+		queue = append(queue, c2)
+	}
+	return m
+}
+
+func TestAuthBrowserLoginCallbackFlow(t *testing.T) {
+	root := testRootModel()
+	root = updateRoot(root, keyMsg("3")) // Nav to Auth
+	root.cursor = 1                      // Nav to Login
+	next, initCmd := root.Update(keyMsg("enter"))
+	root = drainRootCmd(next.(RootModel), initCmd)
+
+	// In Login method selection form, press enter on "Use browser (recommended)"
+	next, submitCmd := root.Update(keyMsg("enter"))
+	root = drainUntilWaitingBrowser(next.(RootModel), submitCmd)
+
+	if !root.auth.waitingBrowser {
+		t.Fatalf("expected waitingBrowser=true, got form=%v mode=%v result=%q", root.auth.form != nil, root.auth.mode, root.auth.result)
+	}
+	if root.auth.loginFlow == nil {
+		t.Fatal("expected loginFlow to be non-nil")
+	}
+
+	flow := root.auth.loginFlow
+	cbURL := flow.CallbackURL
+	state := flow.State
+
+	// Verify the callback server is listening and accepts the browser redirect
+	resp, err := http.Get(cbURL + "?state=" + state + "&pat=unsareport_pat_test123")
+	if err != nil {
+		t.Fatalf("failed to GET callback: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 OK from callback, got %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("failed to read callback body: %v", err)
+	}
+	if !strings.Contains(string(body), "Authorization Successful") {
+		t.Fatalf("expected body to contain 'Authorization Successful', got: %s", string(body))
+	}
+
+	// Wait for the flow's Done channel to have received the result
+	res, err := flow.CallbackServer.Wait(2 * time.Second)
+	if err != nil {
+		t.Fatalf("Wait failed: %v", err)
+	}
+	if res.PAT != "unsareport_pat_test123" {
+		t.Fatalf("expected PAT unsareport_pat_test123, got %s", res.PAT)
+	}
+
+	// Dispatch browserLoginMsg directly to root model to verify global routing
+	next, loginCmd := root.Update(browserLoginMsg{name: "TestUser", email: "test@example.com"})
+	root = drainRootCmd(next.(RootModel), loginCmd)
+
+	if root.auth.waitingBrowser {
+		t.Fatal("expected waitingBrowser to be false after browserLoginMsg")
+	}
+	if !strings.Contains(root.auth.result, "Login saved as TestUser") {
+		t.Fatalf("expected result 'Login saved as TestUser', got %q", root.auth.result)
+	}
+}
+
+
+

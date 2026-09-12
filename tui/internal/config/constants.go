@@ -10,6 +10,7 @@ const (
 	DefaultRegistryURL    = "https://registry.unsareport.org"
 	DefaultAuthURL        = "https://auth.unsareport.org"
 	DefaultSlidesURL      = "https://slides.unsareport.org"
+	DefaultWebsiteURL     = "https://unsareport.org"
 	SchemaBaseURL         = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
 	DefaultCallbackHost   = "127.0.0.1:0"
 	CallbackBaseURLPrefix = "http://"
@@ -49,6 +50,7 @@ var (
 	RegistryTimeout           = 30 * time.Second
 	CallbackTimeout           = 5 * time.Minute
 	CallbackReadHeaderTimeout = 5 * time.Second
+	CallbackShutdownTimeout   = 2 * time.Second
 )
 
 // File permissions

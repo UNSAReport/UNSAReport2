@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/UNSAReport/tui/internal/auth"
 	"github.com/UNSAReport/tui/internal/config"
 )
 
@@ -56,6 +57,9 @@ func xdgCacheDir() string {
 func (c *Client) authToken() string {
 	if v := strings.TrimSpace(os.Getenv(config.EnvToken)); v != "" {
 		return v
+	}
+	if tok := strings.TrimSpace(auth.GetTokenResolved(nil)); tok != "" {
+		return tok
 	}
 	if tok := strings.TrimSpace(config.GetToken()); tok != "" {
 		return tok

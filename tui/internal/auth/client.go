@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -58,10 +59,7 @@ func NewClientWithConfig(cfg ClientConfig) *Client {
 }
 
 func websiteBase() string {
-	if v := os.Getenv(config.EnvWebsiteURL); v != "" {
-		return strings.TrimSuffix(v, "/")
-	}
-	return ""
+	return config.GetWebsiteURL()
 }
 
 func (c *Client) resolveToken() string {
@@ -220,7 +218,14 @@ func (c *Client) Status(ctx context.Context) (*Credentials, *UserInfo, error) {
 	return stored, &u, nil
 }
 
-func (c *Client) Login(ctx context.Context, noBrowser bool) (*Credentials, error) {
+type LoginFlow struct {
+	CallbackServer *CallbackServer
+	AuthURL        string
+	State          string
+	CallbackURL    string
+}
+
+func (c *Client) StartLoginFlow() (*LoginFlow, error) {
 	state, err := GenerateState()
 	if err != nil {
 		return nil, err
@@ -230,29 +235,53 @@ func (c *Client) Login(ctx context.Context, noBrowser bool) (*Credentials, error
 	if err != nil {
 		return nil, err
 	}
-	defer cb.Close()
-
 	website := websiteBase()
-	if website == "" {
-		return nil, fmt.Errorf("website URL not configured: set %s", config.EnvWebsiteURL)
-	}
 	authURL := fmt.Sprintf("%s/auth/login?tui_callback=%s&state=%s", website, url.QueryEscape(cbURL), url.QueryEscape(state))
+	return &LoginFlow{
+		CallbackServer: cb,
+		AuthURL:        authURL,
+		State:          state,
+		CallbackURL:    cbURL,
+	}, nil
+}
+
+func (c *Client) FinishLoginFlow(ctx context.Context, flow *LoginFlow) (*Credentials, error) {
+	defer flow.CallbackServer.Close()
+	res, err := flow.CallbackServer.Wait(config.CallbackTimeout)
+	if err != nil {
+		return nil, err
+	}
+	if res.PAT == "" {
+		return nil, fmt.Errorf("callback did not contain pat")
+	}
+	return c.ValidateAndStore(ctx, res.PAT)
+}
+
+func (c *Client) Login(ctx context.Context, noBrowser bool) (*Credentials, error) {
+	flow, err := c.StartLoginFlow()
+	if err != nil {
+		return nil, err
+	}
+	defer flow.CallbackServer.Close()
 
 	if noBrowser || IsHeadless() {
-		fmt.Printf("Open this URL in your browser:\n  %s\n\nWaiting for callback at %s (timeout 5m)...\n", authURL, cbURL)
-		res, err := cb.Wait(config.CallbackTimeout)
+		fmt.Printf("Open this URL in your browser:\n  %s\n\nWaiting for callback at %s (timeout 5m)...\n", flow.AuthURL, flow.CallbackURL)
+		res, err := flow.CallbackServer.Wait(config.CallbackTimeout)
 		if err == nil && res.PAT != "" {
 			return c.ValidateAndStore(ctx, res.PAT)
+		}
+		if err != nil {
+			return nil, err
 		}
 		return nil, fmt.Errorf("no callback received; paste PAT via 'unsarep login --token <PAT>'")
 	}
 
-	if err := OpenBrowser(authURL); err != nil {
-		fmt.Printf("Failed to open browser: %v\nOpen this URL:\n  %s\n\n", err, authURL)
+	if err := OpenBrowser(flow.AuthURL); err != nil {
+		fmt.Printf("Failed to open browser: %v\nOpen this URL:\n  %s\n\n", err, flow.AuthURL)
 	}
-	fmt.Printf("Opened browser to %s\nWaiting for login (timeout 5m)...\n", authURL)
+	fmt.Printf("Opened browser to %s\nWaiting for login (timeout 5m)...\n", flow.AuthURL)
 
-	res, err := cb.Wait(config.CallbackTimeout)
+	res, err := flow.CallbackServer.Wait(config.CallbackTimeout)
 	if err != nil {
 		return nil, err
 	}
@@ -274,6 +303,7 @@ func (c *Client) Logout() error {
 	if tok != "" {
 		_ = c.revokePat(tok)
 	}
+	_ = os.Unsetenv(config.EnvToken)
 	if c.Store != nil {
 		if err := c.Store.Clear(); err != nil {
 			return err
@@ -283,10 +313,12 @@ func (c *Client) Logout() error {
 }
 
 func (c *Client) revokePat(tok string) error {
-	req, err := http.NewRequest("POST", c.BaseURL+"/v1/logout", nil)
+	body, _ := json.Marshal(map[string]string{"pat": tok})
+	req, err := http.NewRequest("POST", c.BaseURL+"/v1/logout", bytes.NewReader(body))
 	if err != nil {
 		return nil
 	}
+	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("User-Agent", "unsarep-tui")
 	resp, err := c.HTTPClient.Do(req)
