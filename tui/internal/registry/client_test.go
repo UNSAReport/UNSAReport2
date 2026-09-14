@@ -128,7 +128,7 @@ func TestPublishPackage(t *testing.T) {
 				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ValidationError", "message": "missing file"})
 				return
 			}
-			defer file.Close()
+			defer func() { _ = file.Close() }()
 			w.WriteHeader(201)
 			_ = json.NewEncoder(w).Encode(map[string]any{
 				"package": "test-pkg",
