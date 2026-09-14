@@ -20,6 +20,16 @@ export const s3Client = new S3Client({
   forcePathStyle: config.s3.forcePathStyle,
 });
 
+export const s3PresignClient = new S3Client({
+  endpoint: config.s3.publicEndpoint,
+  region: config.s3.region,
+  credentials: {
+    accessKeyId: config.s3.accessKey,
+    secretAccessKey: config.s3.secretKey,
+  },
+  forcePathStyle: config.s3.forcePathStyle,
+});
+
 let bucketChecked = false;
 
 /**
@@ -84,7 +94,9 @@ export async function getPresignedUrl(
     Bucket: config.s3.bucket,
     Key: key,
   });
-  return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  return await getSignedUrl(s3PresignClient, command, {
+    expiresIn: expiresInSeconds,
+  });
 }
 
 /**

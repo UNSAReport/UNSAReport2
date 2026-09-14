@@ -32,4 +32,20 @@ describe('App API Routes', () => {
     const res = await app.fetch(new Request('http://localhost/v1/tags'));
     expect([200, 500].includes(res.status)).toBe(true);
   });
+
+  it('GET /v1/packages accepts search query parameter (200 or 500 when DB unattached)', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/v1/packages?search=typst'),
+    );
+    expect([200, 500].includes(res.status)).toBe(true);
+  });
+
+  it('POST /v1/packages rejects unauthorized request with 401', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/v1/packages', {
+        method: 'POST',
+      }),
+    );
+    expect(res.status).toBe(401);
+  });
 });

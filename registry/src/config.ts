@@ -12,6 +12,10 @@ export const config = {
   ).split(','),
   s3: {
     endpoint: process.env.S3_ENDPOINT || 'http://localhost:8333',
+    publicEndpoint:
+      process.env.S3_PUBLIC_ENDPOINT ||
+      process.env.S3_ENDPOINT ||
+      'http://localhost:8333',
     bucket: process.env.S3_BUCKET || 'unsareport-registry',
     accessKey: process.env.S3_ACCESS_KEY || 'seaweedadmin',
     secretKey: process.env.S3_SECRET_KEY || 'seaweedadmin',

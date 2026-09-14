@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
+import JSZip from 'jszip';
 import { config } from '@/config';
 import { db } from '@/db';
 import {
@@ -36,7 +37,7 @@ const packagesRouter = new Hono<HonoEnv>();
  * Route handler for searching and listing packages with optional search query, tag filtering, and pagination.
  */
 packagesRouter.get('/', optionalAuth, async (c) => {
-  const q = c.req.query('q')?.trim();
+  const q = (c.req.query('q') ?? c.req.query('search'))?.trim();
   const tagFilter = c.req.query('tag')?.trim();
   const statusFilter = c.req.query('status')?.trim() || 'approved';
   const limit = Math.min(
@@ -67,9 +68,12 @@ packagesRouter.get('/', optionalAuth, async (c) => {
   if (q) {
     conditions.push(
       sql`(
-        to_tsvector('english', coalesce(${packages.name}, '') || ' ' || coalesce(${packages.displayName}, '') || ' ' || coalesce(${packages.description}, ''))
+        to_tsvector('spanish', coalesce(${packages.name}, '') || ' ' || coalesce(${packages.displayName}, '') || ' ' || coalesce(${packages.description}, ''))
+        @@ websearch_to_tsquery('spanish', ${q})
+        OR to_tsvector('english', coalesce(${packages.name}, '') || ' ' || coalesce(${packages.displayName}, '') || ' ' || coalesce(${packages.description}, ''))
         @@ websearch_to_tsquery('english', ${q})
         OR ${packages.name} ILIKE ${`%${q}%`}
+        OR ${packages.displayName} ILIKE ${`%${q}%`}
       )`,
     );
   }
@@ -283,7 +287,7 @@ packagesRouter.get('/:name/:version', async (c) => {
 });
 
 /**
- * Route handler for publishing a new package version with multipart manifest and file payload.
+ * Route handler for publishing a new package version with .zip archive payload.
  */
 packagesRouter.post('/', requireAuth, async (c) => {
   const user = c.get('user');
@@ -293,50 +297,108 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
   const formData = await c.req.parseBody({ all: true });
 
-  if (!formData.manifest) {
-    throw new ValidationError('Missing "manifest" field in multipart body', {
+  let archiveFile: File | null = null;
+  if (formData.file instanceof File) {
+    archiveFile = formData.file;
+  } else if (formData.archive instanceof File) {
+    archiveFile = formData.archive;
+  } else {
+    for (const val of Object.values(formData)) {
+      if (val instanceof File) {
+        archiveFile = val;
+        break;
+      }
+    }
+  }
+
+  if (!archiveFile) {
+    throw new ValidationError(
+      'Missing package archive file (.zip) in multipart request',
+      { field: 'file' },
+    );
+  }
+
+  const rawZipBuffer = Buffer.from(await archiveFile.arrayBuffer());
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(rawZipBuffer);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    throw new ValidationError(`Failed to read ZIP archive: ${msg}`, {
+      field: 'file',
+    });
+  }
+
+  const zipFileNames = Object.keys(zip.files).filter(
+    (name) => !zip.files[name].dir,
+  );
+
+  let manifestEntryName: string | null = null;
+  let rootPrefix = '';
+
+  if (zip.file('manifest.json')) {
+    manifestEntryName = 'manifest.json';
+    rootPrefix = '';
+  } else {
+    const candidate = zipFileNames.find((name) =>
+      name.endsWith('/manifest.json'),
+    );
+    if (candidate) {
+      manifestEntryName = candidate;
+      rootPrefix = candidate.substring(
+        0,
+        candidate.length - 'manifest.json'.length,
+      );
+    }
+  }
+
+  if (!manifestEntryName) {
+    throw new ValidationError(
+      'ZIP archive must contain "manifest.json" at root or in top-level directory',
+      { field: 'manifest' },
+    );
+  }
+
+  const manifestFile = zip.file(manifestEntryName);
+  if (!manifestFile) {
+    throw new ValidationError('Could not read "manifest.json" from ZIP', {
       field: 'manifest',
     });
   }
 
   let rawManifest: unknown;
   try {
-    rawManifest =
-      typeof formData.manifest === 'string'
-        ? JSON.parse(formData.manifest)
-        : formData.manifest;
+    const manifestText = await manifestFile.async('text');
+    rawManifest = JSON.parse(manifestText);
   } catch {
-    throw new ValidationError('Invalid JSON in "manifest" field', {
+    throw new ValidationError('Invalid JSON in "manifest.json"', {
       field: 'manifest',
     });
   }
 
+  const zipPaths = zipFileNames.map((p) =>
+    rootPrefix && p.startsWith(rootPrefix) ? p.slice(rootPrefix.length) : p,
+  );
+
+  const manifest = validateManifest(rawManifest, zipPaths);
+
   const fileEntries: { path: string; buffer: Buffer; content: Buffer }[] = [];
-  const uploadedFilePaths: string[] = [];
-
-  for (const [key, value] of Object.entries(formData)) {
-    if (key === 'manifest') continue;
-
-    if (value instanceof File) {
-      const arrayBuffer = await value.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const path = (value.name || key).replace(/^[/\\]+/, '');
-      fileEntries.push({ path, buffer, content: buffer });
-      uploadedFilePaths.push(path);
-    } else if (Array.isArray(value)) {
-      for (const item of value) {
-        if (item instanceof File) {
-          const arrayBuffer = await item.arrayBuffer();
-          const buffer = Buffer.from(arrayBuffer);
-          const path = (item.name || key).replace(/^[/\\]+/, '');
-          fileEntries.push({ path, buffer, content: buffer });
-          uploadedFilePaths.push(path);
-        }
-      }
+  for (const filePath of manifest.files) {
+    const zipPath = `${rootPrefix}${filePath}`;
+    const zipEntry = zip.file(zipPath);
+    if (!zipEntry) {
+      throw new ValidationError(
+        `Declared file "${filePath}" not found in ZIP archive`,
+        { field: 'files' },
+      );
     }
+    const fileBuffer = await zipEntry.async('nodebuffer');
+    fileEntries.push({
+      path: filePath,
+      buffer: fileBuffer,
+      content: fileBuffer,
+    });
   }
-
-  const manifest = validateManifest(rawManifest, uploadedFilePaths);
 
   const existingPkg = await db
     .select()
@@ -394,20 +456,32 @@ packagesRouter.post('/', requireAuth, async (c) => {
   }
 
   const resolvedTagIds: string[] = [];
-  if (manifest.tags) {
+  if (manifest.tags && manifest.tags.length > 0) {
     for (const tagName of manifest.tags) {
-      const tagRow = await db
+      const normalizedTagName = tagName.trim().toLowerCase();
+      const tagRows = await db
         .select({ id: tags.id })
         .from(tags)
-        .where(eq(tags.name, tagName))
+        .where(eq(tags.name, normalizedTagName))
         .limit(1);
 
-      if (tagRow.length === 0) {
-        throw new ValidationError(`Tag '${tagName}' does not exist`, {
-          field: 'tags',
+      let tagId: string;
+      if (tagRows.length > 0) {
+        tagId = tagRows[0].id;
+      } else {
+        tagId = crypto.randomUUID();
+        const displayName =
+          normalizedTagName.charAt(0).toUpperCase() +
+          normalizedTagName.slice(1);
+        await db.insert(tags).values({
+          id: tagId,
+          name: normalizedTagName,
+          displayName,
+          parentId: null,
+          createdAt: new Date(),
         });
       }
-      resolvedTagIds.push(tagRow[0].id);
+      resolvedTagIds.push(tagId);
     }
   }
 
@@ -469,7 +543,16 @@ packagesRouter.post('/', requireAuth, async (c) => {
     });
   }
 
-  await buildAndUploadZipArchive(archiveS3Key, fileEntries);
+  const archiveFiles = [...fileEntries];
+  if (!archiveFiles.some((f) => f.path === 'manifest.json')) {
+    const manifestBuffer = Buffer.from(JSON.stringify(rawManifest, null, 2));
+    archiveFiles.push({
+      path: 'manifest.json',
+      buffer: manifestBuffer,
+      content: manifestBuffer,
+    });
+  }
+  await buildAndUploadZipArchive(archiveS3Key, archiveFiles);
 
   const now = new Date();
   if (existingPkg.length === 0) {
