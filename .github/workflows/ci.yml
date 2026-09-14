@@ -41,6 +41,10 @@ jobs:
           fetch-depth: 0
 
       - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: 'moon ci :build :test :typecheck :lint'
 
