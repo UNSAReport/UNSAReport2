@@ -7,6 +7,7 @@
     "dev": "vite --port 3100",
     "build": "vite build",
     "preview": "vite preview",
+    "start": "bun server.ts",
     "typecheck": "tsc --noEmit",
     "check:biome": "biome check ."
   },
