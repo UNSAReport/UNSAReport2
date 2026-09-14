@@ -55,6 +55,7 @@ jobs:
     outputs:
       auth: ${{ steps.filter.outputs.auth }}
       registry: ${{ steps.filter.outputs.registry }}
+      slides: ${{ steps.filter.outputs.slides }}
       website: ${{ steps.filter.outputs.website }}
     steps:
       - uses: actions/checkout@v4
@@ -67,6 +68,8 @@ jobs:
               - 'auth/**'
             registry:
               - 'registry/**'
+            slides:
+              - 'slides/**'
             website:
               - 'web/**'
 
@@ -167,6 +170,59 @@ jobs:
         with:
           context: .
           file: ./registry/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  image-slides:
+    name: Image slides
+    needs: changes
+    if: needs.changes.outputs.slides == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/slides
+          tags: |
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest-dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
+          flavor: |
+            latest=false
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./slides/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
