@@ -36,6 +36,7 @@ ENV PORT=3000
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/web/app/node_modules ./web/app/node_modules
 COPY --from=build /app/web/app/dist ./dist
+COPY --from=build /app/web/app/server.ts ./server.ts
 COPY --from=build /app/web/app/package.json ./package.json
 RUN cp -RL ./web/app/node_modules/* ./node_modules/ 2>/dev/null || true; \
     mkdir -p ./node_modules/.bin && cp -RL ./web/app/node_modules/.bin/* ./node_modules/.bin/ 2>/dev/null || true; \
@@ -45,4 +46,5 @@ USER bun
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
-CMD ["bun", "./dist/server/server.js"]
+CMD ["bun", "server.ts"]
+
