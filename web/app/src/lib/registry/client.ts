@@ -34,7 +34,10 @@ async function fetchPackagesInternal(opts?: {
   tag?: string;
 }): Promise<RegistryPackage[]> {
   const params = new URLSearchParams();
-  if (opts?.search) params.set('search', opts.search);
+  if (opts?.search) {
+    params.set('q', opts.search);
+    params.set('search', opts.search);
+  }
   if (opts?.tag) params.set('tag', opts.tag);
   const qs = params.toString() ? `?${params}` : '';
   const res = await registryFetch(`/v1/packages${qs}`);

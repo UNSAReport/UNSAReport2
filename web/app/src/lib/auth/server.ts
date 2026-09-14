@@ -139,7 +139,7 @@ export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify({ refreshToken }),
+      body: JSON.stringify({ refresh_token: refreshToken }),
     });
   } catch {
     // ignore network errors on logout
@@ -186,7 +186,7 @@ export const listPatsServerFn = createServerFn({ method: 'GET' }).handler(
 );
 
 export const createPatServerFn = createServerFn({ method: 'POST' })
-  .validator((data: { name: string }) => data)
+  .validator((data: { name: string; expires_at?: string }) => data)
   .handler(async ({ data }) => {
     const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
@@ -197,7 +197,7 @@ export const createPatServerFn = createServerFn({ method: 'POST' })
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ name: data.name }),
+      body: JSON.stringify({ name: data.name, expires_at: data.expires_at }),
     });
     if (!res.ok) {
       const text = await res.text();
@@ -218,4 +218,61 @@ export const deletePatServerFn = createServerFn({ method: 'POST' })
     });
     if (!res.ok) throw new Error(await res.text());
     return { success: true };
+  });
+
+export const authorizeCliServerFn = createServerFn({ method: 'POST' })
+  .validator(
+    (data: {
+      tui_callback: string;
+      state: string;
+      name?: string;
+      expires_in_days?: number | null;
+    }) => data,
+  )
+  .handler(async ({ data }) => {
+    const token = getCookie(COOKIE_ACCESS_TOKEN);
+    if (!token) throw new Error('Unauthorized');
+
+    let parsedCallback: URL;
+    try {
+      parsedCallback = new URL(data.tui_callback);
+    } catch {
+      throw new Error('Invalid callback URL format');
+    }
+    if (
+      parsedCallback.protocol !== 'http:' ||
+      (parsedCallback.hostname !== '127.0.0.1' &&
+        parsedCallback.hostname !== 'localhost')
+    ) {
+      throw new Error(
+        'Callback URL must be an HTTP loopback address (127.0.0.1 or localhost)',
+      );
+    }
+
+    let expiresAtDate: string | undefined;
+    if (data.expires_in_days && data.expires_in_days > 0) {
+      const d = new Date(
+        Date.now() + data.expires_in_days * 24 * 60 * 60 * 1000,
+      );
+      expiresAtDate = d.toISOString();
+    }
+
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const res = await fetch(`${issuer}/v1/pat`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        name:
+          data.name || `unsarep CLI (${new Date().toISOString().slice(0, 10)})`,
+        expires_at: expiresAtDate,
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(text);
+    }
+    return (await res.json()) as { token: string; pat: PatItem };
   });

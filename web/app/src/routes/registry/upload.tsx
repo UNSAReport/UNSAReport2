@@ -39,11 +39,31 @@ function UploadComponent() {
         credentials: 'include',
       });
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text);
+        let errMsg = `Upload failed (${res.status})`;
+        try {
+          const json = (await res.json()) as {
+            message?: string;
+            error?: string;
+          };
+          if (json?.message) {
+            errMsg = json.message;
+          } else if (json?.error) {
+            errMsg = json.error;
+          }
+        } catch {
+          const text = await res.text();
+          if (text) errMsg = text;
+        }
+        throw new Error(errMsg);
       }
-      const data = await res.text();
-      setSuccess(data);
+      const data = (await res.json()) as {
+        package: string;
+        version: string;
+        status: string;
+      };
+      setSuccess(
+        `Package "${data.package}" v${data.version} uploaded successfully (Status: ${data.status})`,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }

@@ -20,6 +20,16 @@ export const s3Client = new S3Client({
   forcePathStyle: config.s3.forcePathStyle,
 });
 
+export const s3PresignClient = new S3Client({
+  endpoint: config.s3.publicEndpoint,
+  region: config.s3.region,
+  credentials: {
+    accessKeyId: config.s3.accessKey,
+    secretAccessKey: config.s3.secretKey,
+  },
+  forcePathStyle: config.s3.forcePathStyle,
+});
+
 let bucketChecked = false;
 
 /**
@@ -37,7 +47,9 @@ export async function ensureBucketExists(): Promise<void> {
       );
       bucketChecked = true;
     } catch (createErr) {
-      console.warn('Could not ensure S3 bucket exists:', createErr);
+      throw new Error(
+        `Failed to ensure S3 bucket "${config.s3.bucket}" exists: ${createErr instanceof Error ? createErr.message : String(createErr)}`,
+      );
     }
   }
 }
@@ -82,7 +94,9 @@ export async function getPresignedUrl(
     Bucket: config.s3.bucket,
     Key: key,
   });
-  return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  return await getSignedUrl(s3PresignClient, command, {
+    expiresIn: expiresInSeconds,
+  });
 }
 
 /**
@@ -91,16 +105,12 @@ export async function getPresignedUrl(
  * @param key - S3 object key path to delete.
  */
 export async function deleteS3Object(key: string): Promise<void> {
-  try {
-    await s3Client.send(
-      new DeleteObjectCommand({
-        Bucket: config.s3.bucket,
-        Key: key,
-      }),
-    );
-  } catch (err) {
-    console.warn(`Failed to delete S3 key ${key}:`, err);
-  }
+  await s3Client.send(
+    new DeleteObjectCommand({
+      Bucket: config.s3.bucket,
+      Key: key,
+    }),
+  );
 }
 
 /**

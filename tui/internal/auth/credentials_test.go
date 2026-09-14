@@ -94,3 +94,29 @@ func TestFileStoreClear(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestHybridStore(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("UNSAREP_TOKEN", "")
+	hs := NewHybridStore()
+	_ = hs.Clear()
+
+	cred := &Credentials{PAT: "unsareport_pat_hybrid", Email: "h@example.com", Name: "Hybrid", CreatedAt: time.Now()}
+	if err := hs.Set(cred); err != nil {
+		t.Fatal(err)
+	}
+	got, err := hs.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PAT != cred.PAT || got.Email != "h@example.com" {
+		t.Fatalf("got %+v", got)
+	}
+	if err := hs.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hs.Get(); err == nil {
+		t.Fatal("expected error after clear")
+	}
+}

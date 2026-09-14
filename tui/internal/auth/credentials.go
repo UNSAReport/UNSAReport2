@@ -169,8 +169,53 @@ func (k *KeyringStore) Clear() error {
 	return nil
 }
 
+type HybridStore struct {
+	keyring Store
+	file    Store
+}
+
+func NewHybridStore() *HybridStore {
+	return &HybridStore{
+		keyring: &KeyringStore{},
+		file:    NewFileStore(),
+	}
+}
+
+func (h *HybridStore) Get() (*Credentials, error) {
+	if !IsHeadless() {
+		cred, err := h.keyring.Get()
+		if err == nil && cred != nil && cred.PAT != "" {
+			return cred, nil
+		}
+	}
+	return h.file.Get()
+}
+
+func (h *HybridStore) Set(c *Credentials) error {
+	if c == nil || c.PAT == "" {
+		return fmt.Errorf("empty credentials")
+	}
+	if IsHeadless() {
+		return h.file.Set(c)
+	}
+	err := h.keyring.Set(c)
+	if err != nil {
+		return h.file.Set(c)
+	}
+	return nil
+}
+
+func (h *HybridStore) Clear() error {
+	errK := h.keyring.Clear()
+	errF := h.file.Clear()
+	if errK != nil && errF != nil {
+		return errK
+	}
+	return nil
+}
+
 func NewStore() Store {
-	return &KeyringStore{}
+	return NewHybridStore()
 }
 
 func GetTokenResolved(store Store) string {

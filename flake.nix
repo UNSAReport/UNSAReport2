@@ -42,8 +42,12 @@
             (with pkgs; [
               sops
               just
+              bun
+              go
+              nodejs
             ])
             (with unstable; [
+              moon
             ])
           ];
           shellHook = "";

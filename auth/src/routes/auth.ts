@@ -11,8 +11,10 @@ import { getUserRoles, signAccessToken } from '@/lib/jwt';
 import { providerRegistry, upsertOAuthUser } from '@/lib/oauth';
 import {
   createRefreshToken,
+  revokePAT,
   revokeRefreshToken,
   verifyAndRotateRefreshToken,
+  verifyPAT,
 } from '@/lib/tokens';
 import { authMiddleware } from '@/middleware/auth';
 
@@ -227,16 +229,28 @@ authRouter.post('/refresh', async (c) => {
 
 /**
  * Route handler for POST /logout
- * Revokes the active refresh token and clears auth cookies.
+ * Revokes the active refresh token, any active personal access token, and clears auth cookies.
  */
 authRouter.post('/logout', async (c) => {
   const body = await c.req
-    .json<{ refresh_token?: string }>()
-    .catch(() => ({}) as { refresh_token?: string });
+    .json<{ refresh_token?: string; pat?: string }>()
+    .catch(() => ({}) as { refresh_token?: string; pat?: string });
   const refreshTokenInput = body.refresh_token || getCookie(c, 'refresh_token');
 
   if (refreshTokenInput) {
     await revokeRefreshToken(refreshTokenInput);
+  }
+
+  const authHeader = c.req.header('Authorization');
+  let patToken = body.pat;
+  if (!patToken && authHeader?.startsWith('Bearer unsareport_pat_')) {
+    patToken = authHeader.substring(7).trim();
+  }
+  if (patToken) {
+    const verified = await verifyPAT(patToken);
+    if (verified) {
+      await revokePAT(verified.user.id, verified.pat.id);
+    }
   }
 
   deleteCookie(c, 'access_token', { path: '/' });

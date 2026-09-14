@@ -14,6 +14,7 @@ RUN bun install --frozen-lockfile --filter @unsa/slides
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/slides ./slides
+COPY --from=deps /app/web/packages ./web/packages
 COPY package.json bun.lock ./
 COPY slides ./slides
 COPY web/packages ./web/packages
@@ -41,6 +42,7 @@ COPY slides/docker/docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh
 RUN chown -R bun:bun /app
 USER bun
+EXPOSE 3002
 
 HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD bun -e "fetch('http://127.0.0.1:'+(process.env.PORT||3002)+'/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
