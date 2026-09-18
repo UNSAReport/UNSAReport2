@@ -146,21 +146,11 @@ func newWhoamiCmd() *cobra.Command {
 }
 
 func newAuthCmd() *cobra.Command {
-	var jsonOut bool
 	authCmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Auth status",
+		Short: "Log in, log out, and inspect credentials",
 	}
-	status := &cobra.Command{
-		Use:   "status",
-		Short: "Show authenticated user",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return runWhoami(jsonOut)
-		},
-	}
-	status.Flags().BoolVar(&jsonOut, "json", false, "JSON output")
-	authCmd.AddCommand(status)
+	authCmd.AddCommand(newLoginCmd(), newLogoutCmd(), newWhoamiCmd())
 	return authCmd
 }
 

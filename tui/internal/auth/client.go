@@ -273,7 +273,7 @@ func (c *Client) Login(ctx context.Context, noBrowser bool) (*Credentials, error
 		if err != nil {
 			return nil, err
 		}
-		return nil, fmt.Errorf("no callback received; paste PAT via 'unsarep login --token <PAT>'")
+		return nil, fmt.Errorf("no callback received; paste PAT via 'unsarep auth login --token <PAT>'")
 	}
 
 	if err := OpenBrowser(flow.AuthURL); err != nil {

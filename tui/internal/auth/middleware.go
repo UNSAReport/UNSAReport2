@@ -10,7 +10,7 @@ import (
 
 // ErrAuthRequired is returned when no credential is available. Callers in the
 // cmd layer turn it into an interactive huh login confirm on TTYs.
-var ErrAuthRequired = errors.New("not authenticated — run 'unsarep login'")
+var ErrAuthRequired = errors.New("not authenticated — run 'unsarep auth login'")
 
 func RequireAuth(ctx context.Context, c *Client, prompt bool) (*Credentials, error) {
 	tok := ""

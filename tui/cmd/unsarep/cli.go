@@ -162,9 +162,6 @@ Project-centric: detects unsareport.toml via walk-up and resolves the project ro
 	root.PersistentFlags().BoolVar(&noInput, "no-input", false, "Fail instead of prompting, even on a terminal")
 
 	root.AddCommand(
-		newLoginCmd(),
-		newLogoutCmd(),
-		newWhoamiCmd(),
 		newAuthCmd(),
 		newDocsCmd(),
 		newRegistryCmd(),
