@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import type { Context, MiddlewareHandler } from 'hono';
 import { Hono } from 'hono';
 import { config } from '@/config';
@@ -6,6 +6,10 @@ import { db } from '@/db/index';
 import { userRoles, users } from '@/db/schema';
 import { authMiddleware } from '@/middleware/auth';
 import type { Role } from '@/types';
+
+const MAX_USERS_SEARCH_LIMIT = 50;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const rolesRouter = new Hono();
 
@@ -85,6 +89,80 @@ rolesRouter.get('/user/:userId', rolesAuthMiddleware, async (c) => {
     .where(eq(userRoles.userId, targetUserId));
 
   return c.json({ userId: targetUserId, roles: rows });
+});
+
+/**
+ * Route handler for GET /users
+ * Searches or lists registered users along with their assigned ecosystem roles.
+ * Requires admin role or X-Admin-Key.
+ */
+rolesRouter.get('/users', rolesAuthMiddleware, async (c) => {
+  if (!hasAnyAdminRole(c)) {
+    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+  }
+
+  const query = (c.req.query('q') ?? c.req.query('search'))?.trim();
+
+  let userRows: (typeof users.$inferSelect)[];
+
+  if (query && query.length > 0) {
+    if (UUID_REGEX.test(query)) {
+      userRows = await db
+        .select()
+        .from(users)
+        .where(
+          or(
+            eq(users.id, query),
+            ilike(users.email, `%${query}%`),
+            ilike(users.name, `%${query}%`),
+          ),
+        )
+        .orderBy(desc(users.createdAt))
+        .limit(MAX_USERS_SEARCH_LIMIT);
+    } else {
+      userRows = await db
+        .select()
+        .from(users)
+        .where(
+          or(ilike(users.email, `%${query}%`), ilike(users.name, `%${query}%`)),
+        )
+        .orderBy(desc(users.createdAt))
+        .limit(MAX_USERS_SEARCH_LIMIT);
+    }
+  } else {
+    userRows = await db
+      .select()
+      .from(users)
+      .orderBy(desc(users.createdAt))
+      .limit(MAX_USERS_SEARCH_LIMIT);
+  }
+
+  const userIds = userRows.map((u) => u.id);
+  const roleRows =
+    userIds.length > 0
+      ? await db
+          .select()
+          .from(userRoles)
+          .where(inArray(userRoles.userId, userIds))
+      : [];
+
+  const rolesByUserId = new Map<string, typeof roleRows>();
+  for (const r of roleRows) {
+    const existing = rolesByUserId.get(r.userId) || [];
+    existing.push(r);
+    rolesByUserId.set(r.userId, existing);
+  }
+
+  return c.json({
+    users: userRows.map((u) => ({
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      picture: u.picture,
+      createdAt: u.createdAt,
+      roles: rolesByUserId.get(u.id) || [],
+    })),
+  });
 });
 
 /**

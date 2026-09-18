@@ -9,6 +9,7 @@ import { useEffect } from 'react';
 import {
   DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
   fetchCurrentUser,
+  logoutFn,
   setSessionTokenServerFn,
 } from '@/lib/auth/server';
 import '@/index.css';
@@ -104,7 +105,19 @@ function RootNotFoundComponent() {
 }
 
 function RootComponent() {
+  const router = useRouter();
   const { user } = Route.useRouteContext();
+
+  const handleLogout = async () => {
+    await logoutFn();
+    router.invalidate();
+    window.location.href = '/';
+  };
+
+  const hasAnyAdminRole = user?.roles
+    ? Object.values(user.roles).includes('admin')
+    : false;
+
   return (
     <RootDocument>
       <AuthHashConsumer />
@@ -113,9 +126,34 @@ function RootComponent() {
         <a href="/presentations/microphoto">Slides</a> |{' '}
         <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{' '}
         <a href="/auth/pat">PATs</a>
+        {hasAnyAdminRole ? (
+          <>
+            {' '}
+            |{' '}
+            <a href="/admin" style={{ fontWeight: 'bold', color: '#dc2626' }}>
+              Admin
+            </a>
+          </>
+        ) : null}
         {user ? (
           <span style={{ marginLeft: '1rem' }}>
-            — {user.email} ({user.name})
+            — {user.email} ({user.name}){' '}
+            <button
+              type="button"
+              onClick={handleLogout}
+              style={{
+                marginLeft: '0.5rem',
+                padding: '0.2rem 0.5rem',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                backgroundColor: '#fee2e2',
+                border: '1px solid #f87171',
+                borderRadius: '4px',
+                color: '#b91c1c',
+              }}
+            >
+              Logout
+            </button>
           </span>
         ) : (
           <span style={{ marginLeft: '1rem' }}>— not logged in</span>
