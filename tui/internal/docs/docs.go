@@ -344,6 +344,9 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 		def := p.Commands[c]
 		if existing, ok := cfg.Scripts[alias]; ok {
 			if !reflect.DeepEqual(existing.Commands, def.Commands) {
+				if mode != "ask" {
+					return fmt.Errorf("alias collision on %q; aborted", alias)
+				}
 				line, err := promptLine(fmt.Sprintf("alias %q exists with different body; new alias name (empty aborts):", alias))
 				if err != nil {
 					return err
