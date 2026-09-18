@@ -10,8 +10,8 @@ import (
 	"github.com/UNSAReport/tui/internal/project"
 )
 
-var nameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
-var prefixRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+var nameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
+var prefixRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._~-]*$`)
 
 type PackageDef struct {
 	Name          string   `toml:"name"`
@@ -90,13 +90,13 @@ func Encode(doc PkgToml) (string, error) {
 func Validate(p PkgToml) error {
 	n := strings.TrimSpace(p.Package.Name)
 	if len(n) < 3 || len(n) > 64 || !nameRe.MatchString(n) {
-		return fmt.Errorf("invalid [package] name %q (want [a-z0-9-], 3-64 chars)", p.Package.Name)
+		return fmt.Errorf("invalid [package] name %q (want [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars)", p.Package.Name)
 	}
 	if _, err := semver.StrictNewVersion(strings.TrimSpace(p.Package.Version)); err != nil {
 		return fmt.Errorf("invalid [package] version %q: %w", p.Package.Version, err)
 	}
 	if p.Package.CommandPrefix != "" && !prefixRe.MatchString(p.Package.CommandPrefix) {
-		return fmt.Errorf("invalid [package] command_prefix %q", p.Package.CommandPrefix)
+		return fmt.Errorf("invalid [package] command_prefix %q (want [a-z0-9._~-], 3-64 chars)", p.Package.CommandPrefix)
 	}
 	if len(p.Components.Files) == 0 {
 		return fmt.Errorf("[components] files must list at least one glob")
@@ -109,6 +109,9 @@ func Validate(p PkgToml) error {
 	for _, d := range p.Components.DependsOn {
 		name, rng, ok := strings.Cut(d, " ")
 		if !ok || strings.TrimSpace(name) == "" || strings.TrimSpace(rng) == "" {
+			return fmt.Errorf("invalid depends_on entry %q (want \"name range\")", d)
+		}
+		if !nameRe.MatchString(strings.TrimSpace(name)) {
 			return fmt.Errorf("invalid depends_on entry %q (want \"name range\")", d)
 		}
 		if _, err := semver.NewConstraint(strings.TrimSpace(rng)); err != nil {

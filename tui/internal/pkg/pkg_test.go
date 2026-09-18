@@ -42,6 +42,46 @@ func TestParseValid(t *testing.T) {
 	}
 }
 
+func TestValidateScopedNames(t *testing.T) {
+	accept := []string{"cardo", "@xxx/yyy", "my.pkg", "my_pkg", "a~b"}
+	for _, name := range accept {
+		p, err := Parse(strings.Replace(validToml, `name = "cardo"`, `name = "`+name+`"`, 1))
+		if err != nil {
+			t.Fatalf("%s: parse: %v", name, err)
+		}
+		if err := Validate(p); err != nil {
+			t.Fatalf("%s: expected accept: %v", name, err)
+		}
+	}
+	reject := []string{"@xxx", "xxx/", "@/y", "a/b/c", "MyPkg", ".foo", "-foo", "_foo", "foo bar", "foo:bar", "foo%20x", "ab"}
+	for _, name := range reject {
+		p, err := Parse(strings.Replace(validToml, `name = "cardo"`, `name = "`+name+`"`, 1))
+		if err != nil {
+			continue
+		}
+		if err := Validate(p); err == nil {
+			t.Fatalf("%s: expected rejection", name)
+		}
+	}
+}
+
+func TestValidateScopedDependsOn(t *testing.T) {
+	p, err := Parse(strings.Replace(validToml, "theme >=1.0.0, <2.0.0", "@xxx/theme ^1.0.0", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(p); err != nil {
+		t.Fatalf("expected scoped depends_on accept: %v", err)
+	}
+	p, err = Parse(strings.Replace(validToml, "theme >=1.0.0, <2.0.0", "Bad_Name ^1.0.0", 1))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(p); err == nil {
+		t.Fatal("expected bad depends_on name rejection")
+	}
+}
+
 func TestValidateRejects(t *testing.T) {
 	cases := []struct {
 		name   string

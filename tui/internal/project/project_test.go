@@ -3,7 +3,10 @@ package project
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/BurntSushi/toml"
 )
 
 func TestFindRootMissing(t *testing.T) {
@@ -76,6 +79,54 @@ func TestLoadPackageDecl(t *testing.T) {
 		t.Fatal("expected bad-range error")
 	}
 }
+func TestLoadScopedPackageDecl(t *testing.T) {
+	for _, name := range []string{"@xxx/yyy", "my.pkg", "my_pkg"} {
+		path := filepath.Join(t.TempDir(), "unsareport.toml")
+		body := minimalToml + "\n[package]\nname = \"" + name + "\"\nversion = \"1.2.0\"\n"
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		cfg, err := Load(path)
+		if err != nil {
+			t.Fatalf("%s: expected accept: %v", name, err)
+		}
+		if cfg.Package == nil || cfg.Package.Name != name {
+			t.Fatalf("%s: package %+v", name, cfg.Package)
+		}
+	}
+	for _, name := range []string{"@xxx", "a/b/c", "MyPkg", ".foo", "ab"} {
+		path := filepath.Join(t.TempDir(), "unsareport.toml")
+		body := minimalToml + "\n[package]\nname = \"" + name + "\"\nversion = \"1.2.0\"\n"
+		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path); err == nil {
+			t.Fatalf("%s: expected rejection", name)
+		}
+	}
+}
+
+func TestLoadScopedDependencyKey(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "unsareport.toml")
+	body := minimalToml + "\n[dependencies]\n\"@xxx/yyy\" = \"^1.0.0\"\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected quoted scoped dep accept: %v", err)
+	}
+	if cfg.Dependencies["@xxx/yyy"] != "^1.0.0" {
+		t.Fatalf("deps %+v", cfg.Dependencies)
+	}
+	bad := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(bad, []byte(minimalToml+"\n[dependencies]\n\"MyPkg\" = \"^1.0.0\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(bad); err == nil {
+		t.Fatal("expected bad dep-name rejection")
+	}
+}
 
 func TestFragments(t *testing.T) {
 	tmp := t.TempDir()
@@ -107,7 +158,7 @@ func TestFragments(t *testing.T) {
 	if cfg.ScriptSource("cardo:zip") != "unsareport.d/scripts/cardo-zip.toml" {
 		t.Fatalf("provenance %q", cfg.ScriptSource("cardo:zip"))
 	}
-	if len(cfg.Hooks["build"]) != 1 || cfg.Hooks["build"][0] != "cardo:zip" {
+	if len(cfg.Hooks["build"]) != 1 || cfg.Hooks["build"][0].Alias != "cardo:zip" {
 		t.Fatalf("hooks %+v", cfg.Hooks)
 	}
 	dup := "alias = \"cardo:zip\"\n\n[commands]\nany = [\"x\"]\n"
@@ -116,5 +167,54 @@ func TestFragments(t *testing.T) {
 	}
 	if _, err := Load(cfgPath); err == nil {
 		t.Fatal("expected duplicate-alias error")
+	}
+}
+func TestHookBindingRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "unsareport.toml")
+	body := minimalToml + "\n[hooks]\nbuild = [\"a:b\", { alias = \"c:d\", time = \"after\" }]\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := cfg.Hooks["build"]
+	if len(got) != 2 || got[0].Alias != "a:b" || got[0].When() != HookBefore {
+		t.Fatalf("before binding %+v", got)
+	}
+	if got[1].Alias != "c:d" || got[1].When() != HookAfter {
+		t.Fatalf("after binding %+v", got)
+	}
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(cfg); err != nil {
+		t.Fatal(err)
+	}
+	out := buf.String()
+	if !strings.Contains(out, `"a:b"`) {
+		t.Fatalf("before entry must stay a bare string:\n%s", out)
+	}
+	if !strings.Contains(out, `time = "after"`) {
+		t.Fatalf("after entry must keep its time:\n%s", out)
+	}
+}
+
+func TestHookBindingRejects(t *testing.T) {
+	cases := []string{
+		"\n[hooks]\nbuild = [{ alias = \"c:d\", time = \"eventually\" }]\n",
+		"\n[hooks]\nbuild = [{ time = \"after\" }]\n",
+		"\n[hooks]\nbuild = [{ alias = \"\" }]\n",
+		"\n[hooks]\nbuild = [\"\"]\n",
+		"\n[hooks]\nbuild = [{ alias = \"c:d\", when = \"after\" }]\n",
+		"\n[hooks]\nbuild = [42]\n",
+	}
+	for _, extra := range cases {
+		path := filepath.Join(t.TempDir(), "unsareport.toml")
+		if err := os.WriteFile(path, []byte(minimalToml+extra), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(path); err == nil {
+			t.Fatalf("expected rejection of %q", extra)
+		}
 	}
 }

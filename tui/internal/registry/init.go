@@ -12,7 +12,8 @@ import (
 	"github.com/UNSAReport/tui/internal/pkg"
 )
 
-var initNameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+var initNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
+var initPrefixRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._~-]*$`)
 
 // InitOptions describes a new standalone package scaffold.
 type InitOptions struct {
@@ -29,7 +30,7 @@ type InitOptions struct {
 func InitPackage(opt InitOptions) error {
 	name := strings.TrimSpace(opt.Name)
 	if len(name) < 3 || len(name) > 64 || !initNameRe.MatchString(name) {
-		return fmt.Errorf("invalid package name %q (want [a-z0-9-], 3-64 chars)", opt.Name)
+		return fmt.Errorf("invalid package name %q (want [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars)", opt.Name)
 	}
 	version := strings.TrimSpace(opt.Version)
 	if version == "" {
@@ -40,10 +41,10 @@ func InitPackage(opt InitOptions) error {
 	}
 	prefix := strings.TrimSpace(opt.CommandPrefix)
 	if prefix == "" {
-		prefix = name
+		prefix = name[strings.LastIndex(name, "/")+1:]
 	}
-	if !initNameRe.MatchString(prefix) {
-		return fmt.Errorf("invalid command_prefix %q (want [a-z0-9-]+)", opt.CommandPrefix)
+	if !initPrefixRe.MatchString(prefix) {
+		return fmt.Errorf("invalid command_prefix %q (want [a-z0-9._~-])", opt.CommandPrefix)
 	}
 	dir := strings.TrimSpace(opt.Dir)
 	if dir == "" {

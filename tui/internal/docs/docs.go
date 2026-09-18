@@ -195,7 +195,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
 		cfg.Project.RootMarkerVersion = config.RootMarkerVersion
 		cfg.Scripts = map[string]project.ScriptDef{}
-		cfg.Hooks = map[string][]string{}
+		cfg.Hooks = map[string][]project.HookBinding{}
 		cfg.Dependencies = map[string]string{}
 		if err := saveConfig(cwd, cfg); err != nil {
 			return err
@@ -292,7 +292,7 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode string) error {
 	prefix := p.Package.CommandPrefix
 	if prefix == "" {
-		prefix = p.Package.Name
+		prefix = p.Package.Name[strings.LastIndex(p.Package.Name, "/")+1:]
 	}
 	cmds := make([]string, 0, len(p.Commands))
 	for c := range p.Commands {
@@ -369,7 +369,7 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			return err
 		}
 	}
-	bound := map[string][]string{}
+	bound := map[string][]project.HookBinding{}
 	for std, suggestions := range p.HooksSuggest {
 		if !scripts.HookStandards[std] {
 			return fmt.Errorf("package suggests unknown hook standard %q", std)
@@ -393,7 +393,7 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			} else {
 				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			bound[std] = append(bound[std], alias)
+			bound[std] = append(bound[std], project.HookBinding{Alias: alias})
 		}
 	}
 	if len(bound) > 0 {
@@ -411,11 +411,11 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 }
 
 // mergeHookFragment unions aliases into unsareport.d/hooks/<std>-<prefix>.toml.
-func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, already []string) error {
+func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, already []project.HookBinding) error {
 	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
 	owned := map[string]bool{}
-	for _, a := range already {
-		owned[stripHookAlias(a)] = true
+	for _, b := range already {
+		owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
 	}
 	frag := project.HookFragment{Standard: std, Origin: origin}
 	if raw, err := os.ReadFile(path); err == nil {
@@ -423,7 +423,7 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, alrea
 		if derr != nil {
 			return fmt.Errorf("parse %s: %w", relHookPath(root, path), derr)
 		}
-		if undecoded := md.Undecoded(); len(undecoded) > 0 {
+		if undecoded := project.FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
 			return fmt.Errorf("unknown field %q in %s", undecoded[0].String(), relHookPath(root, path))
 		}
 		if frag.Standard != std {
@@ -433,16 +433,16 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, alrea
 			return fmt.Errorf("%s: owned by package %q", relHookPath(root, path), frag.Origin)
 		}
 		frag.Origin = origin
-		for _, a := range frag.Aliases {
-			owned[stripHookAlias(a)] = true
+		for _, b := range frag.Aliases {
+			owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
 		}
 	}
-	for _, a := range aliases {
-		if owned[stripHookAlias(a)] {
+	for _, b := range aliases {
+		if owned[stripHookAlias(b.Alias)+"\x00"+b.When()] {
 			continue
 		}
-		owned[stripHookAlias(a)] = true
-		frag.Aliases = append(frag.Aliases, a)
+		owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
+		frag.Aliases = append(frag.Aliases, b)
 	}
 	var buf strings.Builder
 	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
@@ -471,13 +471,16 @@ func relHookPath(root, path string) string {
 	return path
 }
 
-func runHooks(root, std string, cfg project.SpecConfig) error {
+func runHooks(root, std, when string, cfg project.SpecConfig) error {
 	aliases, ok := cfg.Hooks[std]
 	if !ok {
 		return nil
 	}
-	for _, a := range aliases {
-		prefix, name, err := scripts.SplitPrefix(strings.TrimSpace(a))
+	for _, b := range aliases {
+		if b.When() != when {
+			continue
+		}
+		prefix, name, err := scripts.SplitPrefix(strings.TrimSpace(b.Alias))
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
@@ -634,8 +637,8 @@ func Remove(cwd, name string) error {
 	}
 	hooked := map[string]bool{}
 	for _, aliases := range cfg.Hooks {
-		for _, a := range aliases {
-			hooked[stripHookAlias(a)] = true
+		for _, b := range aliases {
+			hooked[stripHookAlias(b.Alias)] = true
 		}
 	}
 	ownScripts, err := originScriptAliases(root, name)
@@ -748,11 +751,17 @@ func removeOriginFragments(root, origin string) error {
 }
 
 func Check(cwd string) error {
-	root, err := project.FindRoot(cwd)
+	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
 		return err
 	}
-	return runCheck(root)
+	if err := runHooks(root, "check", project.HookBefore, cfg); err != nil {
+		return err
+	}
+	if err := runCheck(root); err != nil {
+		return err
+	}
+	return runHooks(root, "check", project.HookAfter, cfg)
 }
 
 func typstBin() (string, error) {
@@ -771,7 +780,7 @@ func Build(cwd, report string) error {
 	if err := runCheck(root); err != nil {
 		return err
 	}
-	if err := runHooks(root, "build", cfg); err != nil {
+	if err := runHooks(root, "build", project.HookBefore, cfg); err != nil {
 		return err
 	}
 	bin, err := typstBin()
@@ -789,7 +798,7 @@ func Build(cwd, report string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("typst compile failed: %w", err)
 	}
-	return nil
+	return runHooks(root, "build", project.HookAfter, cfg)
 }
 
 func Watch(cwd, report string) error {

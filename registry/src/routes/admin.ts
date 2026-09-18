@@ -2,6 +2,11 @@ import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '@/db';
 import { packages, packageVersions, trustedUsers } from '@/db/schema';
+import {
+  requestPackageName,
+  scopedNameRoute,
+  unscopedNameRoute,
+} from '@/lib/package-name';
 import { requireAuth, requireRole } from '@/middleware/auth';
 import {
   ConflictError,
@@ -41,145 +46,159 @@ adminRouter.get('/pending', async (c) => {
 /**
  * Route handler for approving a pending package version and making it active in the registry.
  */
-adminRouter.post('/packages/:name/:version/approve', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
+adminRouter.on(
+  'POST',
+  [
+    unscopedNameRoute('/packages', '/:version/approve'),
+    scopedNameRoute('/packages', '/:version/approve'),
+  ],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const pkg = pkgList[0];
+    const pkg = pkgList[0];
 
-  const verList = await db
-    .select()
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkg.id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select()
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkg.id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const ver = verList[0];
-  const now = new Date();
+    const ver = verList[0];
+    const now = new Date();
 
-  await db
-    .update(packageVersions)
-    .set({
-      status: 'approved',
-      approvedAt: now,
-      rejectionReason: null,
-    })
-    .where(eq(packageVersions.id, ver.id));
+    await db
+      .update(packageVersions)
+      .set({
+        status: 'approved',
+        approvedAt: now,
+        rejectionReason: null,
+      })
+      .where(eq(packageVersions.id, ver.id));
 
-  await db
-    .update(packages)
-    .set({
-      status: 'approved',
-      latestVersion: version,
-      updatedAt: now,
-    })
-    .where(eq(packages.id, pkg.id));
+    await db
+      .update(packages)
+      .set({
+        status: 'approved',
+        latestVersion: version,
+        updatedAt: now,
+      })
+      .where(eq(packages.id, pkg.id));
 
-  return c.json({
-    message: `Version '${version}' of package '${name}' approved successfully`,
-  });
-});
+    return c.json({
+      message: `Version '${version}' of package '${name}' approved successfully`,
+    });
+  },
+);
 
 /**
  * Route handler for rejecting a pending package version with an optional rejection reason.
  */
-adminRouter.post('/packages/:name/:version/reject', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
+adminRouter.on(
+  'POST',
+  [
+    unscopedNameRoute('/packages', '/:version/reject'),
+    scopedNameRoute('/packages', '/:version/reject'),
+  ],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
 
-  let body: Record<string, unknown> = {};
-  try {
-    body = (await c.req.json()) as Record<string, unknown>;
-  } catch {}
+    let body: Record<string, unknown> = {};
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {}
 
-  const reason = (body.reason as string) || 'No reason provided';
+    const reason = (body.reason as string) || 'No reason provided';
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const pkg = pkgList[0];
+    const pkg = pkgList[0];
 
-  const verList = await db
-    .select()
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkg.id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select()
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkg.id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const ver = verList[0];
-  const now = new Date();
+    const ver = verList[0];
+    const now = new Date();
 
-  await db
-    .update(packageVersions)
-    .set({
-      status: 'rejected',
-      rejectionReason: reason,
-    })
-    .where(eq(packageVersions.id, ver.id));
-
-  const approvedCount = await db
-    .select({ id: packageVersions.id })
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkg.id),
-        eq(packageVersions.status, 'approved'),
-      ),
-    );
-
-  if (approvedCount.length === 0) {
     await db
-      .update(packages)
+      .update(packageVersions)
       .set({
         status: 'rejected',
         rejectionReason: reason,
-        updatedAt: now,
       })
-      .where(eq(packages.id, pkg.id));
-  }
+      .where(eq(packageVersions.id, ver.id));
 
-  return c.json({
-    message: `Version '${version}' of package '${name}' rejected`,
-    reason,
-  });
-});
+    const approvedCount = await db
+      .select({ id: packageVersions.id })
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkg.id),
+          eq(packageVersions.status, 'approved'),
+        ),
+      );
+
+    if (approvedCount.length === 0) {
+      await db
+        .update(packages)
+        .set({
+          status: 'rejected',
+          rejectionReason: reason,
+          updatedAt: now,
+        })
+        .where(eq(packages.id, pkg.id));
+    }
+
+    return c.json({
+      message: `Version '${version}' of package '${name}' rejected`,
+      reason,
+    });
+  },
+);
 
 /**
  * Route handler for listing all user IDs granted trusted publisher status.

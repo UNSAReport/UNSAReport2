@@ -16,7 +16,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var initNameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
+var initNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
 
 func newRegistryCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -50,12 +50,12 @@ func newRegistryInitCmd() *cobra.Command {
 						Value(&opt.Dir),
 					huh.NewInput().
 						Title("Name").
-						Description("Package name [a-z0-9-], 3-64 chars").
+						Description("Package name [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars").
 						Value(&opt.Name).
 						Validate(func(s string) error {
 							n := strings.TrimSpace(s)
 							if len(n) < 3 || len(n) > 64 || !initNameRe.MatchString(n) {
-								return fmt.Errorf("name must match [a-z0-9-], 3-64 chars")
+								return fmt.Errorf("name must match [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars")
 							}
 							return nil
 						}),

@@ -114,6 +114,10 @@ async function registryAdminFetch(
   return res;
 }
 
+function encodePackageName(name: string): string {
+  return name.split('/').map(encodeURIComponent).join('/');
+}
+
 async function authAdminFetch(
   path: string,
   init: RequestInit = {},
@@ -152,7 +156,7 @@ export const approvePackageVersionServerFn = createServerFn({
 })
   .validator((data: { name: string; version: string }) => data)
   .handler(async ({ data }): Promise<{ message: string }> => {
-    const endpoint = `${ADMIN_PACKAGES_ENDPOINT}/${encodeURIComponent(data.name.toLowerCase())}/${encodeURIComponent(data.version)}/approve`;
+    const endpoint = `${ADMIN_PACKAGES_ENDPOINT}/${encodePackageName(data.name.toLowerCase())}/${encodeURIComponent(data.version)}/approve`;
     const res = await registryAdminFetch(endpoint, { method: 'POST' });
     return (await res.json()) as { message: string };
   });
@@ -162,7 +166,7 @@ export const rejectPackageVersionServerFn = createServerFn({
 })
   .validator((data: { name: string; version: string; reason: string }) => data)
   .handler(async ({ data }): Promise<{ message: string; reason: string }> => {
-    const endpoint = `${ADMIN_PACKAGES_ENDPOINT}/${encodeURIComponent(data.name.toLowerCase())}/${encodeURIComponent(data.version)}/reject`;
+    const endpoint = `${ADMIN_PACKAGES_ENDPOINT}/${encodePackageName(data.name.toLowerCase())}/${encodeURIComponent(data.version)}/reject`;
     const res = await registryAdminFetch(endpoint, {
       method: 'POST',
       body: JSON.stringify({ reason: data.reason }),
@@ -219,7 +223,7 @@ export const deletePackageVersionServerFn = createServerFn({
 })
   .validator((data: { name: string; version: string }) => data)
   .handler(async ({ data }): Promise<{ message: string }> => {
-    const endpoint = `${PACKAGES_ENDPOINT}/${encodeURIComponent(data.name.toLowerCase())}/${encodeURIComponent(data.version)}`;
+    const endpoint = `${PACKAGES_ENDPOINT}/${encodePackageName(data.name.toLowerCase())}/${encodeURIComponent(data.version)}`;
     const res = await registryAdminFetch(endpoint, { method: 'DELETE' });
     return (await res.json()) as { message: string };
   });

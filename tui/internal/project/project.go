@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -26,6 +27,8 @@ var HookStandards = map[string]bool{
 	"check": true,
 }
 
+var pkgNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
+
 type ProjectDef struct {
 	TypstEntry        string `toml:"typst_entry"`
 	RootMarkerVersion int    `toml:"root_marker_version"`
@@ -47,11 +50,11 @@ type PackageDecl struct {
 	CommandPrefix string   `toml:"command_prefix"`
 }
 type SpecConfig struct {
-	Project      ProjectDef           `toml:"project"`
-	Scripts      map[string]ScriptDef `toml:"scripts"`
-	Hooks        map[string][]string  `toml:"hooks"`
-	Package      *PackageDecl         `toml:"package"`
-	Dependencies map[string]string    `toml:"dependencies"`
+	Project      ProjectDef               `toml:"project"`
+	Scripts      map[string]ScriptDef     `toml:"scripts"`
+	Hooks        map[string][]HookBinding `toml:"hooks"`
+	Package      *PackageDecl             `toml:"package"`
+	Dependencies map[string]string        `toml:"dependencies"`
 
 	provenance map[string]string
 }
@@ -72,9 +75,70 @@ type ScriptFragment struct {
 
 // HookFragment is one unsareport.d/hooks/*.toml file: bindings for one standard.
 type HookFragment struct {
-	Standard string   `toml:"standard"`
-	Aliases  []string `toml:"aliases"`
-	Origin   string   `toml:"origin"`
+	Standard string        `toml:"standard"`
+	Aliases  []HookBinding `toml:"aliases"`
+	Origin   string        `toml:"origin"`
+}
+
+const (
+	HookBefore = "before"
+	HookAfter  = "after"
+)
+
+type HookBinding struct {
+	Alias string
+	Time  string
+}
+
+func (b HookBinding) When() string {
+	if b.Time == HookAfter {
+		return HookAfter
+	}
+	return HookBefore
+}
+
+func (b *HookBinding) UnmarshalTOML(v any) error {
+	switch t := v.(type) {
+	case string:
+		if strings.TrimSpace(t) == "" {
+			return fmt.Errorf("hook alias must not be empty")
+		}
+		b.Alias = t
+		b.Time = HookBefore
+		return nil
+	case map[string]any:
+		for k := range t {
+			if k != "alias" && k != "time" {
+				return fmt.Errorf("unknown field %q in hook binding", k)
+			}
+		}
+		raw, ok := t["alias"]
+		s, sok := raw.(string)
+		if !ok || !sok || strings.TrimSpace(s) == "" {
+			return fmt.Errorf("hook alias must not be empty")
+		}
+		b.Alias = s
+		b.Time = HookBefore
+		if tv, present := t["time"]; present {
+			ts, tok := tv.(string)
+			if !tok || (ts != "" && ts != HookBefore && ts != HookAfter) {
+				return fmt.Errorf("unknown hook time %q (want before|after)", fmt.Sprintf("%v", tv))
+			}
+			if ts == HookAfter {
+				b.Time = HookAfter
+			}
+		}
+		return nil
+	default:
+		return fmt.Errorf("hook binding must be a string or { alias, time } table")
+	}
+}
+
+func (b HookBinding) MarshalTOML() ([]byte, error) {
+	if b.When() == HookAfter {
+		return []byte(fmt.Sprintf(`{ alias = %q, time = "after" }`, b.Alias)), nil
+	}
+	return []byte(fmt.Sprintf(`%q`, b.Alias)), nil
 }
 
 type Context struct {
@@ -108,11 +172,8 @@ func validatePackageDecl(p *PackageDecl) error {
 	if len(n) < 3 || len(n) > 64 {
 		return fmt.Errorf("invalid [package] name %q (want 3-64 chars)", p.Name)
 	}
-	for _, r := range n {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
-			continue
-		}
-		return fmt.Errorf("invalid [package] name %q (want [a-z0-9-], 3-64 chars)", p.Name)
+	if !pkgNameRe.MatchString(n) {
+		return fmt.Errorf("invalid [package] name %q (want [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars)", p.Name)
 	}
 	if _, err := semver.StrictNewVersion(strings.TrimSpace(p.Version)); err != nil {
 		return fmt.Errorf("invalid [package] version %q: %w", p.Version, err)
@@ -126,7 +187,7 @@ func Load(path string) (SpecConfig, error) {
 	if err != nil {
 		return SpecConfig{}, fmt.Errorf("parse %s: %w", config.ConfigFileName, err)
 	}
-	if undecoded := md.Undecoded(); len(undecoded) > 0 {
+	if undecoded := FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
 		return SpecConfig{}, fmt.Errorf("unknown field %q in %s", undecoded[0].String(), config.ConfigFileName)
 	}
 	if cfg.Project.TypstEntry == "" {
@@ -139,7 +200,7 @@ func Load(path string) (SpecConfig, error) {
 		cfg.Scripts = map[string]ScriptDef{}
 	}
 	if cfg.Hooks == nil {
-		cfg.Hooks = map[string][]string{}
+		cfg.Hooks = map[string][]HookBinding{}
 	}
 	if cfg.Dependencies == nil {
 		cfg.Dependencies = map[string]string{}
@@ -152,6 +213,9 @@ func Load(path string) (SpecConfig, error) {
 	for name, rng := range cfg.Dependencies {
 		if strings.TrimSpace(name) == "" {
 			return SpecConfig{}, fmt.Errorf("empty package name in [dependencies]")
+		}
+		if !pkgNameRe.MatchString(strings.TrimSpace(name)) {
+			return SpecConfig{}, fmt.Errorf("invalid package name %q in [dependencies]", name)
 		}
 		if _, err := semver.NewConstraint(strings.TrimSpace(rng)); err != nil {
 			return SpecConfig{}, fmt.Errorf("invalid [dependencies] range for %q: %w", name, err)
@@ -214,16 +278,16 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 			return fmt.Errorf("%s: unknown hook standard %q (hookable: build, check)", relRoot(root, f), frag.Standard)
 		}
 		seen := map[string]bool{}
-		for _, a := range cfg.Hooks[frag.Standard] {
-			seen[stripHookPrefix(a)] = true
+		for _, b := range cfg.Hooks[frag.Standard] {
+			seen[stripHookPrefix(b.Alias)+"\x00"+b.When()] = true
 		}
-		for _, a := range frag.Aliases {
-			name := stripHookPrefix(a)
-			if seen[name] {
+		for _, b := range frag.Aliases {
+			name := stripHookPrefix(b.Alias)
+			if seen[name+"\x00"+b.When()] {
 				return fmt.Errorf("duplicate alias %q in [hooks.%s] (%s)", name, frag.Standard, relRoot(root, f))
 			}
-			seen[name] = true
-			cfg.Hooks[frag.Standard] = append(cfg.Hooks[frag.Standard], a)
+			seen[name+"\x00"+b.When()] = true
+			cfg.Hooks[frag.Standard] = append(cfg.Hooks[frag.Standard], b)
 		}
 	}
 	return nil
@@ -252,10 +316,51 @@ func decodeFragment(path string, v any) error {
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
-	if undecoded := md.Undecoded(); len(undecoded) > 0 {
+	if undecoded := FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
 		return fmt.Errorf("unknown field %q in %s", undecoded[0].String(), path)
 	}
 	return nil
+}
+
+// FilterHookBindingUndecoded drops the two scalar leaves of table-form hook
+// bindings ({ alias, time }) from an Undecoded key list.
+//
+// BurntSushi/toml v1.4.0 short-circuits unify() into UnmarshalTOML without
+// marking any keys decoded, so table-form bindings surface as e.g.
+// "hooks.build.alias" or "aliases.time". Upstream fixed this in v1.5.0
+// (markDecodedRecursive); until the pin moves, filter those leaves here. No
+// strictness is lost: unknown fields inside binding tables are rejected by
+// HookBinding.UnmarshalTOML itself, and these exact paths cannot arise from
+// any other document shape (anything else is a decode-time type mismatch,
+// never an undecoded key).
+func FilterHookBindingUndecoded(keys []toml.Key) []toml.Key {
+	out := make([]toml.Key, 0, len(keys))
+	for _, k := range keys {
+		if !isHookBindingLeaf(k.String()) {
+			out = append(out, k)
+		}
+	}
+	return out
+}
+
+func isHookBindingLeaf(path string) bool {
+	i := strings.LastIndex(path, ".")
+	if i < 0 {
+		return false
+	}
+	leaf, rest := path[i+1:], path[:i]
+	if leaf != "alias" && leaf != "time" {
+		return false
+	}
+	// Fragment files: "aliases.alias" / "aliases.time".
+	if rest == "aliases" {
+		return true
+	}
+	// Root config: "hooks.<std>.alias" / "hooks.<std>.time".
+	if j := strings.LastIndex(rest, "."); j >= 0 {
+		return rest[:j] == "hooks" && rest[j+1:] != ""
+	}
+	return false
 }
 
 func relRoot(root, path string) string {

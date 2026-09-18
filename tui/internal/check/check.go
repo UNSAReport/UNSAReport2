@@ -227,15 +227,15 @@ func checkScriptsHooks(root string, cfg project.SpecConfig) []Finding {
 		if seen[std] == nil {
 			seen[std] = map[string]bool{}
 		}
-		for _, a := range aliases {
-			name := a
-			if idx := strings.Index(a, "]"); strings.HasPrefix(a, "[") && idx >= 0 {
-				name = strings.TrimSpace(a[idx+1:])
+		for _, b := range aliases {
+			name := b.Alias
+			if idx := strings.Index(b.Alias, "]"); strings.HasPrefix(b.Alias, "[") && idx >= 0 {
+				name = strings.TrimSpace(b.Alias[idx+1:])
 			}
-			if seen[std][name] {
+			if seen[std][name+"\x00"+b.When()] {
 				out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("duplicate alias %q in [hooks.%s]", name, std)})
 			}
-			seen[std][name] = true
+			seen[std][name+"\x00"+b.When()] = true
 			if _, ok := cfg.Scripts[name]; !ok {
 				out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[hooks.%s] unknown alias %q", std, name)})
 			}

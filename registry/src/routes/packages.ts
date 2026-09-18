@@ -14,6 +14,11 @@ import {
   trustedUsers,
 } from '@/db/schema';
 import { checkCircularDependencies } from '@/lib/dependency-resolver';
+import {
+  requestPackageName,
+  scopedNameRoute,
+  unscopedNameRoute,
+} from '@/lib/package-name';
 import { expandGlobs, parsePkgToml, validatePkgToml } from '@/lib/pkg-toml';
 import {
   buildAndUploadZipArchive,
@@ -137,153 +142,165 @@ packagesRouter.get('/', optionalAuth, async (c) => {
 /**
  * Route handler for fetching package metadata, associated tags, and available version strings.
  */
-packagesRouter.get('/:name', async (c) => {
-  const name = c.req.param('name').toLowerCase();
+packagesRouter.on(
+  'GET',
+  [unscopedNameRoute(''), scopedNameRoute('')],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const pkg = pkgList[0];
+    const pkg = pkgList[0];
 
-  const tagRows = await db
-    .select({ name: tags.name, displayName: tags.displayName })
-    .from(packageTags)
-    .innerJoin(tags, eq(packageTags.tagId, tags.id))
-    .where(eq(packageTags.packageId, pkg.id));
+    const tagRows = await db
+      .select({ name: tags.name, displayName: tags.displayName })
+      .from(packageTags)
+      .innerJoin(tags, eq(packageTags.tagId, tags.id))
+      .where(eq(packageTags.packageId, pkg.id));
 
-  const versionRows = await db
-    .select({
-      version: packageVersions.version,
-      status: packageVersions.status,
-      createdAt: packageVersions.createdAt,
-    })
-    .from(packageVersions)
-    .where(eq(packageVersions.packageId, pkg.id))
-    .orderBy(desc(packageVersions.createdAt));
+    const versionRows = await db
+      .select({
+        version: packageVersions.version,
+        status: packageVersions.status,
+        createdAt: packageVersions.createdAt,
+      })
+      .from(packageVersions)
+      .where(eq(packageVersions.packageId, pkg.id))
+      .orderBy(desc(packageVersions.createdAt));
 
-  return c.json({
-    ...pkg,
-    tags: tagRows.map((t) => t.name),
-    versions: versionRows.map((v) => v.version),
-  });
-});
+    return c.json({
+      ...pkg,
+      tags: tagRows.map((t) => t.name),
+      versions: versionRows.map((v) => v.version),
+    });
+  },
+);
 
 /**
  * Route handler for listing all registered version entries for a given package name.
  */
-packagesRouter.get('/:name/versions', async (c) => {
-  const name = c.req.param('name').toLowerCase();
+packagesRouter.on(
+  'GET',
+  [unscopedNameRoute('', '/versions'), scopedNameRoute('', '/versions')],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
 
-  const pkgList = await db
-    .select({ id: packages.id })
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const versionRows = await db
-    .select({
-      id: packageVersions.id,
-      version: packageVersions.version,
-      status: packageVersions.status,
-      fileCount: packageVersions.fileCount,
-      createdAt: packageVersions.createdAt,
-      approvedAt: packageVersions.approvedAt,
-    })
-    .from(packageVersions)
-    .where(eq(packageVersions.packageId, pkgList[0].id))
-    .orderBy(desc(packageVersions.createdAt));
+    const versionRows = await db
+      .select({
+        id: packageVersions.id,
+        version: packageVersions.version,
+        status: packageVersions.status,
+        fileCount: packageVersions.fileCount,
+        createdAt: packageVersions.createdAt,
+        approvedAt: packageVersions.approvedAt,
+      })
+      .from(packageVersions)
+      .where(eq(packageVersions.packageId, pkgList[0].id))
+      .orderBy(desc(packageVersions.createdAt));
 
-  return c.json({
-    package: name,
-    versions: versionRows,
-  });
-});
+    return c.json({
+      package: name,
+      versions: versionRows,
+    });
+  },
+);
 
 /**
  * Route handler for fetching detailed metadata, file list, and declared dependencies for a specific package version.
  */
-packagesRouter.get('/:name/:version', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
+packagesRouter.on(
+  'GET',
+  [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const verList = await db
-    .select()
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkgList[0].id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select()
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkgList[0].id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const ver = verList[0];
+    const ver = verList[0];
 
-  const filesRows = await db
-    .select({
-      path: packageFiles.path,
-      section: packageFiles.section,
-      size: packageFiles.size,
-      checksum: packageFiles.checksum,
-    })
-    .from(packageFiles)
-    .where(eq(packageFiles.versionId, ver.id));
+    const filesRows = await db
+      .select({
+        path: packageFiles.path,
+        section: packageFiles.section,
+        size: packageFiles.size,
+        checksum: packageFiles.checksum,
+      })
+      .from(packageFiles)
+      .where(eq(packageFiles.versionId, ver.id));
 
-  const depsRows = await db
-    .select({
-      dependencyName: packageDependencies.dependencyName,
-      versionRange: packageDependencies.versionRange,
-    })
-    .from(packageDependencies)
-    .where(eq(packageDependencies.versionId, ver.id));
+    const depsRows = await db
+      .select({
+        dependencyName: packageDependencies.dependencyName,
+        versionRange: packageDependencies.versionRange,
+      })
+      .from(packageDependencies)
+      .where(eq(packageDependencies.versionId, ver.id));
 
-  const dependenciesObject: Record<string, string> = {};
-  for (const dep of depsRows) {
-    dependenciesObject[dep.dependencyName] = dep.versionRange;
-  }
+    const dependenciesObject: Record<string, string> = {};
+    for (const dep of depsRows) {
+      dependenciesObject[dep.dependencyName] = dep.versionRange;
+    }
 
-  return c.json({
-    package: name,
-    displayName: pkgList[0].displayName,
-    description: pkgList[0].description,
-    authorId: pkgList[0].authorId,
-    version: ver.version,
-    status: ver.status,
-    rejectionReason: ver.rejectionReason,
-    fileCount: ver.fileCount,
-    createdAt: ver.createdAt,
-    approvedAt: ver.approvedAt,
-    files: filesRows,
-    dependencies: dependenciesObject,
-  });
-});
+    return c.json({
+      package: name,
+      displayName: pkgList[0].displayName,
+      description: pkgList[0].description,
+      authorId: pkgList[0].authorId,
+      version: ver.version,
+      status: ver.status,
+      rejectionReason: ver.rejectionReason,
+      fileCount: ver.fileCount,
+      createdAt: ver.createdAt,
+      approvedAt: ver.approvedAt,
+      files: filesRows,
+      dependencies: dependenciesObject,
+    });
+  },
+);
 
 /**
  * Route handler for publishing a new package version from a pkg.toml
@@ -663,121 +680,133 @@ packagesRouter.post('/', requireAuth, async (c) => {
 /**
  * Route handler for updating details of a pending package version owned by the user.
  */
-packagesRouter.put('/:name/:version', requireAuth, async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
-  const user = c.get('user');
-  if (!user) {
-    throw new UnauthorizedError();
-  }
+packagesRouter.on(
+  'PUT',
+  [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
+  requireAuth,
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError();
+    }
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const pkg = pkgList[0];
+    const pkg = pkgList[0];
 
-  if (pkg.authorId !== user.id && !user.roles.includes('admin')) {
-    throw new ForbiddenError(`You are not the owner of package '${name}'`);
-  }
+    if (pkg.authorId !== user.id && !user.roles.includes('admin')) {
+      throw new ForbiddenError(`You are not the owner of package '${name}'`);
+    }
 
-  const verList = await db
-    .select()
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkg.id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select()
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkg.id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const ver = verList[0];
+    const ver = verList[0];
 
-  if (ver.status !== 'pending' && !user.roles.includes('admin')) {
-    throw new ForbiddenError(
-      `Cannot modify package version '${version}' with status '${ver.status}'`,
-    );
-  }
+    if (ver.status !== 'pending' && !user.roles.includes('admin')) {
+      throw new ForbiddenError(
+        `Cannot modify package version '${version}' with status '${ver.status}'`,
+      );
+    }
 
-  return c.json({ message: 'Version updated successfully' });
-});
+    return c.json({ message: 'Version updated successfully' });
+  },
+);
 
 /**
  * Route handler for deleting a package version and its associated S3 files (requires admin authentication).
  */
-packagesRouter.delete('/:name/:version', requireAuth, async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
-  const user = c.get('user');
-  if (!user) {
-    throw new UnauthorizedError();
-  }
+packagesRouter.on(
+  'DELETE',
+  [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
+  requireAuth,
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError();
+    }
 
-  if (!user.roles.includes('admin')) {
-    throw new ForbiddenError('Admin role required to delete a package version');
-  }
+    if (!user.roles.includes('admin')) {
+      throw new ForbiddenError(
+        'Admin role required to delete a package version',
+      );
+    }
 
-  const pkgList = await db
-    .select()
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select()
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const verList = await db
-    .select()
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkgList[0].id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select()
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkgList[0].id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const ver = verList[0];
+    const ver = verList[0];
 
-  const fileRows = await db
-    .select({ s3Key: packageFiles.s3Key })
-    .from(packageFiles)
-    .where(eq(packageFiles.versionId, ver.id));
+    const fileRows = await db
+      .select({ s3Key: packageFiles.s3Key })
+      .from(packageFiles)
+      .where(eq(packageFiles.versionId, ver.id));
 
-  for (const f of fileRows) {
-    await deleteS3Object(f.s3Key);
-  }
-  if (ver.componentsS3Key) {
-    await deleteS3Object(ver.componentsS3Key);
-  }
-  if (ver.templatesS3Key) {
-    await deleteS3Object(ver.templatesS3Key);
-  }
-  await deleteS3Object(ver.archiveS3Key);
+    for (const f of fileRows) {
+      await deleteS3Object(f.s3Key);
+    }
+    if (ver.componentsS3Key) {
+      await deleteS3Object(ver.componentsS3Key);
+    }
+    if (ver.templatesS3Key) {
+      await deleteS3Object(ver.templatesS3Key);
+    }
+    await deleteS3Object(ver.archiveS3Key);
 
-  await db.delete(packageVersions).where(eq(packageVersions.id, ver.id));
+    await db.delete(packageVersions).where(eq(packageVersions.id, ver.id));
 
-  return c.json({ message: `Version '${version}' of '${name}' deleted` });
-});
+    return c.json({ message: `Version '${version}' of '${name}' deleted` });
+  },
+);
 
 export default packagesRouter;

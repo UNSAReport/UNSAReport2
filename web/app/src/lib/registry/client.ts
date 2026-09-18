@@ -29,6 +29,10 @@ async function registryFetch(
   return fetch(`${base}${path}`, { ...init, headers });
 }
 
+function encodePackageName(name: string): string {
+  return name.split('/').map(encodeURIComponent).join('/');
+}
+
 async function fetchPackagesInternal(opts?: {
   search?: string;
   tag?: string;
@@ -51,11 +55,10 @@ async function fetchPackagesInternal(opts?: {
   if (Array.isArray(data)) return data;
   return data.packages ?? [];
 }
-
 async function fetchPackageInternal(
   name: string,
 ): Promise<RegistryPackage & { versions?: RegistryVersion[] }> {
-  const res = await registryFetch(`/v1/packages/${encodeURIComponent(name)}`);
+  const res = await registryFetch(`/v1/packages/${encodePackageName(name)}`);
   if (!res.ok) throw new Error(`Package not found: ${name}`);
   return (await res.json()) as RegistryPackage & {
     versions?: RegistryVersion[];
@@ -64,7 +67,7 @@ async function fetchPackageInternal(
 
 async function fetchVersionsInternal(name: string): Promise<RegistryVersion[]> {
   const res = await registryFetch(
-    `/v1/packages/${encodeURIComponent(name)}/versions`,
+    `/v1/packages/${encodePackageName(name)}/versions`,
   );
   if (!res.ok) return [];
   const data = (await res.json()) as
@@ -79,7 +82,7 @@ async function fetchVersionInternal(
   version: string,
 ): Promise<RegistryVersion> {
   const res = await registryFetch(
-    `/v1/packages/${encodeURIComponent(name)}/${encodeURIComponent(version)}`,
+    `/v1/packages/${encodePackageName(name)}/${encodeURIComponent(version)}`,
   );
   if (!res.ok) throw new Error(`Version not found: ${name}@${version}`);
   return (await res.json()) as RegistryVersion;

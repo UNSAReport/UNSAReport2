@@ -2,8 +2,9 @@ import { parse as parseToml } from 'smol-toml';
 import { isValidSemver, isValidSemverRange } from '@/lib/semver';
 import { ValidationError } from '@/middleware/error-handler';
 
-export const PKG_NAME_REGEX = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const COMMAND_PREFIX_REGEX = /^[a-z0-9-]+$/;
+export const PKG_NAME_REGEX =
+  /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/;
+const COMMAND_PREFIX_REGEX = /^[a-z0-9][a-z0-9._~-]*$/;
 const CONFIG_SCHEMA_TYPES = [
   'string',
   'bool',
@@ -503,7 +504,7 @@ export function validatePkgToml(
   }
   if (!PKG_NAME_REGEX.test(name)) {
     throw new ValidationError(
-      'pkg.toml [package] "name" must be lowercase alphanumeric with hyphens only (e.g. "cardo")',
+      'pkg.toml [package] "name" must be lowercase URL-safe ([a-z0-9._~-]), optionally scoped as "@scope/name" (e.g. "cardo", "@xxx/yyy", "my.pkg")',
       { field: 'package.name' },
     );
   }
@@ -588,7 +589,7 @@ export function validatePkgToml(
     );
     if (!COMMAND_PREFIX_REGEX.test(prefix)) {
       throw new ValidationError(
-        'pkg.toml [package] "command_prefix" must match [a-z0-9-]+',
+        'pkg.toml [package] "command_prefix" must match [a-z0-9._~-] (lowercase URL-safe part, no scope)',
         { field: 'package.command_prefix' },
       );
     }

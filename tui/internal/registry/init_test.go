@@ -45,6 +45,34 @@ func TestInitPackageRejects(t *testing.T) {
 		t.Fatal("expected non-empty-dir error")
 	}
 }
+func TestInitPackageScopedName(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "out")
+	if err := InitPackage(InitOptions{Dir: dir, Name: "@xxx/yyy", Description: "scoped"}); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(dir, "pkg.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := pkg.Parse(string(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := pkg.Validate(p); err != nil {
+		t.Fatal(err)
+	}
+	if p.Package.Name != "@xxx/yyy" {
+		t.Fatalf("pkg %+v", p.Package)
+	}
+	if p.Package.CommandPrefix != "yyy" {
+		t.Fatalf("expected scope-stripped prefix, got %q", p.Package.CommandPrefix)
+	}
+	for _, name := range []string{"@xxx", "a/b/c", "MyPkg", "ab"} {
+		if err := InitPackage(InitOptions{Dir: t.TempDir(), Name: name}); err == nil {
+			t.Fatalf("%s: expected rejection", name)
+		}
+	}
+}
 
 func TestResolvePublishSource(t *testing.T) {
 	// Standalone pkg.toml dir wins.
