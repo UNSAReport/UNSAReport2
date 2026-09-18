@@ -281,4 +281,24 @@ describe('Role Management Endpoints & Integration', () => {
     expect(body.roles).toBeDefined();
     expect(body.roles['npm-registry']).toBe('admin');
   });
+
+  test('12. /v1/roles/users searches and returns registered users with roles', async () => {
+    const res = await app.fetch(
+      new Request(`http://localhost:3000/v1/roles/users?q=${encodeURIComponent(userA.email)}`, {
+        headers: {
+          'X-Admin-Key': config.adminApiKey,
+        },
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      users: Array<{ id: string; email: string; name: string; roles: RoleItem[] }>;
+    };
+    expect(Array.isArray(body.users)).toBe(true);
+    const found = body.users.find((u) => u.id === userA.id);
+    expect(found).toBeDefined();
+    expect(found?.email).toBe(userA.email);
+    expect(Array.isArray(found?.roles)).toBe(true);
+  });
 });

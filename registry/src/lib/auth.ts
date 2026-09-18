@@ -3,6 +3,7 @@ import { config } from '@/config';
 import type { JWTPayload, UserContext } from '@/types';
 
 let jwksClient: ReturnType<typeof createRemoteJWKSet> | null = null;
+const SUBAPP_NAME = 'registry';
 
 /**
  * Initializes and caches the remote JSON Web Key Set (JWKS) client instance for IDP token verification.
@@ -35,8 +36,16 @@ export async function verifyJWT(token: string): Promise<UserContext> {
     if (!jwtPayload.sub) {
       throw new Error('JWT subject (sub) missing');
     }
-
-    const roles = Array.isArray(jwtPayload.roles) ? jwtPayload.roles : [];
+    let roles: string[] = [];
+    if (Array.isArray(jwtPayload.roles)) {
+      roles = jwtPayload.roles;
+    } else if (jwtPayload.roles && typeof jwtPayload.roles === 'object') {
+      const roleMap = jwtPayload.roles as Record<string, string>;
+      const registryRole = roleMap[SUBAPP_NAME];
+      if (typeof registryRole === 'string' && registryRole.length > 0) {
+        roles.push(registryRole);
+      }
+    }
 
     return {
       id: jwtPayload.sub,
