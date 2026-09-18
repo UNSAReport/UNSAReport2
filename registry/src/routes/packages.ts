@@ -14,7 +14,7 @@ import {
   trustedUsers,
 } from '@/db/schema';
 import { checkCircularDependencies } from '@/lib/dependency-resolver';
-import { validateManifest } from '@/lib/manifest';
+import { expandGlobs, parsePkgToml, validatePkgToml } from '@/lib/pkg-toml';
 import {
   buildAndUploadZipArchive,
   deleteS3Object,
@@ -195,7 +195,6 @@ packagesRouter.get('/:name/versions', async (c) => {
     .select({
       id: packageVersions.id,
       version: packageVersions.version,
-      entry: packageVersions.entry,
       status: packageVersions.status,
       fileCount: packageVersions.fileCount,
       createdAt: packageVersions.createdAt,
@@ -250,6 +249,7 @@ packagesRouter.get('/:name/:version', async (c) => {
   const filesRows = await db
     .select({
       path: packageFiles.path,
+      section: packageFiles.section,
       size: packageFiles.size,
       checksum: packageFiles.checksum,
     })
@@ -275,7 +275,6 @@ packagesRouter.get('/:name/:version', async (c) => {
     description: pkgList[0].description,
     authorId: pkgList[0].authorId,
     version: ver.version,
-    entry: ver.entry,
     status: ver.status,
     rejectionReason: ver.rejectionReason,
     fileCount: ver.fileCount,
@@ -287,7 +286,8 @@ packagesRouter.get('/:name/:version', async (c) => {
 });
 
 /**
- * Route handler for publishing a new package version with .zip archive payload.
+ * Route handler for publishing a new package version from a pkg.toml
+ * document plus a components/templates .zip payload (split archives).
  */
 packagesRouter.post('/', requireAuth, async (c) => {
   const user = c.get('user');
@@ -297,8 +297,18 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
   const formData = await c.req.parseBody({ all: true });
 
+  let pkgText: string | null = null;
+  const pkgField = formData.pkg ?? formData['pkg.toml'];
+  if (typeof pkgField === 'string') {
+    pkgText = pkgField;
+  } else if (pkgField instanceof File) {
+    pkgText = await pkgField.text();
+  }
+
   let archiveFile: File | null = null;
-  if (formData.file instanceof File) {
+  if (formData.components instanceof File) {
+    archiveFile = formData.components;
+  } else if (formData.file instanceof File) {
     archiveFile = formData.file;
   } else if (formData.archive instanceof File) {
     archiveFile = formData.archive;
@@ -314,7 +324,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
   if (!archiveFile) {
     throw new ValidationError(
       'Missing package archive file (.zip) in multipart request',
-      { field: 'file' },
+      { field: 'components' },
     );
   }
 
@@ -325,85 +335,69 @@ packagesRouter.post('/', requireAuth, async (c) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new ValidationError(`Failed to read ZIP archive: ${msg}`, {
-      field: 'file',
+      field: 'components',
     });
   }
 
-  const zipFileNames = Object.keys(zip.files).filter(
-    (name) => !zip.files[name].dir,
-  );
-
-  let manifestEntryName: string | null = null;
-  let rootPrefix = '';
-
-  if (zip.file('manifest.json')) {
-    manifestEntryName = 'manifest.json';
-    rootPrefix = '';
-  } else {
-    const candidate = zipFileNames.find((name) =>
-      name.endsWith('/manifest.json'),
+  if (!pkgText || pkgText.trim().length === 0) {
+    const hasManifestJson = Object.keys(zip.files).some(
+      (name) => name === 'manifest.json' || name.endsWith('/manifest.json'),
     );
-    if (candidate) {
-      manifestEntryName = candidate;
-      rootPrefix = candidate.substring(
-        0,
-        candidate.length - 'manifest.json'.length,
-      );
-    }
-  }
-
-  if (!manifestEntryName) {
     throw new ValidationError(
-      'ZIP archive must contain "manifest.json" at root or in top-level directory',
-      { field: 'manifest' },
+      hasManifestJson
+        ? 'Package uses manifest.json which is no longer supported; publish with a pkg.toml document in the "pkg" multipart field instead'
+        : 'Missing pkg.toml document in the "pkg" multipart field',
+      { field: 'pkg' },
     );
   }
 
-  const manifestFile = zip.file(manifestEntryName);
-  if (!manifestFile) {
-    throw new ValidationError('Could not read "manifest.json" from ZIP', {
-      field: 'manifest',
-    });
-  }
-
-  let rawManifest: unknown;
-  try {
-    const manifestText = await manifestFile.async('text');
-    rawManifest = JSON.parse(manifestText);
-  } catch {
-    throw new ValidationError('Invalid JSON in "manifest.json"', {
-      field: 'manifest',
-    });
-  }
-
-  const zipPaths = zipFileNames.map((p) =>
-    rootPrefix && p.startsWith(rootPrefix) ? p.slice(rootPrefix.length) : p,
-  );
-
-  const manifest = validateManifest(rawManifest, zipPaths);
-
-  const fileEntries: { path: string; buffer: Buffer; content: Buffer }[] = [];
-  for (const filePath of manifest.files) {
-    const zipPath = `${rootPrefix}${filePath}`;
-    const zipEntry = zip.file(zipPath);
-    if (!zipEntry) {
+  const zipBuffers = new Map<string, Buffer>();
+  const zipPaths: string[] = [];
+  for (const [entryName, entry] of Object.entries(zip.files)) {
+    if (entry.dir) continue;
+    const normalized = entryName.replace(/^\.\//, '');
+    if (
+      normalized.length === 0 ||
+      normalized.startsWith('/') ||
+      normalized.includes('\\') ||
+      normalized.split('/').some((seg) => seg === '..' || seg.length === 0) ||
+      normalized.startsWith('__MACOSX/')
+    ) {
       throw new ValidationError(
-        `Declared file "${filePath}" not found in ZIP archive`,
-        { field: 'files' },
+        `ZIP entry "${entryName}" escapes the package root or is not a relative path`,
+        { field: 'components' },
       );
     }
-    const fileBuffer = await zipEntry.async('nodebuffer');
-    fileEntries.push({
-      path: filePath,
-      buffer: fileBuffer,
-      content: fileBuffer,
-    });
+    zipPaths.push(normalized);
+    zipBuffers.set(normalized, await entry.async('nodebuffer'));
+  }
+
+  const rawPkg = parsePkgToml(pkgText);
+  const pkg = validatePkgToml(rawPkg, {
+    presentFiles: zipPaths,
+    readFile: (path) => {
+      const buf = zipBuffers.get(path);
+      if (!buf) return undefined;
+      if (!path.endsWith('.typ')) return undefined;
+      return buf.toString('utf8');
+    },
+  });
+
+  const componentPaths = expandGlobs(pkg.componentGlobs, zipPaths);
+  const templatePaths = expandGlobs(pkg.templateGlobs, zipPaths);
+  const templateOnly = templatePaths.filter((p) => !componentPaths.includes(p));
+  const overlap = templatePaths.filter((p) => componentPaths.includes(p));
+  if (overlap.length > 0) {
+    throw new ValidationError(
+      `pkg.toml [components] and [templates] globs overlap on "${overlap[0]}"; a file belongs to exactly one section`,
+      { field: 'templates.files' },
+    );
   }
 
   const existingPkg = await db
     .select()
     .from(packages)
-    .where(eq(packages.name, manifest.name))
+    .where(eq(packages.name, pkg.name))
     .limit(1);
 
   let packageId: string;
@@ -411,7 +405,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
   if (existingPkg.length > 0) {
     if (existingPkg[0].authorId !== user.id && !user.roles.includes('admin')) {
       throw new ForbiddenError(
-        `Package '${manifest.name}' is owned by another user`,
+        `Package '${pkg.name}' is owned by another user`,
       );
     }
     packageId = existingPkg[0].id;
@@ -422,22 +416,27 @@ packagesRouter.post('/', requireAuth, async (c) => {
       .where(
         and(
           eq(packageVersions.packageId, packageId),
-          eq(packageVersions.version, manifest.version),
+          eq(packageVersions.version, pkg.version),
         ),
       )
       .limit(1);
 
     if (existingVer.length > 0) {
       throw new ConflictError(
-        `Version '${manifest.version}' already exists for package '${manifest.name}'`,
+        `Version '${pkg.version}' already exists for package '${pkg.name}'`,
       );
     }
   } else {
     packageId = crypto.randomUUID();
   }
 
-  if (manifest.dependencies) {
-    for (const depName of Object.keys(manifest.dependencies)) {
+  const declaredDeps: Record<string, string> = {};
+  for (const dep of pkg.dependsOn) {
+    declaredDeps[dep.name] = dep.range;
+  }
+
+  if (Object.keys(declaredDeps).length > 0) {
+    for (const depName of Object.keys(declaredDeps)) {
       const depPkg = await db
         .select({ id: packages.id })
         .from(packages)
@@ -446,18 +445,18 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
       if (depPkg.length === 0) {
         throw new ValidationError(
-          `Declared dependency '${depName}' does not exist in registry`,
-          { field: `dependencies.${depName}` },
+          `pkg.toml [components] depends_on '${depName}' does not exist in registry`,
+          { field: 'components.depends_on' },
         );
       }
     }
 
-    await checkCircularDependencies(manifest.name, manifest.dependencies);
+    await checkCircularDependencies(pkg.name, declaredDeps);
   }
 
   const resolvedTagIds: string[] = [];
-  if (manifest.tags && manifest.tags.length > 0) {
-    for (const tagName of manifest.tags) {
+  if (pkg.tags && pkg.tags.length > 0) {
+    for (const tagName of pkg.tags) {
       const normalizedTagName = tagName.trim().toLowerCase();
       const tagRows = await db
         .select({ id: tags.id })
@@ -515,54 +514,78 @@ packagesRouter.post('/', requireAuth, async (c) => {
   }
 
   const versionId = crypto.randomUUID();
-  const s3Prefix = `packages/${packageId}/${manifest.version}/`;
-  const archiveS3Key = `${s3Prefix}archive.zip`;
+  const s3Prefix = `packages/${packageId}/${pkg.version}/`;
+  const componentsS3Key = `${s3Prefix}components.zip`;
+  const templatesS3Key = `${s3Prefix}templates.zip`;
 
   const fileRecords: {
     id: string;
     versionId: string;
     path: string;
+    section: string;
     size: number;
     checksum: string;
     s3Key: string;
   }[] = [];
 
-  for (const file of fileEntries) {
-    const fileS3Key = `${s3Prefix}${file.path}`;
-    const checksum = createHash('sha256').update(file.buffer).digest('hex');
+  const sectionOf = (path: string): string =>
+    componentPaths.includes(path) ? 'components' : 'templates';
+  const publishPaths = [...componentPaths, ...templateOnly];
 
-    await uploadS3Object(fileS3Key, file.buffer);
+  for (const path of publishPaths) {
+    const buffer = zipBuffers.get(path);
+    if (!buffer) {
+      throw new ValidationError(
+        `Declared file "${path}" not found in ZIP archive`,
+        {
+          field: 'components',
+        },
+      );
+    }
+    const fileS3Key = `${s3Prefix}${path}`;
+    const checksum = createHash('sha256').update(buffer).digest('hex');
+
+    await uploadS3Object(fileS3Key, buffer);
 
     fileRecords.push({
       id: crypto.randomUUID(),
       versionId,
-      path: file.path,
-      size: file.buffer.length,
+      path,
+      section: sectionOf(path),
+      size: buffer.length,
       checksum,
       s3Key: fileS3Key,
     });
   }
 
-  const archiveFiles = [...fileEntries];
-  if (!archiveFiles.some((f) => f.path === 'manifest.json')) {
-    const manifestBuffer = Buffer.from(JSON.stringify(rawManifest, null, 2));
-    archiveFiles.push({
-      path: 'manifest.json',
-      buffer: manifestBuffer,
-      content: manifestBuffer,
-    });
+  const componentsArchive = [
+    ...componentPaths.map((path) => ({
+      path,
+      content: zipBuffers.get(path) as Buffer,
+    })),
+    { path: 'pkg.toml', content: Buffer.from(pkgText, 'utf8') },
+  ];
+  await buildAndUploadZipArchive(componentsS3Key, componentsArchive);
+
+  let storedTemplatesS3Key: string | null = null;
+  if (templateOnly.length > 0) {
+    const templatesArchive = templateOnly.map((path) => ({
+      path,
+      content: zipBuffers.get(path) as Buffer,
+    }));
+    await buildAndUploadZipArchive(templatesS3Key, templatesArchive);
+    storedTemplatesS3Key = templatesS3Key;
   }
-  await buildAndUploadZipArchive(archiveS3Key, archiveFiles);
 
   const now = new Date();
   if (existingPkg.length === 0) {
     await db.insert(packages).values({
       id: packageId,
-      name: manifest.name,
-      displayName: manifest.displayName || manifest.name,
-      description: manifest.description,
+      name: pkg.name,
+      displayName: pkg.displayName || pkg.name,
+      description: pkg.description,
       authorId: user.id,
-      latestVersion: initialStatus === 'approved' ? manifest.version : null,
+      latestVersion: initialStatus === 'approved' ? pkg.version : null,
       status: initialStatus,
       createdAt: now,
       updatedAt: now,
@@ -571,11 +594,11 @@ packagesRouter.post('/', requireAuth, async (c) => {
     await db
       .update(packages)
       .set({
-        displayName: manifest.displayName || existingPkg[0].displayName,
-        description: manifest.description || existingPkg[0].description,
+        displayName: pkg.displayName || existingPkg[0].displayName,
+        description: pkg.description || existingPkg[0].description,
         latestVersion:
           initialStatus === 'approved'
-            ? manifest.version
+            ? pkg.version
             : existingPkg[0].latestVersion,
         updatedAt: now,
       })
@@ -585,11 +608,12 @@ packagesRouter.post('/', requireAuth, async (c) => {
   await db.insert(packageVersions).values({
     id: versionId,
     packageId,
-    version: manifest.version,
-    entry: manifest.entry || null,
+    version: pkg.version,
     status: initialStatus,
     s3Key: s3Prefix,
-    archiveS3Key,
+    archiveS3Key: componentsS3Key,
+    componentsS3Key,
+    templatesS3Key: storedTemplatesS3Key,
     fileCount: fileRecords.length,
     createdAt: now,
     approvedAt: initialStatus === 'approved' ? now : null,
@@ -599,15 +623,13 @@ packagesRouter.post('/', requireAuth, async (c) => {
     await db.insert(packageFiles).values(fileRecords);
   }
 
-  if (manifest.dependencies) {
-    const depRecords = Object.entries(manifest.dependencies).map(
-      ([depName, range]) => ({
-        id: crypto.randomUUID(),
-        versionId,
-        dependencyName: depName,
-        versionRange: range,
-      }),
-    );
+  if (Object.keys(declaredDeps).length > 0) {
+    const depRecords = Object.entries(declaredDeps).map(([depName, range]) => ({
+      id: crypto.randomUUID(),
+      versionId,
+      dependencyName: depName,
+      versionRange: range,
+    }));
     if (depRecords.length > 0) {
       await db.insert(packageDependencies).values(depRecords);
     }
@@ -625,10 +647,14 @@ packagesRouter.post('/', requireAuth, async (c) => {
   return c.json(
     {
       message: 'Package version uploaded successfully',
-      package: manifest.name,
-      version: manifest.version,
+      package: pkg.name,
+      version: pkg.version,
       status: initialStatus,
       approved: isApproved,
+      sections: {
+        components: componentPaths.length,
+        templates: templateOnly.length,
+      },
     },
     201,
   );
@@ -686,15 +712,6 @@ packagesRouter.put('/:name/:version', requireAuth, async (c) => {
     );
   }
 
-  const body = (await c.req.json()) as Record<string, unknown>;
-
-  if (body.entry !== undefined) {
-    await db
-      .update(packageVersions)
-      .set({ entry: body.entry as string })
-      .where(eq(packageVersions.id, ver.id));
-  }
-
   return c.json({ message: 'Version updated successfully' });
 });
 
@@ -749,6 +766,12 @@ packagesRouter.delete('/:name/:version', requireAuth, async (c) => {
 
   for (const f of fileRows) {
     await deleteS3Object(f.s3Key);
+  }
+  if (ver.componentsS3Key) {
+    await deleteS3Object(ver.componentsS3Key);
+  }
+  if (ver.templatesS3Key) {
+    await deleteS3Object(ver.templatesS3Key);
   }
   await deleteS3Object(ver.archiveS3Key);
 

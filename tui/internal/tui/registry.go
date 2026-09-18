@@ -13,12 +13,13 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
 type registryItem struct {
 	title, desc string
-	info        registry.TemplateInfo
+	info        registry.PackageInfo
 }
 
 func (i registryItem) Title() string       { return i.title }
@@ -26,7 +27,7 @@ func (i registryItem) Description() string { return i.desc }
 func (i registryItem) FilterValue() string { return i.title + " " + i.desc }
 
 type registryFetchedMsg struct {
-	templates []registry.TemplateInfo
+	templates []registry.PackageInfo
 	err       error
 }
 
@@ -36,6 +37,7 @@ const (
 	registryBrowse registryMode = iota
 	registrySearch
 	registryDetails
+	registryInit
 )
 
 type RegistryModel struct {
@@ -45,14 +47,22 @@ type RegistryModel struct {
 	list          list.Model
 	textInput     textinput.Model
 	details       viewport.Model
-	templates     []registry.TemplateInfo
-	filtered      []registry.TemplateInfo
-	selected      *registry.TemplateInfo
+	templates     []registry.PackageInfo
+	filtered      []registry.PackageInfo
+	selected      *registry.PackageInfo
 	loading       bool
 	err           string
 	width, height int
 	focusSearch   bool
 	styles        Styles
+	form          *huh.Form
+	showForm      bool
+	result        string
+	initDir       string
+	initName      string
+	initDesc      string
+	initVersion   string
+	initPrefix    string
 }
 
 func NewRegistryModel() RegistryModel {
@@ -86,7 +96,7 @@ func (m RegistryModel) Init() tea.Cmd {
 func (m RegistryModel) fetchCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		templates, err := m.client.ListTemplates(ctx)
+		templates, err := m.client.ListPackages(ctx)
 		return registryFetchedMsg{templates: templates, err: err}
 	}
 }
@@ -109,6 +119,30 @@ func (m *RegistryModel) ExitToBrowse() {
 	m.focusSearch = false
 	m.selected = nil
 	m.textInput.Blur()
+}
+
+// enterInit opens the new-package form.
+func (m *RegistryModel) enterInit() {
+	m.mode = registryInit
+	m.showForm = true
+	m.result = ""
+	m.initVersion = "0.1.0"
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Directory").Description("Target dir (default ./name)").Value(&m.initDir),
+			huh.NewInput().Title("Name").Description("Package name [a-z0-9-]").Value(&m.initName),
+			huh.NewInput().Title("Description").Value(&m.initDesc),
+			huh.NewInput().Title("Version").Value(&m.initVersion),
+			huh.NewInput().Title("Command prefix").Description("Default: name").Value(&m.initPrefix),
+		),
+	)
+}
+
+// exitInit leaves the init form without scaffolding.
+func (m *RegistryModel) exitInit() {
+	m.mode = registryBrowse
+	m.showForm = false
+	m.form = nil
 }
 
 func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
@@ -158,6 +192,14 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 				m.EnterSearch()
 				return m, textinput.Blink
 			}
+		case "n":
+			if m.mode == registryBrowse {
+				m.enterInit()
+				if m.form != nil {
+					return m, m.form.Init()
+				}
+				return m, nil
+			}
 		case "enter":
 			if m.mode == registryBrowse && !m.loading && m.err == "" {
 				if it, ok := m.list.SelectedItem().(registryItem); ok {
@@ -168,6 +210,10 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 				}
 			}
 		case "esc", "b":
+			if m.mode == registryInit {
+				m.exitInit()
+				return m, nil
+			}
 			if m.mode == registryDetails {
 				m.ExitToBrowse()
 				return m, nil
@@ -189,7 +235,7 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 		if q == "" {
 			m.filtered = m.templates
 		} else {
-			var out []registry.TemplateInfo
+			var out []registry.PackageInfo
 			for _, t := range m.templates {
 				if strings.Contains(strings.ToLower(t.Name), q) || strings.Contains(strings.ToLower(t.Description), q) {
 					out = append(out, t)
@@ -212,10 +258,41 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
 	}
+	if m.mode == registryInit && m.form != nil {
+		form, cmd := m.form.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.form = f
+			if m.form.State == huh.StateCompleted {
+				err := registry.InitPackage(registry.InitOptions{
+					Dir:           m.initDir,
+					Name:          m.initName,
+					Description:   m.initDesc,
+					Version:       m.initVersion,
+					CommandPrefix: m.initPrefix,
+				})
+				if err != nil {
+					m.result = "Error: " + err.Error()
+				} else {
+					m.result = "Scaffolded package " + m.initName
+					m.loading = true
+					m.err = ""
+					m.exitInit()
+					return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
+				}
+				m.exitInit()
+				return m, nil
+			}
+			if m.form.State == huh.StateAborted {
+				m.exitInit()
+				return m, nil
+			}
+		}
+		return m, cmd
+	}
 	return m, tea.Batch(cmds...)
 }
 
-func (m *RegistryModel) setItems(templates []registry.TemplateInfo) {
+func (m *RegistryModel) setItems(templates []registry.PackageInfo) {
 	items := make([]list.Item, len(templates))
 	for i, t := range templates {
 		desc := t.Description
@@ -244,24 +321,8 @@ func (m *RegistryModel) refreshDetails() {
 	if m.selected.Version != "" {
 		b.WriteString("Latest: " + m.selected.Version + "\n")
 	}
-	if len(m.selected.DistTags) > 0 {
-		b.WriteString("Dist-tags:\n")
-		keys := make([]string, 0, len(m.selected.DistTags))
-		for k := range m.selected.DistTags {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			for _, line := range wrapLines(fmt.Sprintf("  %s: %s", k, m.selected.DistTags[k]), width) {
-				b.WriteString(line + "\n")
-			}
-		}
-	}
 	if len(m.selected.Versions) > 0 {
-		vers := make([]string, 0, len(m.selected.Versions))
-		for k := range m.selected.Versions {
-			vers = append(vers, k)
-		}
+		vers := append([]string{}, m.selected.Versions...)
 		sort.Strings(vers)
 		b.WriteString("Versions:\n")
 		for _, line := range wrapLines("  "+strings.Join(vers, ", "), width) {
@@ -299,10 +360,17 @@ func (m RegistryModel) View() string {
 	if m.err != "" {
 		return lipgloss.NewStyle().Foreground(m.styles.Theme.Error).Padding(1).Render(fmt.Sprintf("Error: %s\nPress r to retry", m.err))
 	}
-	if len(m.templates) == 0 {
+	if len(m.templates) == 0 && m.mode != registryInit {
 		return lipgloss.NewStyle().Padding(1).Render("No templates found\nPress / to search · r to retry")
 	}
 	switch m.mode {
+	case registryInit:
+		if m.form != nil {
+			return lipgloss.JoinVertical(lipgloss.Left,
+				m.form.View(),
+				lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("esc cancel"),
+			)
+		}
 	case registryDetails:
 		if m.selected != nil {
 			return lipgloss.JoinVertical(lipgloss.Left,
@@ -316,7 +384,7 @@ func (m RegistryModel) View() string {
 			m.list.View(),
 		)
 	}
-	helpLine := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("Press / to search, enter for details, r to retry")
+	helpLine := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("Press / to search, enter for details, n for new package, r to retry")
 	return lipgloss.JoinVertical(lipgloss.Left, m.list.View(), helpLine)
 }
 

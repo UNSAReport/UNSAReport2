@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/UNSAReport/tui/internal/config"
-	"github.com/UNSAReport/tui/internal/naming"
+	"github.com/UNSAReport/tui/internal/docs"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/huh"
@@ -14,13 +13,9 @@ import (
 
 type PrepareModel struct {
 	project       *ProjectContext
-	vars          map[string]string
-	fileTemplate  string
-	submissionDir string
-	srcDir        string
-	reportFile    string
-	reportWord    string
-	codeWord      string
+	report        string
+	action        string
+	alias         string
 	form          *huh.Form
 	formVP        viewport.Model
 	showForm      bool
@@ -33,6 +28,8 @@ type PrepareModel struct {
 func NewPrepareModel(project *ProjectContext) PrepareModel {
 	return PrepareModel{
 		project: project,
+		report:  "t1",
+		action:  "build",
 		formVP:  viewport.New(40, 10),
 		styles:  newStyles(defaultTheme()),
 	}
@@ -50,17 +47,14 @@ func (m PrepareModel) loadContext() tea.Cmd {
 
 type prepareLoadedMsg struct{}
 
-// LoadCmd loads context on first navigation (see RootModel.Init).
 func (m PrepareModel) LoadCmd() tea.Cmd {
 	return m.loadContext()
 }
 
-// NeedsLoad reports whether context has never been loaded.
 func (m PrepareModel) NeedsLoad() bool {
 	return !m.loaded && m.form == nil && m.result == ""
 }
 
-// InputCaptured reports whether the huh form owns the keyboard.
 func (m PrepareModel) InputCaptured() bool {
 	return m.showForm && m.form != nil
 }
@@ -87,45 +81,6 @@ func (m PrepareModel) Update(msg tea.Msg) (PrepareModel, tea.Cmd) {
 		return m, nil
 	case prepareLoadedMsg:
 		m.loaded = true
-		if m.project != nil && m.project.IsProject {
-			cfg := m.project.Config
-			m.fileTemplate = cfg.Prepare.Output.FileTemplate
-			if m.fileTemplate == "" {
-				m.fileTemplate = "{output_type}_{lab_number}"
-			}
-			m.submissionDir = cfg.Prepare.Output.SubmissionDir
-			if m.submissionDir == "" {
-				m.submissionDir = "submission"
-			}
-			m.srcDir = cfg.Prepare.Input.SrcDir
-			if m.srcDir == "" {
-				m.srcDir = "src"
-			}
-			m.reportFile = cfg.Prepare.Input.ReportFile
-			if m.reportFile == "" {
-				m.reportFile = "report.typ"
-			}
-			m.reportWord = cfg.Prepare.Output.ReportWord
-			if m.reportWord == "" {
-				m.reportWord = "Informe"
-			}
-			m.codeWord = cfg.Prepare.Output.CodeWord
-			if m.codeWord == "" {
-				m.codeWord = "Código Fuente"
-			}
-			m.vars = map[string]string{
-				"lab_number": "01",
-				"course":     "Curso",
-			}
-		} else {
-			m.fileTemplate = "{output_type}_{lab_number}"
-			m.submissionDir = "submission"
-			m.srcDir = "src"
-			m.reportFile = "report.typ"
-			m.reportWord = "Informe"
-			m.codeWord = "Código Fuente"
-			m.vars = map[string]string{"lab_number": "01"}
-		}
 		m.buildForm()
 		m.showForm = true
 		if m.form != nil {
@@ -152,24 +107,30 @@ func (m PrepareModel) Update(msg tea.Msg) (PrepareModel, tea.Cmd) {
 		if f, ok := form.(*huh.Form); ok {
 			m.form = f
 			if m.form.State == huh.StateCompleted {
-				if m.project != nil && m.project.IsProject {
-					cfg := m.project.Config
-					cfg.Prepare.Output.FileTemplate = m.fileTemplate
-					cfg.Prepare.Output.SubmissionDir = m.submissionDir
-					cfg.Prepare.Input.SrcDir = m.srcDir
-					cfg.Prepare.Input.ReportFile = m.reportFile
-					cfg.Prepare.Output.ReportWord = m.reportWord
-					cfg.Prepare.Output.CodeWord = m.codeWord
-					if err := config.WriteConfig(m.project.Root, cfg); err != nil {
-						m.result = "Save failed: " + err.Error()
-					} else {
-						m.result = "Configuration saved"
-					}
+				if m.project == nil || !m.project.IsProject {
+					m.result = "Not in a project (no unsareport.toml found)"
 				} else {
-					if preview, err := naming.ApplyTemplate(m.fileTemplate, m.vars, m.reportWord); err != nil {
-						m.result = fmt.Sprintf("template error: %v", err)
+					var err error
+					switch m.action {
+					case "build":
+						err = docs.Build(m.project.Root, m.report)
+					case "watch":
+						err = docs.Watch(m.project.Root, m.report)
+					case "check":
+						err = docs.Check(m.project.Root)
+					case "run":
+						if strings.TrimSpace(m.alias) == "" {
+							err = fmt.Errorf("alias is required for run")
+						} else {
+							err = docs.Run(m.project.Root, m.alias, nil)
+						}
+					default:
+						err = fmt.Errorf("unknown action %q", m.action)
+					}
+					if err != nil {
+						m.result = "Error: " + err.Error()
 					} else {
-						m.result = "Preview: " + preview + ".pdf"
+						m.result = "Done: " + m.action + " " + m.report
 					}
 				}
 				m.showForm = false
@@ -187,66 +148,36 @@ func (m PrepareModel) Update(msg tea.Msg) (PrepareModel, tea.Cmd) {
 }
 
 func (m *PrepareModel) buildForm() {
-	nonEmpty := func(field string) func(string) error {
-		return func(s string) error {
-			if strings.TrimSpace(s) == "" {
-				return fmt.Errorf("%s is required", field)
-			}
-			return nil
-		}
-	}
 	m.form = huh.NewForm(
 		huh.NewGroup(
-			huh.NewInput().Title("File template").Value(&m.fileTemplate).Placeholder("{output_type}_{lab_number}").Validate(func(s string) error {
+			huh.NewInput().Title("Report dir").Value(&m.report).Validate(func(s string) error {
 				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("file template is required")
-				}
-				if _, err := naming.ApplyTemplate(s, m.vars, m.reportWord); err != nil {
-					return fmt.Errorf("template error: %v", err)
+					return fmt.Errorf("report dir is required")
 				}
 				return nil
 			}),
-			huh.NewInput().Title("Submission dir").Value(&m.submissionDir).Validate(nonEmpty("submission dir")),
-			huh.NewInput().Title("Source dir").Value(&m.srcDir).Validate(nonEmpty("source dir")),
-			huh.NewInput().Title("Report file").Value(&m.reportFile).Validate(nonEmpty("report file")),
-			huh.NewInput().Title("Report word").Value(&m.reportWord),
-			huh.NewInput().Title("Code word").Value(&m.codeWord),
+			huh.NewSelect[string]().Title("Action").Options(
+				huh.NewOption("build", "build"),
+				huh.NewOption("watch", "watch"),
+				huh.NewOption("check", "check"),
+				huh.NewOption("run", "run"),
+			).Value(&m.action),
+			huh.NewInput().Title("Alias (for run only)").Value(&m.alias),
 		),
 	)
 }
 
 func (m PrepareModel) View() string {
 	if m.result != "" {
-		previewReport, _ := naming.ApplyTemplate(m.fileTemplate, m.vars, m.reportWord)
-		previewCode, _ := naming.ApplyTemplate(m.fileTemplate, m.vars, m.codeWord)
-		if previewReport == "" {
-			previewReport = "invalid template"
-		}
-		if previewCode == "" {
-			previewCode = "invalid template"
-		}
-		return lipgloss.NewStyle().Padding(1).Render(fmt.Sprintf("Result: %s\n\nExample preview: %s.pdf | %s.zip\n\nPress esc to back", m.result, previewReport, previewCode))
+		return lipgloss.NewStyle().Padding(1).Render(m.result + "\n\nPress esc to back")
 	}
 	if m.showForm && m.form != nil {
-		previewReport, _ := naming.ApplyTemplate(m.fileTemplate, m.vars, m.reportWord)
-		previewCode, _ := naming.ApplyTemplate(m.fileTemplate, m.vars, m.codeWord)
-		if previewReport == "" {
-			previewReport = "invalid"
-		}
-		if previewCode == "" {
-			previewCode = "invalid"
-		}
-		preview := fmt.Sprintf("Example preview: %s.pdf | %s.zip", previewReport, previewCode)
-		previewView := lipgloss.NewStyle().Padding(0, 1).Foreground(m.styles.Theme.Muted).Render(preview)
 		formView := m.form.View()
-		if m.height > 0 && lipgloss.Height(formView) > m.height-4 {
+		if m.height > 0 && lipgloss.Height(formView) > m.height-2 {
 			m.formVP.SetContent(formView)
-			return lipgloss.JoinVertical(lipgloss.Left, m.formVP.View(), previewView)
+			return m.formVP.View()
 		}
-		return lipgloss.JoinVertical(lipgloss.Left,
-			lipgloss.NewStyle().Padding(1).Render(formView),
-			previewView,
-		)
+		return lipgloss.NewStyle().Padding(1).Render(formView)
 	}
 	return lipgloss.NewStyle().Padding(1).Render("Press enter to load.")
 }

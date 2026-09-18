@@ -1,20 +1,72 @@
 import { z } from 'zod';
 
-export const ManifestSchema = z.object({
-  name: z
-    .string()
-    .min(3)
-    .max(64)
-    .regex(/^[a-z0-9]+([._-][a-z0-9]+)*$/, 'Invalid package name'),
-  version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
-  displayName: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).optional(),
-  entry: z.string().optional(),
-  tags: z.array(z.string()).optional(),
-  dependencies: z.record(z.string(), z.string()).optional(),
-  files: z.array(z.string().min(1)).min(1),
+export const PkgTomlCommandCommandsSchema = z
+  .object({
+    any: z.array(z.string().min(1)).default([]),
+    linux: z.array(z.string().min(1)).default([]),
+    windows: z.array(z.string().min(1)).default([]),
+    macos: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .refine(
+    (commands) =>
+      commands.any.length +
+        commands.linux.length +
+        commands.windows.length +
+        commands.macos.length >=
+      1,
+    { message: 'Command "commands" must define at least one shell line' },
+  );
+export type PkgTomlCommandCommands = z.infer<
+  typeof PkgTomlCommandCommandsSchema
+>;
+export const PkgTomlCommandSchema = z.object({
+  description: z.string().min(1),
+  commands: PkgTomlCommandCommandsSchema,
 });
-export type Manifest = z.infer<typeof ManifestSchema>;
+
+export const PkgTomlConfigSchemaEntrySchema = z.object({
+  type: z.enum(['string', 'bool', 'int', 'path', 'path-list']),
+  required: z.boolean().default(false),
+  default: z.unknown().optional(),
+  doc: z.string().optional(),
+});
+export type PkgTomlConfigSchemaEntry = z.infer<
+  typeof PkgTomlConfigSchemaEntrySchema
+>;
+
+export const PkgTomlSchema = z.object({
+  package: z.object({
+    name: z
+      .string()
+      .min(3)
+      .max(64)
+      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Invalid package name'),
+    version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
+    description: z.string().max(2048).optional(),
+    displayName: z.string().min(1).max(128).optional(),
+    tags: z.array(z.string()).optional(),
+    command_prefix: z
+      .string()
+      .regex(/^[a-z0-9-]+$/, 'Invalid command prefix')
+      .optional(),
+  }),
+  components: z.object({
+    files: z.array(z.string().min(1)).min(1),
+    depends_on: z.array(z.string().min(1)).default([]),
+  }),
+  templates: z
+    .object({
+      files: z.array(z.string().min(1)).default([]),
+    })
+    .default({ files: [] }),
+  commands: z.record(z.string(), PkgTomlCommandSchema).default({}),
+  'hooks-suggest': z.record(z.string(), z.array(z.string())).default({}),
+  'config-schema': z
+    .record(z.string(), PkgTomlConfigSchemaEntrySchema)
+    .default({}),
+});
+export type PkgToml = z.infer<typeof PkgTomlSchema>;
 
 export const JWTPayloadSchema = z.object({
   sub: z.string(),
@@ -45,7 +97,7 @@ export type ResolvedPackage = z.infer<typeof ResolvedPackageSchema>;
 
 export const PackageVersionSchema = z.object({
   version: z.string(),
-  manifest: ManifestSchema,
+  pkgToml: PkgTomlSchema,
   archiveUrl: z.string().url().nullable().optional(),
   files: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
@@ -61,7 +113,7 @@ export const PackageSchema = z.object({
   versions: z.array(PackageVersionSchema).optional(),
   // registry API may return flat list shape
   version: z.string().optional(),
-  manifest: ManifestSchema.optional(),
+  pkgToml: PkgTomlSchema.optional(),
 });
 export type Package = z.infer<typeof PackageSchema>;
 

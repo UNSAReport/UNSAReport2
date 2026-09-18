@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/UNSAReport/tui/internal/install"
+	"github.com/UNSAReport/tui/internal/docs"
 	"github.com/UNSAReport/tui/internal/registry"
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -16,12 +16,12 @@ import (
 )
 
 type docsCreateFetchedMsg struct {
-	templates []registry.TemplateInfo
-	err       error
+	packages []registry.PackageInfo
+	err      error
 }
 
 type DocsCreateModel struct {
-	templates     []registry.TemplateInfo
+	packages      []registry.PackageInfo
 	loading       bool
 	loaded        bool
 	err           string
@@ -31,9 +31,7 @@ type DocsCreateModel struct {
 	templateArg   string
 	version       string
 	dest          string
-	local         string
-	useLocal      bool
-	session       string
+	report        string
 	showForm      bool
 	result        string
 	project       *ProjectContext
@@ -53,6 +51,7 @@ func NewDocsCreateModel(project *ProjectContext) DocsCreateModel {
 		spinner: s,
 		formVP:  viewport.New(40, 10),
 		dest:    dest,
+		report:  "t1",
 		project: project,
 		styles:  newStyles(defaultTheme()),
 	}
@@ -60,18 +59,15 @@ func NewDocsCreateModel(project *ProjectContext) DocsCreateModel {
 
 func (m DocsCreateModel) Init() tea.Cmd { return nil }
 
-// FetchCmd loads templates on first navigation (see RootModel.Init).
 func (m DocsCreateModel) FetchCmd() tea.Cmd {
 	m.loading = true
-	return tea.Batch(m.spinner.Tick, m.fetchTemplates())
+	return tea.Batch(m.spinner.Tick, m.fetchPackages())
 }
 
-// NeedsLoad reports whether templates have never been requested.
 func (m DocsCreateModel) NeedsLoad() bool {
 	return !m.loaded && !m.loading && m.err == "" && m.form == nil && m.result == ""
 }
 
-// InputCaptured reports whether the huh form owns the keyboard.
 func (m DocsCreateModel) InputCaptured() bool {
 	return m.showForm && m.form != nil
 }
@@ -91,11 +87,11 @@ func (m *DocsCreateModel) SetSize(w, h int) {
 	m.formVP.Height = vh
 }
 
-func (m DocsCreateModel) fetchTemplates() tea.Cmd {
+func (m DocsCreateModel) fetchPackages() tea.Cmd {
 	return func() tea.Msg {
 		client := registry.NewClient()
-		templates, err := client.ListTemplates(context.Background())
-		return docsCreateFetchedMsg{templates: templates, err: err}
+		pkgs, err := client.ListPackages(context.Background())
+		return docsCreateFetchedMsg{packages: pkgs, err: err}
 	}
 }
 
@@ -111,11 +107,11 @@ func (m DocsCreateModel) Update(msg tea.Msg) (DocsCreateModel, tea.Cmd) {
 			m.err = msg.err.Error()
 			return m, nil
 		}
-		if len(msg.templates) == 0 {
-			m.err = "No templates available"
+		if len(msg.packages) == 0 {
+			m.err = "No packages available"
 			return m, nil
 		}
-		m.templates = msg.templates
+		m.packages = msg.packages
 		m.buildForm()
 		m.showForm = true
 		if m.form != nil {
@@ -126,11 +122,11 @@ func (m DocsCreateModel) Update(msg tea.Msg) (DocsCreateModel, tea.Cmd) {
 		if m.err != "" && msg.String() == "r" {
 			m.loading = true
 			m.err = ""
-			return m, tea.Batch(m.spinner.Tick, m.fetchTemplates())
+			return m, tea.Batch(m.spinner.Tick, m.fetchPackages())
 		}
 		if m.result != "" && (msg.String() == "esc" || msg.String() == "b") {
 			m.result = ""
-			m.showForm = len(m.templates) > 0 && m.form != nil
+			m.showForm = len(m.packages) > 0 && m.form != nil
 			if m.showForm {
 				return m, m.form.Init()
 			}
@@ -154,27 +150,16 @@ func (m DocsCreateModel) Update(msg tea.Msg) (DocsCreateModel, tea.Cmd) {
 			if m.form.State == huh.StateCompleted {
 				templateArg := m.templateArg
 				if m.version != "" {
-					if idx := strings.LastIndex(templateArg, "@"); idx != -1 {
-						templateArg = templateArg[:idx] + "@" + m.version
-					} else {
-						templateArg = templateArg + "@" + m.version
-					}
+					templateArg = templateArg + "@" + m.version
 				}
-				local := ""
-				if m.useLocal {
-					local = m.local
-				}
-				opts := install.Options{
-					TemplateArg: templateArg,
-					Dest:        m.dest,
-					Session:     m.session,
-					Local:       local,
-				}
-				err := install.Execute(context.Background(), opts)
+				err := docs.Init(context.Background(), m.dest, docs.InitOptions{
+					Template: templateArg,
+					Report:   m.report,
+				})
 				if err != nil {
 					m.result = "Error: " + err.Error()
 				} else {
-					m.result = "Installed " + templateArg + " to " + m.dest
+					m.result = "Initialized " + templateArg + " in " + m.dest
 				}
 				m.showForm = false
 				return m, nil
@@ -191,39 +176,21 @@ func (m DocsCreateModel) Update(msg tea.Msg) (DocsCreateModel, tea.Cmd) {
 }
 
 func (m *DocsCreateModel) buildForm() {
-	if len(m.templates) == 0 {
+	if len(m.packages) == 0 {
 		return
 	}
-	opts := make([]huh.Option[string], len(m.templates))
-	for i, t := range m.templates {
+	opts := make([]huh.Option[string], len(m.packages))
+	for i, t := range m.packages {
 		opts[i] = huh.NewOption(t.Name+" - "+t.Description, t.Name)
 	}
-	isMulti := m.project != nil && m.project.IsProject && m.project.Config.Mode == "multi"
-	var sessionField huh.Field
-	if isMulti {
-		sOpts := make([]huh.Option[string], len(m.project.Config.Sessions))
-		for i, s := range m.project.Config.Sessions {
-			sOpts[i] = huh.NewOption(s, s)
-		}
-		sessionField = huh.NewSelect[string]().Title("Session").Options(sOpts...).Value(&m.session).Validate(func(s string) error {
-			if strings.TrimSpace(s) == "" {
-				return fmt.Errorf("pick a session")
-			}
-			return nil
-		})
-	} else {
-		sessionField = huh.NewInput().Title("Session (only for multi)").Value(&m.session).Placeholder("Leave empty for single")
-	}
-	m.templateArg = m.templates[0].Name
+	m.templateArg = m.packages[0].Name
 	m.form = huh.NewForm(
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Template").Options(opts...).Value(&m.templateArg),
-			huh.NewInput().Title("Version (semver constraint or empty = latest)").Placeholder("^1.0.0").Value(&m.version).Validate(func(s string) error {
-				if s == "" {
-					return nil
-				}
-				if strings.ContainsAny(s, " @") || strings.Trim(s, "^~ ") == "" {
-					return fmt.Errorf("invalid version")
+			huh.NewInput().Title("Version (semver range or empty = latest)").Placeholder("*").Value(&m.version),
+			huh.NewInput().Title("Report dir").Value(&m.report).Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("report dir is required")
 				}
 				return nil
 			}),
@@ -233,14 +200,6 @@ func (m *DocsCreateModel) buildForm() {
 				}
 				return nil
 			}),
-			huh.NewConfirm().Title("Use local directory?").Value(&m.useLocal),
-			huh.NewInput().Title("Local path (if use local)").Value(&m.local).Validate(func(s string) error {
-				if m.useLocal && strings.TrimSpace(s) == "" {
-					return fmt.Errorf("local path is required when using a local directory")
-				}
-				return nil
-			}),
-			sessionField,
 		),
 	)
 	if m.project != nil && m.project.IsProject {
@@ -250,7 +209,7 @@ func (m *DocsCreateModel) buildForm() {
 
 func (m DocsCreateModel) View() string {
 	if m.loading {
-		return lipgloss.NewStyle().Padding(1).Render(m.spinner.View() + " Loading templates...")
+		return lipgloss.NewStyle().Padding(1).Render(m.spinner.View() + " Loading packages...")
 	}
 	if m.err != "" {
 		return lipgloss.NewStyle().Foreground(m.styles.Theme.Error).Padding(1).Render(fmt.Sprintf("Error: %s\nPress r to retry", m.err))

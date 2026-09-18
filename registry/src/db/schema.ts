@@ -43,11 +43,12 @@ export const packageVersions = pgTable(
       .notNull()
       .references(() => packages.id, { onDelete: 'cascade' }),
     version: text('version').notNull(),
-    entry: text('entry'),
     status: text('status').notNull().default('pending'),
     rejectionReason: text('rejection_reason'),
     s3Key: text('s3_key').notNull(),
     archiveS3Key: text('archive_s3_key').notNull(),
+    componentsS3Key: text('components_s3_key'),
+    templatesS3Key: text('templates_s3_key'),
     fileCount: integer('file_count').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .defaultNow()
@@ -69,6 +70,7 @@ export const packageFiles = pgTable(
       .notNull()
       .references(() => packageVersions.id, { onDelete: 'cascade' }),
     path: text('path').notNull(),
+    section: text('section').notNull().default('components'),
     size: integer('size').notNull(),
     checksum: text('checksum').notNull(),
     s3Key: text('s3_key').notNull(),

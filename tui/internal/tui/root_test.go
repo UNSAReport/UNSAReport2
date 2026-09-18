@@ -111,7 +111,7 @@ func TestDocsEnterLazyLoads(t *testing.T) {
 func TestCreateResultEsc(t *testing.T) {
 	m := NewDocsCreateModel(nil)
 	m.result = "Installed x to y"
-	m.templates = nil
+	m.packages = nil
 	m.form = nil
 	next, _ := m.Update(keyMsg("esc"))
 	if next.result != "" {
@@ -227,7 +227,6 @@ func TestAuthLoginEsc(t *testing.T) {
 		t.Fatal("expected input not captured after esc")
 	}
 }
-
 
 func drainRootCmd(m RootModel, seed tea.Cmd) RootModel {
 	queue := []tea.Cmd{seed}
@@ -368,6 +367,3 @@ func TestAuthBrowserLoginCallbackFlow(t *testing.T) {
 		t.Fatalf("expected result 'Login saved as TestUser', got %q", root.auth.result)
 	}
 }
-
-
-

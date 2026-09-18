@@ -3,10 +3,11 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/i18n"
+	"github.com/UNSAReport/tui/internal/project"
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -87,7 +88,7 @@ func visibleApps() []AppID {
 	return []AppID{AppRegistry, AppDocs, AppAuth}
 }
 
-type ProjectContext = config.ProjectContext
+type ProjectContext = project.Context
 
 type RootOptions struct {
 	Project *ProjectContext
@@ -139,7 +140,7 @@ func NewRootModel(opts RootOptions) RootModel {
 	m.rebuildNav()
 	if m.project == nil {
 		cwd, _ := os.Getwd()
-		if pc, err := config.DetectProject(cwd); err == nil {
+		if pc, err := project.Detect(cwd); err == nil {
 			m.project = pc
 		} else {
 			m.project = &ProjectContext{IsProject: false}
@@ -147,6 +148,7 @@ func NewRootModel(opts RootOptions) RootModel {
 	}
 	m.docsCreate.SetProject(m.project)
 	m.docsPrepare.SetProject(m.project)
+	m.docsUpdate.SetProject(m.project)
 	return m
 }
 func (m *RootModel) rebuildNav() {
@@ -529,9 +531,7 @@ func (m RootModel) View() string {
 	var badge string
 	if m.project != nil && m.project.IsProject {
 		label := middleTruncate(m.project.Root, 24)
-		tpl := m.project.Config.Template
-		mode := m.project.Config.Mode
-		badge = m.styles.TopBarMuted.Render(fmt.Sprintf(" %s [%s %s] ", label, tpl, mode))
+		badge = m.styles.TopBarMuted.Render(fmt.Sprintf(" %s [%s] ", label, filepath.Base(m.project.Root)))
 	} else {
 		badge = m.styles.TopBarMuted.Render(" " + i18n.T("no_project") + " ")
 	}

@@ -21,7 +21,8 @@
     "jose": "^6.2.10",
     "jszip": "^3.10.1",
     "postgres": "^3.4.9",
-    "semver": "^7.8.5"
+    "semver": "^7.8.5",
+    "smol-toml": "^1.8.0"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.5.10",
