@@ -2,11 +2,12 @@ package pkg
 
 import (
 	"fmt"
+	"github.com/BurntSushi/toml"
 	"regexp"
 	"strings"
 
-	"github.com/BurntSushi/toml"
 	"github.com/Masterminds/semver/v3"
+	"github.com/UNSAReport/tui/internal/project"
 )
 
 var nameRe = regexp.MustCompile(`^[a-z0-9-]+$`)
@@ -15,7 +16,6 @@ var prefixRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 type PackageDef struct {
 	Name          string   `toml:"name"`
 	Version       string   `toml:"version"`
-	Entrypoint    string   `toml:"entrypoint"`
 	Description   string   `toml:"description"`
 	DisplayName   string   `toml:"displayName"`
 	Tags          []string `toml:"tags"`
@@ -32,9 +32,8 @@ type TemplatesDef struct {
 }
 
 type CommandDef struct {
-	Description   string   `toml:"description"`
-	Commands      []string `toml:"commands"`
-	DefaultSelect bool     `toml:"default_select"`
+	Description string             `toml:"description"`
+	Commands    project.OSCommands `toml:"commands"`
 }
 
 type ConfigSchemaEntry struct {
@@ -69,6 +68,25 @@ func Parse(text string) (PkgToml, error) {
 	return p, nil
 }
 
+// Encode renders doc as TOML, omitting empty optional [package] strings.
+// The registry rejects present-but-empty description/displayName, so empty
+// values must be absent rather than "".
+func Encode(doc PkgToml) (string, error) {
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(doc); err != nil {
+		return "", fmt.Errorf("encode pkg.toml: %w", err)
+	}
+	var out []string
+	for _, line := range strings.Split(buf.String(), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == `description = ""` || trimmed == `displayName = ""` {
+			continue
+		}
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n"), nil
+}
+
 func Validate(p PkgToml) error {
 	n := strings.TrimSpace(p.Package.Name)
 	if len(n) < 3 || len(n) > 64 || !nameRe.MatchString(n) {
@@ -76,10 +94,6 @@ func Validate(p PkgToml) error {
 	}
 	if _, err := semver.StrictNewVersion(strings.TrimSpace(p.Package.Version)); err != nil {
 		return fmt.Errorf("invalid [package] version %q: %w", p.Package.Version, err)
-	}
-	ep := strings.TrimSpace(p.Package.Entrypoint)
-	if ep == "" || strings.HasPrefix(ep, "/") || ep == ".." || strings.HasPrefix(ep, "../") || strings.Contains(ep, "\\") {
-		return fmt.Errorf("invalid [package] entrypoint %q", p.Package.Entrypoint)
 	}
 	if p.Package.CommandPrefix != "" && !prefixRe.MatchString(p.Package.CommandPrefix) {
 		return fmt.Errorf("invalid [package] command_prefix %q", p.Package.CommandPrefix)
@@ -110,7 +124,14 @@ func Validate(p PkgToml) error {
 		if strings.TrimSpace(cmd) == "" {
 			return fmt.Errorf("empty [commands] key")
 		}
-		if len(c.Commands) == 0 {
+		total := 0
+		for key, lines := range c.Commands {
+			if !project.OSKeys[key] {
+				return fmt.Errorf("[commands.%s] unknown os key %q (want any|linux|windows|macos)", cmd, key)
+			}
+			total += len(lines)
+		}
+		if total == 0 {
 			return fmt.Errorf("[commands.%s] commands must not be empty", cmd)
 		}
 	}

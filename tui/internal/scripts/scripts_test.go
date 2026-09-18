@@ -3,45 +3,68 @@ package scripts
 import (
 	"runtime"
 	"testing"
+
+	"github.com/UNSAReport/tui/internal/project"
 )
 
-func TestSelectFiltersOS(t *testing.T) {
-	lines := []string{
-		"bare echo",
-		"[any:] any echo",
-		"[linux:] linux echo",
-		"[windows:] windows echo",
-		"[macos:] macos echo",
+func TestSelectOsMap(t *testing.T) {
+	cmds := project.OSCommands{
+		"any":     {"base echo"},
+		"linux":   {"linux echo"},
+		"windows": {"windows echo"},
+		"macos":   {"macos echo"},
 	}
-	sel, err := Select(lines, runtime.GOOS)
+	sel, err := Select(cmds, "zip:make", runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(sel) != 3 {
+	if len(sel) != 2 || sel[0] != "base echo" {
 		t.Fatalf("selected %q", sel)
-	}
-	if sel[0] != "bare echo" || sel[1] != "any echo" {
-		t.Fatalf("order/content %q", sel)
 	}
 }
 
-func TestSelectUnknownPrefix(t *testing.T) {
-	if _, err := Select([]string{"[foo:] x"}, ""); err == nil {
+func TestSelectUnknownKey(t *testing.T) {
+	cmds := project.OSCommands{"plan9": {"echo hi"}}
+	if _, err := Select(cmds, "zip:make", ""); err == nil {
+		t.Fatal("expected unknown-key error")
+	}
+}
+
+func TestSelectZero(t *testing.T) {
+	var other string
+	switch runtime.GOOS {
+	case "windows":
+		other = "linux"
+	case "darwin":
+		other = "windows"
+	default:
+		other = "windows"
+	}
+	cmds := project.OSCommands{other: {"echo hi"}}
+	if _, err := Select(cmds, "zip:make", ""); err == nil {
+		t.Fatal("expected zero-selected error")
+	}
+}
+
+func TestSplitPrefix(t *testing.T) {
+	p, rest, err := SplitPrefix("[linux:] zip:make")
+	if err != nil || p != "[linux:]" || rest != "zip:make" {
+		t.Fatalf("got %q %q %v", p, rest, err)
+	}
+	p, rest, err = SplitPrefix("zip:make")
+	if err != nil || p != "" || rest != "zip:make" {
+		t.Fatalf("got %q %q %v", p, rest, err)
+	}
+	if _, _, err := SplitPrefix("[plan9:] zip:make"); err == nil {
 		t.Fatal("expected unknown-prefix error")
+	}
+	if _, _, err := SplitPrefix("[linux: zip:make"); err == nil {
+		t.Fatal("expected malformed-prefix error")
 	}
 }
 
 func TestRunLinesZeroSelected(t *testing.T) {
-	var other string
-	switch runtime.GOOS {
-	case "windows":
-		other = "[linux:] echo hi"
-	case "darwin":
-		other = "[windows:] echo hi"
-	default:
-		other = "[windows:] echo hi"
-	}
-	if err := RunLines(t.TempDir(), []string{other}, ""); err == nil {
+	if err := RunLines(t.TempDir(), nil, ""); err == nil {
 		t.Fatal("expected zero-selected error")
 	}
 }

@@ -27,7 +27,6 @@ adminRouter.get('/pending', async (c) => {
       authorId: packages.authorId,
       versionId: packageVersions.id,
       version: packageVersions.version,
-      entry: packageVersions.entry,
       fileCount: packageVersions.fileCount,
       createdAt: packageVersions.createdAt,
     })

@@ -7,7 +7,6 @@ const BASE_TOML = `
 [package]
 name = "cardo"
 version = "1.2.0"
-entrypoint = "lib.typ"
 displayName = "Cardo"
 description = "Report components"
 tags = ["Theme", "Layout"]
@@ -22,8 +21,7 @@ files = ["template/**/*"]
 
 [commands.greet]
 description = "Say hi"
-commands = ["echo hi"]
-default_select = true
+commands = { any = ["echo hi"], linux = ["echo hi-linux"] }
 
 [hooks-suggest]
 build = ["cardo:greet"]
@@ -67,7 +65,6 @@ describe('pkg.toml validation', () => {
     const pkg = parseValid();
     expect(pkg.name).toBe('cardo');
     expect(pkg.version).toBe('1.2.0');
-    expect(pkg.entrypoint).toBe('lib.typ');
     expect(pkg.displayName).toBe('Cardo');
     expect(pkg.tags).toEqual(['theme', 'layout']);
     expect(pkg.commandPrefix).toBe('cardo');
@@ -77,11 +74,16 @@ describe('pkg.toml validation', () => {
       { name: 'utils', range: '>=1.0.0 <2.0.0' },
     ]);
     expect(pkg.templateGlobs).toEqual(['template/**/*']);
-    expect(pkg.commands.greet.defaultSelect).toBe(true);
+    expect(pkg.commands.greet.description).toBe('Say hi');
+    expect(pkg.commands.greet.commands).toEqual({
+      any: ['echo hi'],
+      linux: ['echo hi-linux'],
+      windows: [],
+      macos: [],
+    });
     expect(pkg.hooksSuggest).toEqual({ build: ['cardo:greet'] });
     expect(pkg.configSchema.accent.type).toBe('string');
   });
-
   it('validates structure without publish context', () => {
     const pkg = validatePkgToml(parsePkgToml(BASE_TOML));
     expect(pkg.name).toBe('cardo');
@@ -133,16 +135,28 @@ describe('pkg.toml validation', () => {
     }
   });
 
-  it('rejects absolute or escaping entrypoint', () => {
-    for (const entrypoint of ['/lib.typ', '../lib.typ']) {
-      const raw = parsePkgToml(
-        BASE_TOML.replace(
-          'entrypoint = "lib.typ"',
-          `entrypoint = "${entrypoint}"`,
-        ),
-      );
-      expect(() => validatePkgToml(raw)).toThrow(ValidationError);
-    }
+  it('accepts the [commands.<cmd>.commands] table form', () => {
+    const toml = `
+[package]
+name = "cardo"
+version = "1.2.0"
+
+[components]
+files = ["*.typ"]
+
+[commands.greet]
+description = "Say hi"
+[commands.greet.commands]
+any = ["echo hi"]
+macos = ["echo hi-mac"]
+`;
+    const pkg = validatePkgToml(parsePkgToml(toml));
+    expect(pkg.commands.greet.commands).toEqual({
+      any: ['echo hi'],
+      linux: [],
+      windows: [],
+      macos: ['echo hi-mac'],
+    });
   });
 
   it('rejects empty components files and bad globs', () => {
@@ -175,21 +189,12 @@ describe('pkg.toml validation', () => {
     expect(() => validatePkgToml(raw)).toThrow(ValidationError);
   });
 
-  it('rejects hooks-suggest init binding and prepare standard', () => {
-    const init = parsePkgToml(
-      BASE_TOML.replace('build = ["cardo:greet"]', 'init = ["cardo:greet"]'),
-    );
-    expect(() => validatePkgToml(init)).toThrow(ValidationError);
-
-    const prepare = parsePkgToml(
-      BASE_TOML.replace('build = ["cardo:greet"]', 'prepare = ["cardo:greet"]'),
-    );
-    expect(() => validatePkgToml(prepare, filesCtx())).toThrow(/build/);
-  });
-
   it('rejects invalid command and config-schema definitions', () => {
     const badCommand = parsePkgToml(
-      BASE_TOML.replace('commands = ["echo hi"]', 'commands = []'),
+      BASE_TOML.replace(
+        'commands = { any = ["echo hi"], linux = ["echo hi-linux"] }',
+        'commands = "echo hi"',
+      ),
     );
     expect(() => validatePkgToml(badCommand)).toThrow(ValidationError);
 
@@ -209,21 +214,40 @@ describe('pkg.toml validation', () => {
     expect(() => validatePkgToml(raw)).toThrow(ValidationError);
   });
 
+  it('rejects unknown OS keys in command maps', () => {
+    const raw = parsePkgToml(
+      BASE_TOML.replace(
+        'linux = ["echo hi-linux"]',
+        'solaris = ["echo hi-solaris"]',
+      ),
+    );
+    expect(() => validatePkgToml(raw)).toThrow(
+      /commands\.greet\.commands\.solaris/,
+    );
+  });
+
+  it('rejects non-array OS values in command maps', () => {
+    const raw = parsePkgToml(
+      BASE_TOML.replace('any = ["echo hi"]', 'any = "echo hi"'),
+    );
+    expect(() => validatePkgToml(raw)).toThrow(ValidationError);
+  });
+
+  it('rejects command maps with no shell lines at all', () => {
+    const raw = parsePkgToml(
+      BASE_TOML.replace(
+        'commands = { any = ["echo hi"], linux = ["echo hi-linux"] }',
+        'commands = {}',
+      ),
+    );
+    expect(() => validatePkgToml(raw)).toThrow(/at least one shell line/);
+  });
+
   it('requires each glob to match at least one uploaded file', () => {
     const raw = parsePkgToml(BASE_TOML);
     expect(() => validatePkgToml(raw, filesCtx({}, ['lib.typ']))).toThrow(
       /matches no uploaded files/,
     );
-  });
-
-  it('requires the entrypoint among matched components files', () => {
-    const raw = parsePkgToml(
-      BASE_TOML.replace(
-        'entrypoint = "lib.typ"',
-        'entrypoint = "template/report.typ"',
-      ),
-    );
-    expect(() => validatePkgToml(raw, filesCtx())).toThrow(/entrypoint/);
   });
 
   it('rejects read() in template sources', () => {

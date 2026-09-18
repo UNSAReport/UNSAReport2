@@ -32,7 +32,6 @@ type DocsCreateModel struct {
 	version       string
 	dest          string
 	report        string
-	name          string
 	showForm      bool
 	result        string
 	project       *ProjectContext
@@ -155,7 +154,6 @@ func (m DocsCreateModel) Update(msg tea.Msg) (DocsCreateModel, tea.Cmd) {
 				}
 				err := docs.Init(context.Background(), m.dest, docs.InitOptions{
 					Template: templateArg,
-					Name:     m.name,
 					Report:   m.report,
 				})
 				if err != nil {
@@ -190,12 +188,6 @@ func (m *DocsCreateModel) buildForm() {
 		huh.NewGroup(
 			huh.NewSelect[string]().Title("Template").Options(opts...).Value(&m.templateArg),
 			huh.NewInput().Title("Version (semver range or empty = latest)").Placeholder("*").Value(&m.version),
-			huh.NewInput().Title("Project name").Value(&m.name).Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("project name is required")
-				}
-				return nil
-			}),
 			huh.NewInput().Title("Report dir").Value(&m.report).Validate(func(s string) error {
 				if strings.TrimSpace(s) == "" {
 					return fmt.Errorf("report dir is required")

@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -36,6 +37,7 @@ const (
 	registryBrowse registryMode = iota
 	registrySearch
 	registryDetails
+	registryInit
 )
 
 type RegistryModel struct {
@@ -53,6 +55,14 @@ type RegistryModel struct {
 	width, height int
 	focusSearch   bool
 	styles        Styles
+	form          *huh.Form
+	showForm      bool
+	result        string
+	initDir       string
+	initName      string
+	initDesc      string
+	initVersion   string
+	initPrefix    string
 }
 
 func NewRegistryModel() RegistryModel {
@@ -111,6 +121,30 @@ func (m *RegistryModel) ExitToBrowse() {
 	m.textInput.Blur()
 }
 
+// enterInit opens the new-package form.
+func (m *RegistryModel) enterInit() {
+	m.mode = registryInit
+	m.showForm = true
+	m.result = ""
+	m.initVersion = "0.1.0"
+	m.form = huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Directory").Description("Target dir (default ./name)").Value(&m.initDir),
+			huh.NewInput().Title("Name").Description("Package name [a-z0-9-]").Value(&m.initName),
+			huh.NewInput().Title("Description").Value(&m.initDesc),
+			huh.NewInput().Title("Version").Value(&m.initVersion),
+			huh.NewInput().Title("Command prefix").Description("Default: name").Value(&m.initPrefix),
+		),
+	)
+}
+
+// exitInit leaves the init form without scaffolding.
+func (m *RegistryModel) exitInit() {
+	m.mode = registryBrowse
+	m.showForm = false
+	m.form = nil
+}
+
 func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
@@ -158,6 +192,14 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 				m.EnterSearch()
 				return m, textinput.Blink
 			}
+		case "n":
+			if m.mode == registryBrowse {
+				m.enterInit()
+				if m.form != nil {
+					return m, m.form.Init()
+				}
+				return m, nil
+			}
 		case "enter":
 			if m.mode == registryBrowse && !m.loading && m.err == "" {
 				if it, ok := m.list.SelectedItem().(registryItem); ok {
@@ -168,6 +210,10 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 				}
 			}
 		case "esc", "b":
+			if m.mode == registryInit {
+				m.exitInit()
+				return m, nil
+			}
 			if m.mode == registryDetails {
 				m.ExitToBrowse()
 				return m, nil
@@ -211,6 +257,37 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 		m.list, cmd = m.list.Update(msg)
 		cmds = append(cmds, cmd)
 		return m, tea.Batch(cmds...)
+	}
+	if m.mode == registryInit && m.form != nil {
+		form, cmd := m.form.Update(msg)
+		if f, ok := form.(*huh.Form); ok {
+			m.form = f
+			if m.form.State == huh.StateCompleted {
+				err := registry.InitPackage(registry.InitOptions{
+					Dir:           m.initDir,
+					Name:          m.initName,
+					Description:   m.initDesc,
+					Version:       m.initVersion,
+					CommandPrefix: m.initPrefix,
+				})
+				if err != nil {
+					m.result = "Error: " + err.Error()
+				} else {
+					m.result = "Scaffolded package " + m.initName
+					m.loading = true
+					m.err = ""
+					m.exitInit()
+					return m, tea.Batch(m.spinner.Tick, m.fetchCmd())
+				}
+				m.exitInit()
+				return m, nil
+			}
+			if m.form.State == huh.StateAborted {
+				m.exitInit()
+				return m, nil
+			}
+		}
+		return m, cmd
 	}
 	return m, tea.Batch(cmds...)
 }
@@ -283,10 +360,17 @@ func (m RegistryModel) View() string {
 	if m.err != "" {
 		return lipgloss.NewStyle().Foreground(m.styles.Theme.Error).Padding(1).Render(fmt.Sprintf("Error: %s\nPress r to retry", m.err))
 	}
-	if len(m.templates) == 0 {
+	if len(m.templates) == 0 && m.mode != registryInit {
 		return lipgloss.NewStyle().Padding(1).Render("No templates found\nPress / to search · r to retry")
 	}
 	switch m.mode {
+	case registryInit:
+		if m.form != nil {
+			return lipgloss.JoinVertical(lipgloss.Left,
+				m.form.View(),
+				lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("esc cancel"),
+			)
+		}
 	case registryDetails:
 		if m.selected != nil {
 			return lipgloss.JoinVertical(lipgloss.Left,
@@ -300,7 +384,7 @@ func (m RegistryModel) View() string {
 			m.list.View(),
 		)
 	}
-	helpLine := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("Press / to search, enter for details, r to retry")
+	helpLine := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("Press / to search, enter for details, n for new package, r to retry")
 	return lipgloss.JoinVertical(lipgloss.Left, m.list.View(), helpLine)
 }
 

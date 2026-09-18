@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/UNSAReport/tui/internal/i18n"
@@ -530,7 +531,7 @@ func (m RootModel) View() string {
 	var badge string
 	if m.project != nil && m.project.IsProject {
 		label := middleTruncate(m.project.Root, 24)
-		badge = m.styles.TopBarMuted.Render(fmt.Sprintf(" %s [%s] ", label, m.project.Config.Project.Name))
+		badge = m.styles.TopBarMuted.Render(fmt.Sprintf(" %s [%s] ", label, filepath.Base(m.project.Root)))
 	} else {
 		badge = m.styles.TopBarMuted.Render(" " + i18n.T("no_project") + " ")
 	}

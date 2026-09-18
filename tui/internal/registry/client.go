@@ -296,9 +296,9 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 	if err != nil {
 		return err
 	}
-	pkgToml, err := os.ReadFile(filepath.Join(pkgDir, "pkg.toml"))
+	pkgText, compDir, err := resolvePublishSource(pkgDir)
 	if err != nil {
-		return fmt.Errorf("pkg.toml not found in %s: %w", pkgDir, err)
+		return err
 	}
 	_ = componentsGlob
 	_ = templatesGlob
@@ -308,14 +308,13 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 	if err != nil {
 		return fmt.Errorf("create pkg field: %w", err)
 	}
-	if _, err := fw.Write(pkgToml); err != nil {
+	if _, err := fw.Write([]byte(pkgText)); err != nil {
 		return fmt.Errorf("write pkg field: %w", err)
 	}
-	compZip, _, err := zipAll(pkgDir)
+	compZip, _, err := zipAll(compDir)
 	if err != nil {
 		return err
 	}
-	_ = compZip
 	fz, err := mw.CreateFormFile("components", "components.zip")
 	if err != nil {
 		return fmt.Errorf("create components field: %w", err)

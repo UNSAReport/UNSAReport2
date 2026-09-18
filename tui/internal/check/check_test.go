@@ -17,7 +17,7 @@ func write(t *testing.T, path, content string) {
 	}
 }
 
-const cfgText = "[project]\nname = \"demo\"\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"
+const cfgText = "[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"
 
 func TestCleanProjectPasses(t *testing.T) {
 	root := t.TempDir()
@@ -74,5 +74,29 @@ func TestMissingRootFails(t *testing.T) {
 	findings := Run(filepath.Join(t.TempDir(), "sub"))
 	if len(findings) == 0 {
 		t.Fatal("expected no-root finding")
+	}
+}
+
+func TestOsMapScripts(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { any = [\"rm -f s.zip\"], linux = [\"bash zip.sh\"] }\ndescription = \"zip\"\n")
+	write(t, filepath.Join(root, "l1", "report.typ"), "Hi\n")
+	if findings := Run(root); len(findings) != 0 {
+		t.Fatalf("findings: %v", findings)
+	}
+	bad := t.TempDir()
+	write(t, filepath.Join(bad, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { plan9 = [\"x\"] }\n")
+	write(t, filepath.Join(bad, "l1", "report.typ"), "Hi\n")
+	if findings := Run(bad); len(findings) == 0 {
+		t.Fatal("expected unknown-os-key finding")
+	}
+}
+
+func TestPackageDeclValidated(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText+"\n[dependencies]\ntheme = \"bogus\"\n")
+	write(t, filepath.Join(root, "l1", "report.typ"), "Hi\n")
+	if findings := Run(root); len(findings) == 0 {
+		t.Fatal("expected bad-range finding")
 	}
 }

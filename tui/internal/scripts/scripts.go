@@ -6,39 +6,27 @@ import (
 	"os/exec"
 	"runtime"
 	"strings"
+
+	"github.com/UNSAReport/tui/internal/project"
 )
 
 var KnownPrefixes = []string{"[linux:]", "[windows:]", "[macos:]", "[any:]"}
 
-var HookStandards = map[string]bool{
-	"build": true,
-	"check": true,
-}
+var HookStandards = project.HookStandards
 
-func osToken() string {
-	switch runtime.GOOS {
-	case "linux":
-		return "[linux:]"
-	case "darwin":
-		return "[macos:]"
-	case "windows":
-		return "[windows:]"
-	default:
-		return "[any:]"
+// SplitPrefix splits an optional "[os:]" prefix from a hook alias reference.
+// Bare entries return an empty prefix. Unknown or malformed prefixes are errors.
+func SplitPrefix(entry string) (prefix, rest string, err error) {
+	if !strings.HasPrefix(entry, "[") {
+		return "", entry, nil
 	}
-}
-
-func stripPrefix(line string) (prefix, body string, err error) {
-	if !strings.HasPrefix(line, "[") {
-		return "", line, nil
-	}
-	end := strings.Index(line, "]")
+	end := strings.Index(entry, "]")
 	if end < 0 {
-		return "", "", fmt.Errorf("malformed [os:] prefix in %q", line)
+		return "", "", fmt.Errorf("malformed [os:] prefix in %q", entry)
 	}
-	prefix = line[:end+1]
-	body = strings.TrimSpace(line[end+1:])
-	known := prefix == "[any:]"
+	prefix = entry[:end+1]
+	rest = strings.TrimSpace(entry[end+1:])
+	known := false
 	for _, k := range KnownPrefixes {
 		if prefix == k {
 			known = true
@@ -47,21 +35,59 @@ func stripPrefix(line string) (prefix, body string, err error) {
 	if !known {
 		return "", "", fmt.Errorf("unknown [os:] prefix %q", prefix)
 	}
-	return prefix, body, nil
+	return prefix, rest, nil
 }
 
-func Select(lines []string, goos string) ([]string, error) {
-	tok := osToken()
-	_ = goos
-	var out []string
-	for _, l := range lines {
-		prefix, body, err := stripPrefix(l)
-		if err != nil {
-			return nil, err
+func osKey(goos string) (string, error) {
+	if goos == "" {
+		goos = runtime.GOOS
+	}
+	switch goos {
+	case "linux":
+		return "linux", nil
+	case "darwin":
+		return "macos", nil
+	case "windows":
+		return "windows", nil
+	default:
+		return "", fmt.Errorf("unsupported OS %q", goos)
+	}
+}
+
+// HookApplies reports whether a hook alias entry with the given "[os:]" prefix
+// ("" for bare entries) runs on the current OS.
+func HookApplies(prefix string) (bool, error) {
+	if prefix == "" || prefix == "[any:]" {
+		return true, nil
+	}
+	key := strings.Trim(prefix, "[]:")
+	if !project.OSKeys[key] {
+		return false, fmt.Errorf("unknown [os:] prefix %q", prefix)
+	}
+	cur, err := osKey("")
+	if err != nil {
+		return false, err
+	}
+	return key == cur, nil
+}
+
+// Select returns the runnable lines for an alias: [any] lines first, then the
+// matching-OS lines. Unknown os keys are hard errors; zero selected lines is a
+// hard error naming alias+OS.
+func Select(cmds project.OSCommands, alias, goos string) ([]string, error) {
+	for k := range cmds {
+		if !project.OSKeys[k] {
+			return nil, fmt.Errorf("alias %q: unknown os key %q (want any|linux|windows|macos)", alias, k)
 		}
-		if prefix == "" || prefix == "[any:]" || prefix == tok {
-			out = append(out, body)
-		}
+	}
+	key, err := osKey(goos)
+	if err != nil {
+		return nil, fmt.Errorf("alias %q: %w", alias, err)
+	}
+	out := append([]string{}, cmds["any"]...)
+	out = append(out, cmds[key]...)
+	if len(out) == 0 {
+		return nil, fmt.Errorf("alias %q selects zero lines for %s", alias, key)
 	}
 	return out, nil
 }
@@ -73,16 +99,13 @@ func shellForOS() (string, string) {
 	return "bash", "-c"
 }
 
+// RunLines executes pre-selected lines in order with <root> cwd, fail-fast.
 func RunLines(root string, lines []string, extraArgs string) error {
-	selected, err := Select(lines, runtime.GOOS)
-	if err != nil {
-		return err
-	}
-	if len(selected) == 0 {
+	if len(lines) == 0 {
 		return fmt.Errorf("zero selected lines for current OS")
 	}
 	shell, flag := shellForOS()
-	for _, body := range selected {
+	for _, body := range lines {
 		line := body
 		if extraArgs != "" {
 			line = line + " " + extraArgs

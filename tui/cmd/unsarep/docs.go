@@ -5,10 +5,48 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/UNSAReport/tui/internal/docs"
 	"github.com/UNSAReport/tui/internal/registry"
+	"github.com/charmbracelet/huh"
 )
+
+// boolFlags are flags that take no value; everything else starting with --
+// consumes the next token. Go's flag package stops at the first positional,
+// so reorderArgs moves flags first to support interspersed flag placement.
+var boolFlags = map[string]bool{"yes": true, "all": true, "none": true}
+
+func reorderArgs(args []string) []string {
+	var flags, pos []string
+	i := 0
+	for i < len(args) {
+		a := args[i]
+		if a == "--" {
+			pos = append(pos, args[i:]...)
+			break
+		}
+		if strings.HasPrefix(a, "--") && len(a) > 2 {
+			name := strings.TrimPrefix(a, "--")
+			if strings.Contains(name, "=") || boolFlags[name] {
+				flags = append(flags, a)
+				i++
+				continue
+			}
+			flags = append(flags, a)
+			if i+1 < len(args) {
+				flags = append(flags, args[i+1])
+				i += 2
+			} else {
+				i++
+			}
+			continue
+		}
+		pos = append(pos, a)
+		i++
+	}
+	return append(flags, pos...)
+}
 
 func handleDocs(args []string) {
 	if len(args) == 0 {
@@ -20,15 +58,14 @@ func handleDocs(args []string) {
 	switch args[0] {
 	case "init":
 		fs := flag.NewFlagSet("docs init", flag.ExitOnError)
-		name := fs.String("name", "", "Project name")
 		report := fs.String("report", "t1", "Report dir")
-		_ = fs.Parse(args[1:])
+		_ = fs.Parse(reorderArgs(args[1:]))
 		rest := fs.Args()
 		if len(rest) == 0 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs init <template-pkg>[@<range>] [--name N --report R]")
+			fmt.Fprintln(os.Stderr, "usage: unsarep docs init <template-pkg>[@<range>] [--report R]")
 			os.Exit(2)
 		}
-		if err := docs.Init(ctx, cwd, docs.InitOptions{Template: rest[0], Name: *name, Report: *report}); err != nil {
+		if err := docs.Init(ctx, cwd, docs.InitOptions{Template: rest[0], Report: *report}); err != nil {
 			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
 			os.Exit(1)
 		}
@@ -37,7 +74,7 @@ func handleDocs(args []string) {
 		yes := fs.Bool("yes", false, "Select defaults only")
 		all := fs.Bool("all", false, "Select defaults+all")
 		none := fs.Bool("none", false, "Select none")
-		_ = fs.Parse(args[1:])
+		_ = fs.Parse(reorderArgs(args[1:]))
 		rest := fs.Args()
 		if len(rest) == 0 {
 			fmt.Fprintln(os.Stderr, "usage: unsarep docs add <pkg>@<ver-req> [--yes|--all|--none]")
@@ -62,7 +99,7 @@ func handleDocs(args []string) {
 		yes := fs.Bool("yes", false, "Apply all")
 		all := fs.Bool("all", false, "Apply all")
 		none := fs.Bool("none", false, "Apply none")
-		_ = fs.Parse(args[1:])
+		_ = fs.Parse(reorderArgs(args[1:]))
 		rest := fs.Args()
 		pkg := ""
 		if len(rest) > 0 {
@@ -144,11 +181,37 @@ func selectFlags(yes, all, none bool) []string {
 
 func handleRegistry(args []string) {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: unsarep registry <check|publish> ...")
+		fmt.Fprintln(os.Stderr, "usage: unsarep registry <check|publish|init> ...")
 		os.Exit(2)
 	}
 	ctx := context.Background()
 	switch args[0] {
+	case "init":
+		fs := flag.NewFlagSet("registry init", flag.ContinueOnError)
+		dir := fs.String("dir", "", "Target directory (default ./name)")
+		name := fs.String("name", "", "Package name")
+		description := fs.String("description", "", "Package description")
+		version := fs.String("version", "0.1.0", "Initial version")
+		prefix := fs.String("prefix", "", "Command prefix (default name)")
+		_ = fs.Parse(reorderArgs(args[1:]))
+		opt := registry.InitOptions{Dir: *dir, Name: *name, Description: *description, Version: *version, CommandPrefix: *prefix}
+		if opt.Name == "" {
+			if !isTerm() {
+				fmt.Fprintln(os.Stderr, "registry init requires --name outside a terminal")
+				os.Exit(2)
+			}
+			var err error
+			opt, err = registryInitForm(opt)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "init cancelled: %v\n", err)
+				os.Exit(1)
+			}
+		}
+		if err := registry.InitPackage(opt); err != nil {
+			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("package scaffolded.")
 	case "publish":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "usage: unsarep registry publish <pkg-dir>")
@@ -174,4 +237,33 @@ func handleRegistry(args []string) {
 		fmt.Fprintf(os.Stderr, "unknown registry command %q\n", args[0])
 		os.Exit(2)
 	}
+}
+
+func isTerm() bool {
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		return false
+	}
+	return fi.Mode()&os.ModeCharDevice != 0
+}
+
+func registryInitForm(opt registry.InitOptions) (registry.InitOptions, error) {
+	form := huh.NewForm(
+		huh.NewGroup(
+			huh.NewInput().Title("Directory").Description("Target dir (default ./name)").Value(&opt.Dir),
+			huh.NewInput().Title("Name").Description("Package name [a-z0-9-]").Value(&opt.Name).Validate(func(s string) error {
+				if strings.TrimSpace(s) == "" {
+					return fmt.Errorf("name is required")
+				}
+				return nil
+			}),
+			huh.NewInput().Title("Description").Value(&opt.Description),
+			huh.NewInput().Title("Version").Value(&opt.Version),
+			huh.NewInput().Title("Command prefix").Description("Default: name").Value(&opt.CommandPrefix),
+		),
+	)
+	if err := form.Run(); err != nil {
+		return opt, err
+	}
+	return opt, nil
 }

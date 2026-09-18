@@ -42,9 +42,5 @@ func CheckPackageDir(dir string) error {
 			}
 		}
 	}
-	ep := filepath.Join(dir, filepath.FromSlash(p.Package.Entrypoint))
-	if _, err := os.Stat(ep); err != nil {
-		return fmt.Errorf("entrypoint %q not found in %s", p.Package.Entrypoint, dir)
-	}
 	return nil
 }

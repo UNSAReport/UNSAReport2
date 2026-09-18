@@ -43,7 +43,6 @@ export const packageVersions = pgTable(
       .notNull()
       .references(() => packages.id, { onDelete: 'cascade' }),
     version: text('version').notNull(),
-    entry: text('entry'),
     status: text('status').notNull().default('pending'),
     rejectionReason: text('rejection_reason'),
     s3Key: text('s3_key').notNull(),

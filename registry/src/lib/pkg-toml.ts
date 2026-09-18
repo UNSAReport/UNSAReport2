@@ -14,10 +14,17 @@ const CONFIG_SCHEMA_TYPES = [
 
 export type PkgConfigSchemaType = (typeof CONFIG_SCHEMA_TYPES)[number];
 
+export const COMMAND_OS_KEYS = ['any', 'linux', 'windows', 'macos'] as const;
+export type PkgCommandOs = (typeof COMMAND_OS_KEYS)[number];
+export interface PkgCommandOsMap {
+  any: string[];
+  linux: string[];
+  windows: string[];
+  macos: string[];
+}
 export interface PkgCommandDef {
   description: string;
-  commands: string[];
-  defaultSelect: boolean;
+  commands: PkgCommandOsMap;
 }
 
 export interface PkgConfigSchemaEntry {
@@ -35,7 +42,6 @@ export interface PkgDependency {
 export interface PkgToml {
   name: string;
   version: string;
-  entrypoint: string;
   description?: string;
   displayName?: string;
   tags?: string[];
@@ -218,7 +224,6 @@ function validateCommands(value: unknown): Record<string, PkgCommandDef> {
     const allowed: Record<string, true> = {
       description: true,
       commands: true,
-      default_select: true,
     };
     for (const key of Object.keys(rawDef)) {
       if (!allowed[key]) {
@@ -235,34 +240,66 @@ function validateCommands(value: unknown): Record<string, PkgCommandDef> {
       field,
       `[${field}] "description"`,
     );
-    if (!Array.isArray(rawDef.commands) || rawDef.commands.length === 0) {
+    out[cmdName] = {
+      description,
+      commands: validateCommandOsMap(cmdName, rawDef.commands),
+    };
+  }
+  return out;
+}
+
+function validateCommandOsMap(
+  cmdName: string,
+  value: unknown,
+): PkgCommandOsMap {
+  const field = `commands.${cmdName}.commands`;
+  if (!isRecord(value)) {
+    throw new ValidationError(
+      `pkg.toml [${field}] must be a table with optional keys any, linux, windows, macos`,
+      { field },
+    );
+  }
+  const commands: PkgCommandOsMap = {
+    any: [],
+    linux: [],
+    windows: [],
+    macos: [],
+  };
+  for (const [os, lines] of Object.entries(value)) {
+    if (!(COMMAND_OS_KEYS as readonly string[]).includes(os)) {
       throw new ValidationError(
-        `pkg.toml [${field}] "commands" must be a non-empty array of shell lines`,
-        { field },
+        `pkg.toml [${field}.${os}] is unknown: expected one of any, linux, windows, macos`,
+        { field: `${field}.${os}` },
       );
     }
-    const commands = rawDef.commands.map((line) => {
+    if (!Array.isArray(lines)) {
+      throw new ValidationError(
+        `pkg.toml [${field}.${os}] must be an array of shell lines`,
+        { field: `${field}.${os}` },
+      );
+    }
+    commands[os as PkgCommandOs] = lines.map((line) => {
       if (typeof line !== 'string' || line.trim().length === 0) {
         throw new ValidationError(
-          `pkg.toml [${field}] "commands" entries must be non-empty strings`,
-          { field },
+          `pkg.toml [${field}.${os}] entries must be non-empty strings`,
+          { field: `${field}.${os}` },
         );
       }
       return line;
     });
-    let defaultSelect = false;
-    if (rawDef.default_select !== undefined) {
-      if (typeof rawDef.default_select !== 'boolean') {
-        throw new ValidationError(
-          `pkg.toml [${field}] "default_select" must be a boolean`,
-          { field },
-        );
-      }
-      defaultSelect = rawDef.default_select;
-    }
-    out[cmdName] = { description, commands, defaultSelect };
   }
-  return out;
+  const total =
+    commands.any.length +
+    commands.linux.length +
+    commands.windows.length +
+    commands.macos.length;
+  if (total === 0) {
+    throw new ValidationError(
+      `pkg.toml [${field}] must define at least one shell line`,
+      { field },
+    );
+  }
+  return commands;
 }
 
 function validateHooksSuggest(value: unknown): Record<string, string[]> {
@@ -393,8 +430,8 @@ function validateConfigSchema(
 /**
  * Validates a parsed pkg.toml document against the registry schema.
  * When `filesCtx` is provided, publish checks also run: every glob must
- * match at least one uploaded file, the entrypoint must be present, and
- * Typst content scans (template substring scan + component param scan) apply.
+ * match at least one uploaded file, and Typst content scans (template
+ * substring scan + component param scan) apply.
  *
  * @param raw - Parsed pkg.toml document (output of parsePkgToml).
  * @param filesCtx - Optional uploaded-file context for publish validation.
@@ -438,7 +475,6 @@ export function validatePkgToml(
   const allowedPackage: Record<string, true> = {
     name: true,
     version: true,
-    entrypoint: true,
     description: true,
     displayName: true,
     tags: true,
@@ -485,23 +521,6 @@ export function validatePkgToml(
       },
     );
   }
-
-  const entrypointRaw = requireString(
-    packageRaw.entrypoint,
-    'package.entrypoint',
-    '[package] "entrypoint"',
-  );
-  if (
-    entrypointRaw.startsWith('/') ||
-    entrypointRaw.includes('\\') ||
-    entrypointRaw.split('/').some((seg) => seg === '..')
-  ) {
-    throw new ValidationError(
-      `pkg.toml [package] "entrypoint" must be a relative path without "..": '${entrypointRaw}'`,
-      { field: 'package.entrypoint' },
-    );
-  }
-  const entrypoint = entrypointRaw.replace(/^\.\//, '');
 
   let description: string | undefined;
   if (packageRaw.description !== undefined) {
@@ -637,7 +656,6 @@ export function validatePkgToml(
   const pkg: PkgToml = {
     name,
     version,
-    entrypoint,
     componentGlobs,
     dependsOn,
     templateGlobs,
@@ -814,20 +832,6 @@ function validatePublishFiles(pkg: PkgToml, ctx: ValidateFilesContext): void {
   }
 
   const componentFiles = expandGlobs(pkg.componentGlobs, ctx.presentFiles);
-  if (!componentFiles.includes(pkg.entrypoint)) {
-    throw new ValidationError(
-      `pkg.toml [package] entrypoint "${pkg.entrypoint}" is not among the [components] matched files`,
-      { field: 'package.entrypoint' },
-    );
-  }
-  const entryContent = ctx.readFile(pkg.entrypoint);
-  if (entryContent === undefined) {
-    throw new ValidationError(
-      `pkg.toml [package] entrypoint "${pkg.entrypoint}" was not uploaded`,
-      { field: 'package.entrypoint' },
-    );
-  }
-
   const templateFiles = expandGlobs(pkg.templateGlobs, ctx.presentFiles);
   for (const path of templateFiles) {
     if (!path.endsWith('.typ')) continue;

@@ -206,6 +206,7 @@ Commands:
   docs run <alias> [-- <args...>]                        Run a project script alias
   registry check [<pkg-dir>]                             Validate a package dir (pkg.toml)
   registry publish <pkg-dir>                             Publish a package version
+  registry init [--dir D --name N ...]                   Scaffold a new package dir
   login [--no-browser] [--token <PAT>]   Browser login via website provider picker (loopback 127.0.0.1)
   logout                                 Clear stored credentials
   whoami [--json]                         Show authenticated user (also: auth status, status)

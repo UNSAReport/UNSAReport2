@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -114,9 +115,6 @@ func installComponentTree(ctx context.Context, root, name, version string) (pkg.
 		}
 		entries = append(entries, lock.FileEntry{Path: n, SHA256: lock.SHA256Hex(files[n])})
 	}
-	if _, err := os.Stat(filepath.Join(dest, p.Package.Entrypoint)); err != nil {
-		return pkg.PkgToml{}, fmt.Errorf("entrypoint %q missing in installed %s", p.Package.Entrypoint, name)
-	}
 	l, err := lock.Load(root)
 	if err != nil {
 		return pkg.PkgToml{}, err
@@ -161,7 +159,6 @@ func promptLine(prompt string) (string, error) {
 
 type InitOptions struct {
 	Template string
-	Name     string
 	Report   string
 }
 
@@ -173,10 +170,6 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	report := opt.Report
 	if report == "" {
 		report = "t1"
-	}
-	projName := opt.Name
-	if projName == "" {
-		projName = name
 	}
 	root := cwd
 	var existing *project.SpecConfig
@@ -199,11 +192,11 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			return fmt.Errorf("init requires an empty directory; %q is not empty", cwd)
 		}
 		cfg := project.SpecConfig{}
-		cfg.Project.Name = projName
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
 		cfg.Project.RootMarkerVersion = config.RootMarkerVersion
 		cfg.Scripts = map[string]project.ScriptDef{}
 		cfg.Hooks = map[string][]string{}
+		cfg.Dependencies = map[string]string{}
 		if err := saveConfig(cwd, cfg); err != nil {
 			return err
 		}
@@ -283,6 +276,13 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err := copyCommands(root, &cfg, p, mode); err != nil {
 		return err
 	}
+	if cfg.Dependencies == nil {
+		cfg.Dependencies = map[string]string{}
+	}
+	if rng == "" {
+		rng = version
+	}
+	cfg.Dependencies[name] = rng
 	if err := saveConfig(root, cfg); err != nil {
 		return err
 	}
@@ -302,33 +302,24 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 	selected := map[string]bool{}
 	switch mode {
 	case "none":
-	case "yes":
-		for _, c := range cmds {
-			if p.Commands[c].DefaultSelect {
-				selected[c] = true
-			}
-		}
-	case "all":
+	case "yes", "all":
 		for _, c := range cmds {
 			selected[c] = true
 		}
 	case "ask":
 		fmt.Println("Commands:")
 		for i, c := range cmds {
-			d := p.Commands[c]
-			fmt.Printf("  %d. %s:%s — %s (default=%v)\n", i+1, prefix, c, d.Description, d.DefaultSelect)
+			fmt.Printf("  %d. %s:%s — %s\n", i+1, prefix, c, p.Commands[c].Description)
 		}
-		line, err := promptLine("Select [numbers/all/none, default=yes-defaults]:")
+		line, err := promptLine("Select [numbers/all/none, default=all]:")
 		if err != nil {
 			return err
 		}
 		line = strings.ToLower(strings.TrimSpace(line))
 		switch line {
-		case "", "yes", "defaults":
+		case "", "all":
 			for _, c := range cmds {
-				if p.Commands[c].DefaultSelect {
-					selected[c] = true
-				}
+				selected[c] = true
 			}
 		case "none":
 		default:
@@ -341,23 +332,18 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 				selected[cmds[idx-1]] = true
 			}
 		}
+	default:
+		return fmt.Errorf("unknown command-select mode %q", mode)
 	}
-	if cfg.Scripts == nil {
-		cfg.Scripts = map[string]project.ScriptDef{}
+	fragDir := filepath.Join(root, config.ConfigDirName, "scripts")
+	if err := os.MkdirAll(fragDir, config.PermDirPublic); err != nil {
+		return err
 	}
 	for c := range selected {
 		alias := prefix + ":" + c
 		def := p.Commands[c]
 		if existing, ok := cfg.Scripts[alias]; ok {
-			same := len(existing.Commands) == len(def.Commands)
-			if same {
-				for i := range existing.Commands {
-					if existing.Commands[i] != def.Commands[i] {
-						same = false
-					}
-				}
-			}
-			if !same {
+			if !reflect.DeepEqual(existing.Commands, def.Commands) {
 				line, err := promptLine(fmt.Sprintf("alias %q exists with different body; new alias name (empty aborts):", alias))
 				if err != nil {
 					return err
@@ -366,10 +352,21 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 					return fmt.Errorf("alias collision on %q; aborted", alias)
 				}
 				alias = strings.TrimSpace(line)
+			} else if src := cfg.ScriptSource(alias); src == "" {
+				continue
 			}
 		}
-		cfg.Scripts[alias] = project.ScriptDef{Commands: def.Commands, Description: def.Description}
+		frag := project.ScriptFragment{Alias: alias, Description: def.Description, Origin: p.Package.Name, Commands: def.Commands}
+		var buf strings.Builder
+		if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
+			return fmt.Errorf("encode script fragment: %w", err)
+		}
+		name := strings.ReplaceAll(alias, ":", "-")
+		if err := os.WriteFile(filepath.Join(fragDir, name+".toml"), []byte(buf.String()), config.PermFilePublic); err != nil {
+			return err
+		}
 	}
+	bound := map[string][]string{}
 	for std, suggestions := range p.HooksSuggest {
 		if !scripts.HookStandards[std] {
 			return fmt.Errorf("package suggests unknown hook standard %q", std)
@@ -384,20 +381,91 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 				if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
 					continue
 				}
-			} else if mode == "yes" {
-				if def, ok := p.Commands[s]; ok && !def.DefaultSelect {
-					continue
-				}
+			} else if mode == "yes" || mode == "all" {
 				if _, ok := p.Commands[s]; !ok {
 					continue
 				}
 			} else if mode == "none" {
 				continue
+			} else {
+				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			cfg.Hooks[std] = append(cfg.Hooks[std], alias)
+			bound[std] = append(bound[std], alias)
+		}
+	}
+	if len(bound) > 0 {
+		hookDir := filepath.Join(root, config.ConfigDirName, "hooks")
+		if err := os.MkdirAll(hookDir, config.PermDirPublic); err != nil {
+			return err
+		}
+		for std, aliases := range bound {
+			if err := mergeHookFragment(root, hookDir, std, prefix, p.Package.Name, aliases, cfg.Hooks[std]); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
+}
+
+// mergeHookFragment unions aliases into unsareport.d/hooks/<std>-<prefix>.toml.
+func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, already []string) error {
+	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
+	owned := map[string]bool{}
+	for _, a := range already {
+		owned[stripHookAlias(a)] = true
+	}
+	frag := project.HookFragment{Standard: std, Origin: origin}
+	if raw, err := os.ReadFile(path); err == nil {
+		md, derr := toml.Decode(string(raw), &frag)
+		if derr != nil {
+			return fmt.Errorf("parse %s: %w", relHookPath(root, path), derr)
+		}
+		if undecoded := md.Undecoded(); len(undecoded) > 0 {
+			return fmt.Errorf("unknown field %q in %s", undecoded[0].String(), relHookPath(root, path))
+		}
+		if frag.Standard != std {
+			return fmt.Errorf("%s: standard %q mismatches file", relHookPath(root, path), frag.Standard)
+		}
+		if frag.Origin != "" && frag.Origin != origin {
+			return fmt.Errorf("%s: owned by package %q", relHookPath(root, path), frag.Origin)
+		}
+		frag.Origin = origin
+		for _, a := range frag.Aliases {
+			owned[stripHookAlias(a)] = true
+		}
+	}
+	for _, a := range aliases {
+		if owned[stripHookAlias(a)] {
+			continue
+		}
+		owned[stripHookAlias(a)] = true
+		frag.Aliases = append(frag.Aliases, a)
+	}
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
+		return fmt.Errorf("encode hook fragment: %w", err)
+	}
+	if err := os.WriteFile(path, []byte(buf.String()), config.PermFilePublic); err != nil {
+		return err
+	}
+	return nil
+}
+
+func stripHookAlias(a string) string {
+	a = strings.TrimSpace(a)
+	if strings.HasPrefix(a, "[") {
+		if idx := strings.Index(a, "]"); idx >= 0 {
+			return strings.TrimSpace(a[idx+1:])
+		}
+	}
+	return a
+}
+
+func relHookPath(root, path string) string {
+	if rel, err := filepath.Rel(root, path); err == nil {
+		return filepath.ToSlash(rel)
+	}
+	return path
 }
 
 func runHooks(root, std string, cfg project.SpecConfig) error {
@@ -406,27 +474,27 @@ func runHooks(root, std string, cfg project.SpecConfig) error {
 		return nil
 	}
 	for _, a := range aliases {
-		name := strings.TrimSpace(a)
-		if strings.HasPrefix(name, "[") {
-			idx := strings.Index(name, "]")
-			if idx < 0 {
-				return fmt.Errorf("[hooks.%s] malformed entry %q", std, a)
-			}
-			probe, err := scripts.Select([]string{name[:idx+1] + " probe"}, "")
-			if err != nil {
-				return fmt.Errorf("[hooks.%s] %w", std, err)
-			}
-			if len(probe) == 0 {
-				continue
-			}
-			name = strings.TrimSpace(name[idx+1:])
+		prefix, name, err := scripts.SplitPrefix(strings.TrimSpace(a))
+		if err != nil {
+			return fmt.Errorf("[hooks.%s] %w", std, err)
+		}
+		applies, err := scripts.HookApplies(prefix)
+		if err != nil {
+			return fmt.Errorf("[hooks.%s] %w", std, err)
+		}
+		if !applies {
+			continue
 		}
 		s, ok := cfg.Scripts[name]
 		if !ok {
 			return fmt.Errorf("[hooks.%s] unknown alias %q", std, name)
 		}
-		if err := scripts.RunLines(root, s.Commands, ""); err != nil {
-			return err
+		lines, err := scripts.Select(s.Commands, name, "")
+		if err != nil {
+			return fmt.Errorf("[hooks.%s] %w", std, err)
+		}
+		if err := scripts.RunLines(root, lines, ""); err != nil {
+			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
 	}
 	return nil
@@ -564,12 +632,21 @@ func Remove(cwd, name string) error {
 	hooked := map[string]bool{}
 	for _, aliases := range cfg.Hooks {
 		for _, a := range aliases {
-			hooked[a] = true
+			hooked[stripHookAlias(a)] = true
+		}
+	}
+	ownScripts, err := originScriptAliases(root, name)
+	if err != nil {
+		return err
+	}
+	for _, alias := range ownScripts {
+		if hooked[alias] {
+			return fmt.Errorf("cannot remove %q: script %q still referenced by [hooks]; unhook first", name, alias)
 		}
 	}
 	for alias := range cfg.Scripts {
-		if strings.HasPrefix(alias, name+":") || strings.Contains(alias, ":"+name) {
-			if hooked[alias] {
+		if cfg.ScriptSource(alias) == "" && (strings.HasPrefix(alias, name+":") || strings.Contains(alias, ":"+name)) {
+			if hooked[stripHookAlias(alias)] {
 				return fmt.Errorf("cannot remove %q: script %q still referenced by [hooks]; unhook first", name, alias)
 			}
 		}
@@ -577,11 +654,94 @@ func Remove(cwd, name string) error {
 	if err := os.RemoveAll(filepath.Join(root, "components", name)); err != nil {
 		return err
 	}
+	if err := removeOriginFragments(root, name); err != nil {
+		return err
+	}
 	l.Remove(name)
 	if err := lock.Write(root, l); err != nil {
 		return err
 	}
+	if cfg.Dependencies != nil {
+		delete(cfg.Dependencies, name)
+		if err := saveConfig(root, cfg); err != nil {
+			return err
+		}
+	}
 	return runCheck(root)
+}
+
+// originScriptAliases lists merged script aliases contributed by package origin.
+func originScriptAliases(root, origin string) ([]string, error) {
+	dir := filepath.Join(root, config.ConfigDirName, "scripts")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var out []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
+			continue
+		}
+		var frag project.ScriptFragment
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			return nil, err
+		}
+		if _, err := toml.Decode(string(raw), &frag); err != nil {
+			return nil, fmt.Errorf("parse %s: %w", filepath.Join(config.ConfigDirName, "scripts", e.Name()), err)
+		}
+		if frag.Origin == origin {
+			out = append(out, frag.Alias)
+		}
+	}
+	return out, nil
+}
+
+// removeOriginFragments deletes script and hook fragments owned by origin.
+func removeOriginFragments(root, origin string) error {
+	for _, sub := range []string{"scripts", "hooks"} {
+		dir := filepath.Join(root, config.ConfigDirName, sub)
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if os.IsNotExist(err) {
+				continue
+			}
+			return err
+		}
+		for _, e := range entries {
+			if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
+				continue
+			}
+			path := filepath.Join(dir, e.Name())
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			own := ""
+			if sub == "scripts" {
+				var frag project.ScriptFragment
+				if _, err := toml.Decode(string(raw), &frag); err != nil {
+					return fmt.Errorf("parse %s: %w", path, err)
+				}
+				own = frag.Origin
+			} else {
+				var frag project.HookFragment
+				if _, err := toml.Decode(string(raw), &frag); err != nil {
+					return fmt.Errorf("parse %s: %w", path, err)
+				}
+				own = frag.Origin
+			}
+			if own == origin {
+				if err := os.Remove(path); err != nil {
+					return err
+				}
+			}
+		}
+	}
+	return nil
 }
 
 func Check(cwd string) error {
@@ -667,11 +827,9 @@ func Run(cwd, alias string, args []string) error {
 		return fmt.Errorf("unknown alias %q (available: %s)", alias, strings.Join(avail, ", "))
 	}
 	extra := strings.Join(args, " ")
-	if err := scripts.RunLines(root, s.Commands, extra); err != nil {
-		if strings.Contains(err.Error(), "zero selected") {
-			return fmt.Errorf("alias %q has zero selected lines for current OS", alias)
-		}
+	lines, err := scripts.Select(s.Commands, alias, "")
+	if err != nil {
 		return err
 	}
-	return nil
+	return scripts.RunLines(root, lines, extra)
 }

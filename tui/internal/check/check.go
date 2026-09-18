@@ -195,16 +195,27 @@ func checkLock(root string) []Finding {
 func checkScriptsHooks(root string, cfg project.SpecConfig) []Finding {
 	var out []Finding
 	for alias, s := range cfg.Scripts {
-		if len(s.Commands) == 0 {
-			out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[scripts.%s] commands must not be empty", alias)})
+		file := "unsareport.toml"
+		if src := cfg.ScriptSource(alias); src != "" {
+			file = src
 		}
-		if _, err := scripts.Select(s.Commands, ""); err != nil {
-			out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[scripts.%s]: %v", alias, err)})
-		}
-		for _, l := range s.Commands {
-			if strings.Contains(l, "allow_read") || strings.Contains(l, "allow_write") {
-				out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[scripts.%s]: legacy allow_read/allow_write rejected", alias)})
+		total := 0
+		for key, lines := range s.Commands {
+			if !project.OSKeys[key] {
+				out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s] unknown os key %q", alias, key)})
 			}
+			total += len(lines)
+			for _, l := range lines {
+				if strings.Contains(l, "allow_read") || strings.Contains(l, "allow_write") {
+					out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s]: legacy allow_read/allow_write rejected", alias)})
+				}
+			}
+		}
+		if total == 0 {
+			out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s] commands must not be empty", alias)})
+		}
+		if _, err := scripts.Select(s.Commands, alias, ""); err != nil {
+			out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s]: %v", alias, err)})
 		}
 	}
 	seen := map[string]map[string]bool{}

@@ -1,11 +1,29 @@
 import { z } from 'zod';
 
+export const PkgTomlCommandCommandsSchema = z
+  .object({
+    any: z.array(z.string().min(1)).default([]),
+    linux: z.array(z.string().min(1)).default([]),
+    windows: z.array(z.string().min(1)).default([]),
+    macos: z.array(z.string().min(1)).default([]),
+  })
+  .strict()
+  .refine(
+    (commands) =>
+      commands.any.length +
+        commands.linux.length +
+        commands.windows.length +
+        commands.macos.length >=
+      1,
+    { message: 'Command "commands" must define at least one shell line' },
+  );
+export type PkgTomlCommandCommands = z.infer<
+  typeof PkgTomlCommandCommandsSchema
+>;
 export const PkgTomlCommandSchema = z.object({
   description: z.string().min(1),
-  commands: z.array(z.string().min(1)).min(1),
-  default_select: z.boolean().default(false),
+  commands: PkgTomlCommandCommandsSchema,
 });
-export type PkgTomlCommand = z.infer<typeof PkgTomlCommandSchema>;
 
 export const PkgTomlConfigSchemaEntrySchema = z.object({
   type: z.enum(['string', 'bool', 'int', 'path', 'path-list']),
@@ -25,7 +43,6 @@ export const PkgTomlSchema = z.object({
       .max(64)
       .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Invalid package name'),
     version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
-    entrypoint: z.string().min(1),
     description: z.string().max(2048).optional(),
     displayName: z.string().min(1).max(128).optional(),
     tags: z.array(z.string()).optional(),

@@ -195,7 +195,6 @@ packagesRouter.get('/:name/versions', async (c) => {
     .select({
       id: packageVersions.id,
       version: packageVersions.version,
-      entry: packageVersions.entry,
       status: packageVersions.status,
       fileCount: packageVersions.fileCount,
       createdAt: packageVersions.createdAt,
@@ -276,8 +275,6 @@ packagesRouter.get('/:name/:version', async (c) => {
     description: pkgList[0].description,
     authorId: pkgList[0].authorId,
     version: ver.version,
-    entry: ver.entry,
-    entrypoint: ver.entry,
     status: ver.status,
     rejectionReason: ver.rejectionReason,
     fileCount: ver.fileCount,
@@ -561,10 +558,13 @@ packagesRouter.post('/', requireAuth, async (c) => {
     });
   }
 
-  const componentsArchive = componentPaths.map((path) => ({
-    path,
-    content: zipBuffers.get(path) as Buffer,
-  }));
+  const componentsArchive = [
+    ...componentPaths.map((path) => ({
+      path,
+      content: zipBuffers.get(path) as Buffer,
+    })),
+    { path: 'pkg.toml', content: Buffer.from(pkgText, 'utf8') },
+  ];
   await buildAndUploadZipArchive(componentsS3Key, componentsArchive);
 
   let storedTemplatesS3Key: string | null = null;
@@ -609,7 +609,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     id: versionId,
     packageId,
     version: pkg.version,
-    entry: pkg.entrypoint,
     status: initialStatus,
     s3Key: s3Prefix,
     archiveS3Key: componentsS3Key,
@@ -711,15 +710,6 @@ packagesRouter.put('/:name/:version', requireAuth, async (c) => {
     throw new ForbiddenError(
       `Cannot modify package version '${version}' with status '${ver.status}'`,
     );
-  }
-
-  const body = (await c.req.json()) as Record<string, unknown>;
-
-  if (body.entry !== undefined) {
-    await db
-      .update(packageVersions)
-      .set({ entry: body.entry as string })
-      .where(eq(packageVersions.id, ver.id));
   }
 
   return c.json({ message: 'Version updated successfully' });
