@@ -20,8 +20,8 @@ func TestApplyTemplate(t *testing.T) {
 func TestSanitize(t *testing.T) {
 	tests := map[string]string{
 		"hello": "hello",
-		"a<b":  "a-b",
-		"a:b":  "a-b",
+		"a<b":   "a-b",
+		"a:b":   "a-b",
 	}
 	for in, want := range tests {
 		if got := SanitizeFilename(in); got != want {

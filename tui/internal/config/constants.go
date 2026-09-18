@@ -85,15 +85,22 @@ const (
 	EnvLCMessages      = "LC_MESSAGES"
 )
 
-// XDG / file layout
+// Project file layout (Typst restructure: TOML project, dot TOML lock)
 const (
 	AppDirName          = "unsareport"
-	ConfigFileName      = "unsareport.json"
+	ConfigFileName      = "unsareport.toml"
+	ConfigDirName       = "unsareport.d"
 	XDGConfigFileName   = "config.json"
 	CredentialsFileName = "credentials.json"
 	TokenFileName       = "token"
 	CacheFileName       = "registry.json"
 	LockFileName        = ".unsareport.lock"
+)
+
+// Project marker values
+const (
+	RootMarkerVersion = 1
+	DefaultTypstEntry = "report.typ"
 )
 
 // Regexes (compiled)

@@ -43,6 +43,12 @@ func main() {
 				fmt.Fprintln(os.Stderr, "usage: unsarep auth status")
 				os.Exit(1)
 			}
+		case "docs":
+			handleDocs(args[1:])
+			return
+		case "registry":
+			handleRegistry(args[1:])
+			return
 		case "slides":
 			slides.Run(args[1:])
 			return
@@ -190,16 +196,22 @@ Usage:
   unsarep [flags]          # launch TUI
 
 Commands:
+  docs init <template>[@<range>] [--name N --report R]   Scaffold a project or add a report dir
+  docs add <pkg>@<range> [--yes|--all|--none]            Install a component package
+  docs update [<pkg>] [--yes|--all|--none]               Update vendored components
+  docs remove <pkg>                                      Remove a component package
+  docs check                                             Run project checks
+  docs build <report-dir>                                Run hooks + typst compile --root
+  docs watch <report-dir>                                typst watch with managed --root
+  docs run <alias> [-- <args...>]                        Run a project script alias
+  registry check [<pkg-dir>]                             Validate a package dir (pkg.toml)
+  registry publish <pkg-dir>                             Publish a package version
   login [--no-browser] [--token <PAT>]   Browser login via website provider picker (loopback 127.0.0.1)
   logout                                 Clear stored credentials
   whoami [--json]                         Show authenticated user (also: auth status, status)
   slides <init|dev|login|link|deploy|whoami>  Author, preview, and deploy slide decks
   help                                   Show help
   version                                Show version
-
-Flags:
-  -h, --help      Show help
-  -v, --version   Show version
 
 Auth:
   Credentials stored in OS keychain (0600 file at $XDG_CONFIG_HOME/unsareport/credentials.json when keychain unavailable).
@@ -211,12 +223,11 @@ Navigation (TUI):
   1-4         Switch apps (Registry, Docs, Auth, Slides)
   h/l         Prev/next app
   j/k, up/down  Navigate sidebar
-  enter       Select function
   tab         Toggle focus sidebar/main
   q, ctrl+c   Quit
   ?           Help overlay
   r           Retry
   b, esc      Back
 
-Project-centric: detects unsareport.json via walk-up and preselects project context.`)
+Project-centric: detects unsareport.toml via walk-up and resolves the project root.`)
 }

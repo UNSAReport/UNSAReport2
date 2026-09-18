@@ -225,5 +225,3 @@ func TestCallbackOptionsPreflight(t *testing.T) {
 		t.Fatalf("PNA header %q want true", pna)
 	}
 }
-
-

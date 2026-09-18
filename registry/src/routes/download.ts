@@ -9,12 +9,31 @@ import type { DependencyResolveRequest, HonoEnv } from '@/types';
 
 const downloadRouter = new Hono<HonoEnv>();
 
+type Section = 'components' | 'templates';
+
+/**
+ * Parses the ?section= query parameter shared by the download endpoints.
+ * Defaults to 'components'; unknown values are a hard 400.
+ */
+function parseSection(c: {
+  req: { query: (name: string) => string | undefined };
+}): Section {
+  const raw = c.req.query('section')?.trim().toLowerCase();
+  if (!raw || raw === 'components') return 'components';
+  if (raw === 'templates') return 'templates';
+  throw new ValidationError(
+    `Unknown section '${c.req.query('section')}'; expected 'components' or 'templates'`,
+    { field: 'section' },
+  );
+}
+
 /**
  * Route handler for listing all files and their metadata within a specific package version.
  */
 downloadRouter.get('/:name/:version/files', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
+  const section = parseSection(c);
 
   const pkgList = await db
     .select({ id: packages.id })
@@ -46,15 +65,22 @@ downloadRouter.get('/:name/:version/files', async (c) => {
   const filesRows = await db
     .select({
       path: packageFiles.path,
+      section: packageFiles.section,
       size: packageFiles.size,
       checksum: packageFiles.checksum,
     })
     .from(packageFiles)
-    .where(eq(packageFiles.versionId, verList[0].id));
+    .where(
+      and(
+        eq(packageFiles.versionId, verList[0].id),
+        eq(packageFiles.section, section),
+      ),
+    );
 
   return c.json({
     package: name,
     version,
+    section,
     files: filesRows,
   });
 });
@@ -66,6 +92,8 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
   const filePath = c.req.param('*');
+  const hasSectionParam = c.req.query('section') !== undefined;
+  const section = parseSection(c);
 
   if (!filePath) {
     throw new ValidationError('File path is required');
@@ -101,7 +129,11 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
   const cleanPath = filePath.replace(/^[/\\]+/, '');
 
   const fileList = await db
-    .select({ s3Key: packageFiles.s3Key, checksum: packageFiles.checksum })
+    .select({
+      s3Key: packageFiles.s3Key,
+      section: packageFiles.section,
+      checksum: packageFiles.checksum,
+    })
     .from(packageFiles)
     .where(
       and(
@@ -114,6 +146,11 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
   if (fileList.length === 0) {
     throw new NotFoundError(
       `File '${cleanPath}' not found in package '${name}' version '${version}'`,
+    );
+  }
+  if (hasSectionParam && fileList[0].section !== section) {
+    throw new NotFoundError(
+      `File '${cleanPath}' is not in section '${section}' of package '${name}' version '${version}'`,
     );
   }
 
@@ -136,6 +173,7 @@ downloadRouter.get('/:name/:version/files/*', async (c) => {
 downloadRouter.get('/:name/:version/archive', async (c) => {
   const name = c.req.param('name').toLowerCase();
   const version = c.req.param('version');
+  const section = parseSection(c);
 
   const pkgList = await db
     .select({ id: packages.id })
@@ -151,6 +189,8 @@ downloadRouter.get('/:name/:version/archive', async (c) => {
     .select({
       id: packageVersions.id,
       archiveS3Key: packageVersions.archiveS3Key,
+      componentsS3Key: packageVersions.componentsS3Key,
+      templatesS3Key: packageVersions.templatesS3Key,
       status: packageVersions.status,
     })
     .from(packageVersions)
@@ -168,11 +208,23 @@ downloadRouter.get('/:name/:version/archive', async (c) => {
     );
   }
 
-  const presignedUrl = await getPresignedUrl(verList[0].archiveS3Key);
+  const ver = verList[0];
+  const archiveKey =
+    section === 'templates'
+      ? ver.templatesS3Key
+      : (ver.componentsS3Key ?? ver.archiveS3Key);
+  if (!archiveKey) {
+    throw new NotFoundError(
+      `Section '${section}' has no archive for package '${name}' version '${version}'`,
+    );
+  }
+
+  const presignedUrl = await getPresignedUrl(archiveKey);
 
   return c.json({
     package: name,
     version,
+    section,
     archive_url: presignedUrl,
   });
 });

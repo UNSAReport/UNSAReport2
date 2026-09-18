@@ -18,7 +18,7 @@ import (
 
 type registryItem struct {
 	title, desc string
-	info        registry.TemplateInfo
+	info        registry.PackageInfo
 }
 
 func (i registryItem) Title() string       { return i.title }
@@ -26,7 +26,7 @@ func (i registryItem) Description() string { return i.desc }
 func (i registryItem) FilterValue() string { return i.title + " " + i.desc }
 
 type registryFetchedMsg struct {
-	templates []registry.TemplateInfo
+	templates []registry.PackageInfo
 	err       error
 }
 
@@ -45,9 +45,9 @@ type RegistryModel struct {
 	list          list.Model
 	textInput     textinput.Model
 	details       viewport.Model
-	templates     []registry.TemplateInfo
-	filtered      []registry.TemplateInfo
-	selected      *registry.TemplateInfo
+	templates     []registry.PackageInfo
+	filtered      []registry.PackageInfo
+	selected      *registry.PackageInfo
 	loading       bool
 	err           string
 	width, height int
@@ -86,7 +86,7 @@ func (m RegistryModel) Init() tea.Cmd {
 func (m RegistryModel) fetchCmd() tea.Cmd {
 	return func() tea.Msg {
 		ctx := context.Background()
-		templates, err := m.client.ListTemplates(ctx)
+		templates, err := m.client.ListPackages(ctx)
 		return registryFetchedMsg{templates: templates, err: err}
 	}
 }
@@ -189,7 +189,7 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 		if q == "" {
 			m.filtered = m.templates
 		} else {
-			var out []registry.TemplateInfo
+			var out []registry.PackageInfo
 			for _, t := range m.templates {
 				if strings.Contains(strings.ToLower(t.Name), q) || strings.Contains(strings.ToLower(t.Description), q) {
 					out = append(out, t)
@@ -215,7 +215,7 @@ func (m RegistryModel) Update(msg tea.Msg) (RegistryModel, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m *RegistryModel) setItems(templates []registry.TemplateInfo) {
+func (m *RegistryModel) setItems(templates []registry.PackageInfo) {
 	items := make([]list.Item, len(templates))
 	for i, t := range templates {
 		desc := t.Description
@@ -244,24 +244,8 @@ func (m *RegistryModel) refreshDetails() {
 	if m.selected.Version != "" {
 		b.WriteString("Latest: " + m.selected.Version + "\n")
 	}
-	if len(m.selected.DistTags) > 0 {
-		b.WriteString("Dist-tags:\n")
-		keys := make([]string, 0, len(m.selected.DistTags))
-		for k := range m.selected.DistTags {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			for _, line := range wrapLines(fmt.Sprintf("  %s: %s", k, m.selected.DistTags[k]), width) {
-				b.WriteString(line + "\n")
-			}
-		}
-	}
 	if len(m.selected.Versions) > 0 {
-		vers := make([]string, 0, len(m.selected.Versions))
-		for k := range m.selected.Versions {
-			vers = append(vers, k)
-		}
+		vers := append([]string{}, m.selected.Versions...)
 		sort.Strings(vers)
 		b.WriteString("Versions:\n")
 		for _, line := range wrapLines("  "+strings.Join(vers, ", "), width) {

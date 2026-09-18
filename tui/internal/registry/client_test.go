@@ -12,13 +12,12 @@ import (
 	"testing"
 )
 
-func TestListTemplates_Hono(t *testing.T) {
+func TestResolve(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/packages" {
+		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"packages": []map[string]any{
-					{"name": "lab", "description": "lab desc"},
-					{"name": "multi-lab", "description": "multi desc"},
+				"resolved": []any{
+					map[string]any{"name": "lab", "version": "1.2.0", "archive_url": "http://x/y.zip", "files": []any{"lib.typ"}},
 				},
 			})
 			return
@@ -27,123 +26,86 @@ func TestListTemplates_Hono(t *testing.T) {
 	}))
 	defer srv.Close()
 	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
-	templates, err := c.ListTemplates(context.Background())
+	v, err := c.ResolveVersion(context.Background(), "lab", "^1.0.0")
 	if err != nil {
 		t.Fatalf("err %v", err)
 	}
-	if len(templates) != 2 {
-		t.Fatalf("len %d", len(templates))
-	}
-	if templates[0].Name != "lab" {
-		t.Fatalf("name %q", templates[0].Name)
+	if v != "1.2.0" {
+		t.Fatalf("version %q", v)
 	}
 }
 
-func TestGetTemplateVersion_Semver(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/packages/lab":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"name":        "lab",
-				"description": "lab",
-				"versions":    []string{"1.0.0", "1.1.0", "2.0.0"},
-			})
-		case "/v1/packages/lab/versions":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"versions": []map[string]any{{"version": "1.0.0"}, {"version": "1.1.0"}, {"version": "2.0.0"}},
-			})
-		default:
-			w.WriteHeader(404)
-		}
-	}))
-	defer srv.Close()
-	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
-	info, err := c.GetTemplateVersion(context.Background(), "lab", "^1.0.0")
-	if err != nil {
-		t.Fatalf("err %v", err)
-	}
-	if info.Version != "1.1.0" {
-		t.Fatalf("resolved %q", info.Version)
-	}
-}
-
-func TestDownloadAndExtract(t *testing.T) {
+func TestDownloadSection(t *testing.T) {
 	var zipBuf bytes.Buffer
 	zw := zip.NewWriter(&zipBuf)
-	w, err := zw.Create("main.typ")
+	w, err := zw.Create("lib.typ")
 	if err != nil {
 		t.Fatal(err)
 	}
 	_, _ = w.Write([]byte("#let x = 1"))
-	_ = zw.Close()
-
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+	zipBytes := zipBuf.Bytes()
 	var srv *httptest.Server
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/v1/test-pkg/1.0.0/archive":
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"package":     "test-pkg",
-				"version":     "1.0.0",
-				"archive_url": srv.URL + "/archive.zip",
-			})
-		case "/archive.zip":
-			w.Header().Set("Content-Type", "application/zip")
-			_, _ = w.Write(zipBuf.Bytes())
-		default:
-			w.WriteHeader(404)
-		}
-	}))
-	defer srv.Close()
-
-	tmpDir := t.TempDir()
-	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
-	if err := c.DownloadAndExtract(context.Background(), "test-pkg", "1.0.0", tmpDir); err != nil {
-		t.Fatalf("DownloadAndExtract failed: %v", err)
-	}
-
-	content, err := os.ReadFile(filepath.Join(tmpDir, "main.typ"))
-	if err != nil {
-		t.Fatalf("read extracted file: %v", err)
-	}
-	if string(content) != "#let x = 1" {
-		t.Fatalf("unexpected content: %q", string(content))
-	}
-}
-
-func TestPublishPackage(t *testing.T) {
-	tmpDir := t.TempDir()
-	manifestContent := `{"name":"test-pkg","version":"1.0.0","files":["main.typ"]}`
-	if err := os.WriteFile(filepath.Join(tmpDir, "manifest.json"), []byte(manifestContent), 0600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "main.typ"), []byte("// typst"), 0600); err != nil {
-		t.Fatal(err)
-	}
-
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/packages" && r.Method == "POST" {
-			file, _, err := r.FormFile("file")
-			if err != nil {
-				w.WriteHeader(400)
-				_ = json.NewEncoder(w).Encode(map[string]any{"error": "ValidationError", "message": "missing file"})
-				return
-			}
-			defer func() { _ = file.Close() }()
-			w.WriteHeader(201)
-			_ = json.NewEncoder(w).Encode(map[string]any{
-				"package": "test-pkg",
-				"version": "1.0.0",
-				"status":  "approved",
-			})
+		if r.URL.Query().Get("section") != "components" {
+			w.WriteHeader(400)
 			return
 		}
-		w.WriteHeader(404)
+		_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl.zip"})
 	}))
 	defer srv.Close()
-
-	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
-	if err := c.PublishPackage(context.Background(), tmpDir); err != nil {
-		t.Fatalf("PublishPackage failed: %v", err)
+	dl := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write(zipBytes)
+	}))
+	defer dl.Close()
+	_ = srv
+	mux := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/dl.zip" {
+			_, _ = w.Write(zipBytes)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": "http://" + r.Host + "/dl.zip"})
+	}))
+	defer mux.Close()
+	c := &Client{BaseURL: mux.URL, HTTPClient: mux.Client()}
+	files, err := c.DownloadSection(context.Background(), "test-pkg", "1.0.0", "components")
+	if err != nil {
+		t.Fatalf("DownloadSection failed: %v", err)
+	}
+	if string(files["lib.typ"]) != "#let x = 1" {
+		t.Fatalf("content %q", files["lib.typ"])
+	}
+	if _, err := c.DownloadSection(context.Background(), "test-pkg", "1.0.0", "bogus"); err == nil {
+		t.Fatal("expected section error")
 	}
 }
 
+func TestPublish(t *testing.T) {
+	tmpDir := t.TempDir()
+	pkgToml := "[package]\nname = \"test-pkg\"\nversion = \"1.0.0\"\nentrypoint = \"lib.typ\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = []\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "pkg.toml"), []byte(pkgToml), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmpDir, "lib.typ"), []byte("#let x = 1"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/packages" || r.Method != "POST" {
+			w.WriteHeader(404)
+			return
+		}
+		w.WriteHeader(201)
+		_, _ = w.Write([]byte(`{"message":"ok"}`))
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	if err := c.Publish(context.Background(), tmpDir, "", ""); err != nil {
+		t.Fatalf("Publish failed: %v", err)
+	}
+	empty := t.TempDir()
+	if err := c.Publish(context.Background(), empty, "", ""); err == nil {
+		t.Fatal("expected pkg.toml error")
+	}
+}

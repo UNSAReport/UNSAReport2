@@ -51,7 +51,6 @@ func defaultCredentialsPath() string {
 	return ""
 }
 
-
 func writeAtomicCredentials(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, config.PermDirPrivate); err != nil {

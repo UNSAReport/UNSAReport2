@@ -1,7 +1,7 @@
 import type {
   ApiErrorResponse,
   JWTPayload,
-  Manifest,
+  PkgToml,
   ResolvedPackage,
   UserContext,
 } from '@unsa/schemas/registry';
@@ -9,7 +9,7 @@ import type {
 export type {
   ApiErrorResponse,
   JWTPayload,
-  Manifest,
+  PkgToml,
   ResolvedPackage,
   UserContext,
 };

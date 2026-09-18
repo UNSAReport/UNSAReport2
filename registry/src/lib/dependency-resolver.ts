@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   packageDependencies,
@@ -17,6 +17,7 @@ import type { ResolvedPackage } from '@/types';
 
 /**
  * Fetches declared dependency names and version ranges for a given package version ID.
+ * Rows are populated from pkg.toml [components] depends_on at publish time.
  *
  * @param versionId - Unique identifier of the package version.
  * @returns Array of dependency records containing dependencyName and versionRange.
@@ -35,7 +36,7 @@ async function getVersionDependencies(versionId: string) {
  * Traverses dependency trees of existing packages to detect circular dependency chains involving a newly uploaded package.
  *
  * @param uploadPackageName - Name of the package being uploaded.
- * @param declaredDependencies - Key-value map of declared dependency names to SemVer ranges.
+ * @param declaredDependencies - Key-value map of pkg.toml depends_on entries (dependency names to SemVer ranges).
  * @throws ValidationError if a circular dependency cycle is detected.
  */
 export async function checkCircularDependencies(
@@ -127,6 +128,7 @@ export async function resolveDependencyTree(
         versionId: packageVersions.id,
         version: packageVersions.version,
         archiveS3Key: packageVersions.archiveS3Key,
+        componentsS3Key: packageVersions.componentsS3Key,
         status: packageVersions.status,
       })
       .from(packageVersions)
@@ -181,7 +183,8 @@ export async function resolveDependencyTree(
     resolvedMap.set(name, {
       version: selectedVersionRow.version,
       versionId: selectedVersionRow.versionId,
-      archiveS3Key: selectedVersionRow.archiveS3Key,
+      archiveS3Key:
+        selectedVersionRow.componentsS3Key ?? selectedVersionRow.archiveS3Key,
     });
 
     const dependencies = await getVersionDependencies(
@@ -213,7 +216,12 @@ export async function resolveDependencyTree(
     const filesRows = await db
       .select({ path: packageFiles.path })
       .from(packageFiles)
-      .where(eq(packageFiles.versionId, info.versionId));
+      .where(
+        and(
+          eq(packageFiles.versionId, info.versionId),
+          eq(packageFiles.section, 'components'),
+        ),
+      );
 
     const filePaths = filesRows.map((f) => f.path);
     const archiveUrl = await getPresignedUrl(info.archiveS3Key);

@@ -8,6 +8,7 @@ import (
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/charmbracelet/huh"
 )
+
 func RequireAuth(ctx context.Context, c *Client, prompt bool) (*Credentials, error) {
 	tok := ""
 	if v := os.Getenv(config.EnvToken); v != "" {

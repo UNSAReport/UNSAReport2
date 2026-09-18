@@ -1,16 +1,24 @@
 package tui
 
 import (
+	"fmt"
+
+	"github.com/UNSAReport/tui/internal/docs"
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
 
+type docsCheckDoneMsg struct {
+	err error
+}
 
 type DocsUpdateModel struct {
 	list          list.Model
 	viewport      viewport.Model
+	project       *ProjectContext
+	checked       bool
 	width, height int
 	styles        Styles
 }
@@ -21,8 +29,19 @@ func NewDocsUpdateModel() DocsUpdateModel {
 	l.SetShowHelp(false)
 	l.SetFilteringEnabled(false)
 	vp := viewport.New(40, 10)
-	vp.SetContent("Check is unavailable in this build.\nDiff/apply/rollback land with the update backend.\n\nPress tab to return to the sidebar.")
+	vp.SetContent("Press enter to run check.")
 	return DocsUpdateModel{list: l, viewport: vp, styles: newStyles(defaultTheme())}
+}
+
+func (m *DocsUpdateModel) SetProject(p *ProjectContext) { m.project = p }
+
+func (m DocsUpdateModel) CheckCmd() tea.Cmd {
+	return func() tea.Msg {
+		if m.project == nil || !m.project.IsProject {
+			return docsCheckDoneMsg{err: fmt.Errorf("not in a project (no unsareport.toml found)")}
+		}
+		return docsCheckDoneMsg{err: docs.Check(m.project.Root)}
+	}
 }
 
 func (m DocsUpdateModel) Init() tea.Cmd { return nil }
@@ -36,7 +55,19 @@ func (m DocsUpdateModel) Update(msg tea.Msg) (DocsUpdateModel, tea.Cmd) {
 		m.viewport.Width = m.width / 2
 		m.viewport.Height = m.height - 6
 		return m, nil
+	case docsCheckDoneMsg:
+		m.checked = true
+		if msg.err != nil {
+			m.viewport.SetContent("check failed:\n" + msg.err.Error())
+		} else {
+			m.viewport.SetContent("check passed: no findings.")
+		}
+		return m, nil
 	case tea.KeyMsg:
+		if msg.String() == "enter" {
+			m.viewport.SetContent("Running check…")
+			return m, m.CheckCmd()
+		}
 		var vcmd tea.Cmd
 		m.viewport, vcmd = m.viewport.Update(msg)
 		var lcmd tea.Cmd
@@ -47,7 +78,6 @@ func (m DocsUpdateModel) Update(msg tea.Msg) (DocsUpdateModel, tea.Cmd) {
 	m.list, cmd = m.list.Update(msg)
 	return m, cmd
 }
-
 func (m DocsUpdateModel) View() string {
 	help := lipgloss.NewStyle().Foreground(m.styles.Theme.Muted).Render("tab back to menu · 1-3 apps")
 	return lipgloss.JoinHorizontal(lipgloss.Top,

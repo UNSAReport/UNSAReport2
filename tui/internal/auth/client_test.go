@@ -19,7 +19,7 @@ func TestValidateAndStore(t *testing.T) {
 		}
 		if r.URL.Path == "/v1/me" {
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"user": map[string]any{"id": "u1", "name": "Alice", "email": "alice@example.com"},
+				"user":  map[string]any{"id": "u1", "name": "Alice", "email": "alice@example.com"},
 				"roles": map[string]string{"admin": "true"},
 			})
 			return

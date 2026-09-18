@@ -6,6 +6,7 @@ import (
 
 	"github.com/UNSAReport/tui/internal/config"
 )
+
 var reVar = config.ReVar
 var reIllegal = config.ReIllegal
 
