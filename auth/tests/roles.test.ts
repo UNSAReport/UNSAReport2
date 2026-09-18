@@ -284,16 +284,24 @@ describe('Role Management Endpoints & Integration', () => {
 
   test('12. /v1/roles/users searches and returns registered users with roles', async () => {
     const res = await app.fetch(
-      new Request(`http://localhost:3000/v1/roles/users?q=${encodeURIComponent(userA.email)}`, {
-        headers: {
-          'X-Admin-Key': config.adminApiKey,
+      new Request(
+        `http://localhost:3000/v1/roles/users?q=${encodeURIComponent(userA.email)}`,
+        {
+          headers: {
+            'X-Admin-Key': config.adminApiKey,
+          },
         },
-      }),
+      ),
     );
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      users: Array<{ id: string; email: string; name: string; roles: RoleItem[] }>;
+      users: Array<{
+        id: string;
+        email: string;
+        name: string;
+        roles: RoleItem[];
+      }>;
     };
     expect(Array.isArray(body.users)).toBe(true);
     const found = body.users.find((u) => u.id === userA.id);
