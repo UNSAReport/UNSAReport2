@@ -281,7 +281,7 @@ macos = ["echo hi-mac"]
     );
   });
 
-  it('rejects read() in template sources', () => {
+  it('rejects read() on unbundled assets in template sources', () => {
     const raw = parsePkgToml(BASE_TOML);
     expect(() =>
       validatePkgToml(
@@ -291,7 +291,7 @@ macos = ["echo hi-mac"]
     ).toThrow(/must not call read/);
   });
 
-  it('rejects image("...") with a path in template sources', () => {
+  it('rejects image("...") with an unbundled path in template sources', () => {
     const raw = parsePkgToml(BASE_TOML);
     expect(() =>
       validatePkgToml(
@@ -299,6 +299,117 @@ macos = ["echo hi-mac"]
         filesCtx({ 'template/report.typ': '#image("img/a.png")' }),
       ),
     ).toThrow(/must not call image/);
+  });
+
+  it('allows template referencing bundled asset relative to package root', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    const pkg = validatePkgToml(
+      raw,
+      filesCtx({
+        'template/report.typ': '#let logo = image("assets/logo.png")',
+      }),
+    );
+    expect(pkg.name).toBe('cardo');
+  });
+
+  it('allows template referencing bundled asset relative to template directory', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    const pkg = validatePkgToml(
+      raw,
+      filesCtx({
+        'template/report.typ': '#let logo = image("../assets/logo.png")',
+      }),
+    );
+    expect(pkg.name).toBe('cardo');
+  });
+
+  it('allows template referencing bundled asset within template folder', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    const files = [...PRESENT_FILES, 'template/badge.png'];
+    const pkg = validatePkgToml(
+      raw,
+      filesCtx(
+        {
+          'template/report.typ': '#let badge = image("badge.png")',
+          'template/badge.png': 'badge-bytes',
+        },
+        files,
+      ),
+    );
+    expect(pkg.name).toBe('cardo');
+  });
+
+  it('allows template calling read() on bundled asset', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    const pkg = validatePkgToml(
+      raw,
+      filesCtx({
+        'template/report.typ': '#let raw-data = read("assets/logo.png")',
+      }),
+    );
+    expect(pkg.name).toBe('cardo');
+  });
+
+  it('rejects template referencing non-existent asset path', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    expect(() =>
+      validatePkgToml(
+        raw,
+        filesCtx({
+          'template/report.typ': '#image("assets/missing.png")',
+        }),
+      ),
+    ).toThrow(/asset not found in package/);
+  });
+
+  it('rejects template referencing path that escapes package root', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    expect(() =>
+      validatePkgToml(
+        raw,
+        filesCtx({
+          'template/report.typ': '#image("../../outside.png")',
+        }),
+      ),
+    ).toThrow(/asset not found in package/);
+  });
+
+  it('rejects template referencing root-absolute path', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    expect(() =>
+      validatePkgToml(
+        raw,
+        filesCtx({
+          'template/report.typ': '#image("/components/cardo/assets/logo.png")',
+        }),
+      ),
+    ).toThrow(/only relative paths to bundled package assets are allowed/);
+  });
+
+  it('rejects template calling read/image with dynamic expression or variable', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    expect(() =>
+      validatePkgToml(
+        raw,
+        filesCtx({
+          'template/report.typ': '#let card(p) = image(p)',
+        }),
+      ),
+    ).toThrow(
+      /only string literals referencing bundled package assets are allowed/,
+    );
+  });
+
+  it('rejects template calling read/image with backslashes', () => {
+    const raw = parsePkgToml(BASE_TOML);
+    expect(() =>
+      validatePkgToml(
+        raw,
+        filesCtx({
+          'template/report.typ': '#image("assets\\logo.png")',
+        }),
+      ),
+    ).toThrow(/backslashes are not allowed/);
   });
 
   it('rejects read(param)/image(param) on function params in components', () => {

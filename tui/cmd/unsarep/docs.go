@@ -33,6 +33,7 @@ func newDocsCmd() *cobra.Command {
 
 func newDocsInitCmd() *cobra.Command {
 	var templateFlag, report string
+	var yesFlag bool
 	cmd := &cobra.Command{
 		Use:   "init [template[@range]]",
 		Short: "Scaffold a project or add a report dir",
@@ -48,7 +49,7 @@ func newDocsInitCmd() *cobra.Command {
 			}
 			if template == "" {
 				if !canPrompt() {
-					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R]")
+					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R] [--yes]")
 				}
 				reportVal := report
 				form := huh.NewForm(huh.NewGroup(
@@ -73,7 +74,7 @@ func newDocsInitCmd() *cobra.Command {
 			}
 			ctx := context.Background()
 			cwd, _ := os.Getwd()
-			if err := docs.Init(ctx, cwd, docs.InitOptions{Template: template, Report: report}); err != nil {
+			if err := docs.Init(ctx, cwd, docs.InitOptions{Template: template, Report: report, Yes: yesFlag}); err != nil {
 				return err
 			}
 			printOK("Project initialized.")
@@ -82,6 +83,7 @@ func newDocsInitCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&templateFlag, "template", "", "Template package [name[@range]], same as positional")
 	cmd.Flags().StringVar(&report, "report", "t1", "Report dir")
+	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Confirm file replacement without prompt")
 	return cmd
 }
 

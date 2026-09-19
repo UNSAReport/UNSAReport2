@@ -775,29 +775,185 @@ export function scanComponentContent(path: string, content: string): string[] {
   return findings;
 }
 
+export const ASSET_CALL_PATTERN = /\b(read|image)\s*\(/g;
+export const ERROR_TEMPLATE_ASSET_LITERAL_ONLY =
+  'templates must not call %FN%(...); only string literals referencing bundled package assets are allowed';
+export const ERROR_TEMPLATE_ASSET_RELATIVE_ONLY =
+  'templates must not call %FN%("%PATH%"); only relative paths to bundled package assets are allowed';
+export const ERROR_TEMPLATE_ASSET_NO_BACKSLASH =
+  'templates must not call %FN%("%PATH%"); backslashes are not allowed in asset paths';
+export const ERROR_TEMPLATE_ASSET_NOT_FOUND =
+  'templates must not call %FN%("%PATH%"); asset not found in package';
+
+function formatAssetError(
+  template: string,
+  fn: string,
+  pathVal?: string,
+): string {
+  let res = template.replace('%FN%', fn);
+  if (pathVal !== undefined) {
+    res = res.replace('%PATH%', pathVal);
+  }
+  return res;
+}
+
 /**
- * Flags template sources that read files themselves. Templates are
- * report-side call sites: `read(` with any path argument and `image("...")`
- * with a path literal are rejected (deliberate substring scan, not AST).
+ * Normalizes a relative POSIX path without filesystem access.
+ * Returns null if the path starts with '/', contains '\\', or escapes root with '..'.
+ */
+export function normalizeRelativePosixPath(rawPath: string): string | null {
+  if (rawPath.startsWith('/') || rawPath.includes('\\')) {
+    return null;
+  }
+  const parts = rawPath.split('/');
+  const stack: string[] = [];
+  for (const part of parts) {
+    if (part === '' || part === '.') {
+      continue;
+    }
+    if (part === '..') {
+      if (stack.length === 0) {
+        return null;
+      }
+      stack.pop();
+    } else {
+      stack.push(part);
+    }
+  }
+  return stack.join('/');
+}
+
+/**
+ * Resolves a referenced asset path against:
+ * 1. The template file's containing directory
+ * 2. The package root
+ *
+ * Returns the resolved path matching presentFiles, or null if neither matches.
+ */
+export function resolveBundledAssetPath(
+  templatePath: string,
+  rawPath: string,
+  presentFiles: Set<string>,
+): string | null {
+  if (rawPath.startsWith('/') || rawPath.includes('\\')) {
+    return null;
+  }
+
+  // 1. Relative to template directory:
+  const lastSlashIndex = templatePath.lastIndexOf('/');
+  const templateDir =
+    lastSlashIndex === -1 ? '' : templatePath.slice(0, lastSlashIndex);
+  const fromTemplateDir =
+    templateDir.length > 0 ? `${templateDir}/${rawPath}` : rawPath;
+  const resolvedFromTemplate = normalizeRelativePosixPath(fromTemplateDir);
+  if (resolvedFromTemplate !== null && presentFiles.has(resolvedFromTemplate)) {
+    return resolvedFromTemplate;
+  }
+
+  // 2. Relative to package root:
+  const resolvedFromRoot = normalizeRelativePosixPath(rawPath);
+  if (resolvedFromRoot !== null && presentFiles.has(resolvedFromRoot)) {
+    return resolvedFromRoot;
+  }
+
+  return null;
+}
+
+/**
+ * Flags template sources that read unbundled files or use invalid references.
+ * Templates may call `read("...")` and `image("...")` with relative path
+ * string literals referencing bundled package assets.
  *
  * @returns Findings as "path:line: message" strings.
  */
-export function scanTemplateContent(path: string, content: string): string[] {
+export function scanTemplateContent(
+  path: string,
+  content: string,
+  packageFiles: string[] | Set<string>,
+): string[] {
   const findings: string[] = [];
-  const readPattern = /\bread\s*\(/g;
-  for (const match of content.matchAll(readPattern)) {
+  const filesSet =
+    packageFiles instanceof Set ? packageFiles : new Set(packageFiles);
+
+  for (const match of content.matchAll(ASSET_CALL_PATTERN)) {
+    const fn = match[1];
+    const startIndex = match.index + match[0].length;
+    let idx = startIndex;
+    while (idx < content.length && /\s/.test(content[idx])) {
+      idx++;
+    }
+
+    if (idx >= content.length) {
+      const line = findLineNumber(content, match.index);
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_LITERAL_ONLY, fn)}`,
+      );
+      continue;
+    }
+
+    const firstChar = content[idx];
+    if (firstChar !== '"' && firstChar !== "'") {
+      const line = findLineNumber(content, match.index);
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_LITERAL_ONLY, fn)}`,
+      );
+      continue;
+    }
+
+    const quoteChar = firstChar;
+    idx++;
+    let rawPath = '';
+    let escaped = false;
+    let terminated = false;
+    let hasBackslash = false;
+
+    while (idx < content.length) {
+      const ch = content[idx];
+      if (escaped) {
+        rawPath += ch;
+        escaped = false;
+      } else if (ch === '\\') {
+        hasBackslash = true;
+        escaped = true;
+      } else if (ch === quoteChar) {
+        terminated = true;
+        break;
+      } else {
+        rawPath += ch;
+      }
+      idx++;
+    }
+
     const line = findLineNumber(content, match.index);
-    findings.push(
-      `${path}:${line}: templates must not call read(...); pass content from the report with read(...) outside the component instead`,
-    );
+    if (!terminated) {
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_LITERAL_ONLY, fn)}`,
+      );
+      continue;
+    }
+
+    if (rawPath.startsWith('/')) {
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_RELATIVE_ONLY, fn, rawPath)}`,
+      );
+      continue;
+    }
+
+    if (hasBackslash || rawPath.includes('\\')) {
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_NO_BACKSLASH, fn, rawPath)}`,
+      );
+      continue;
+    }
+
+    const resolved = resolveBundledAssetPath(path, rawPath, filesSet);
+    if (resolved === null) {
+      findings.push(
+        `${path}:${line}: ${formatAssetError(ERROR_TEMPLATE_ASSET_NOT_FOUND, fn, rawPath)}`,
+      );
+    }
   }
-  const imagePattern = /\bimage\s*\(\s*["']/g;
-  for (const match of content.matchAll(imagePattern)) {
-    const line = findLineNumber(content, match.index);
-    findings.push(
-      `${path}:${line}: templates must not call image("...") with a path; pass content from the report instead`,
-    );
-  }
+
   return findings;
 }
 
@@ -838,7 +994,7 @@ function validatePublishFiles(pkg: PkgToml, ctx: ValidateFilesContext): void {
     if (!path.endsWith('.typ')) continue;
     const content = ctx.readFile(path);
     if (content === undefined) continue;
-    const findings = scanTemplateContent(path, content);
+    const findings = scanTemplateContent(path, content, ctx.presentFiles);
     if (findings.length > 0) {
       throw new ValidationError(findings[0], { field: 'templates.files' });
     }
