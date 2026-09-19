@@ -33,11 +33,15 @@ func newDocsCmd() *cobra.Command {
 
 func newDocsInitCmd() *cobra.Command {
 	var templateFlag, report string
+	var yesFlag, allFlag, noneFlag bool
 	cmd := &cobra.Command{
 		Use:   "init [template[@range]]",
 		Short: "Scaffold a project or add a report dir",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exclusiveMode(cmd, yesFlag, allFlag, noneFlag); err != nil {
+				return err
+			}
 			pos := ""
 			if len(args) > 0 {
 				pos = args[0]
@@ -48,7 +52,7 @@ func newDocsInitCmd() *cobra.Command {
 			}
 			if template == "" {
 				if !canPrompt() {
-					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R]")
+					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R] [--yes|--all|--none]")
 				}
 				reportVal := report
 				form := huh.NewForm(huh.NewGroup(
@@ -71,9 +75,22 @@ func newDocsInitCmd() *cobra.Command {
 				}
 				report = reportVal
 			}
+			if !yesFlag && !allFlag && !noneFlag && canPrompt() {
+				y, a, n, perr := promptMode(cmd)
+				if perr != nil {
+					return perr
+				}
+				yesFlag, allFlag, noneFlag = y, a, n
+			}
+			flags := selectFlags(yesFlag, allFlag, noneFlag)
 			ctx := context.Background()
 			cwd, _ := os.Getwd()
-			if err := docs.Init(ctx, cwd, docs.InitOptions{Template: template, Report: report}); err != nil {
+			if err := docs.Init(ctx, cwd, docs.InitOptions{
+				Template: template,
+				Report:   report,
+				Yes:      yesFlag,
+				Flags:    flags,
+			}); err != nil {
 				return err
 			}
 			printOK("Project initialized.")
@@ -82,6 +99,9 @@ func newDocsInitCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&templateFlag, "template", "", "Template package [name[@range]], same as positional")
 	cmd.Flags().StringVar(&report, "report", "t1", "Report dir")
+	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Confirm file replacement and accept default commands without prompt")
+	cmd.Flags().BoolVar(&allFlag, "all", false, "Accept all commands and hooks without prompt")
+	cmd.Flags().BoolVar(&noneFlag, "none", false, "Skip commands and hooks without prompt")
 	return cmd
 }
 

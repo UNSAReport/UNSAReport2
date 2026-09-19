@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/UNSAReport/tui/internal/scripts"
@@ -97,6 +99,12 @@ func hasNestedReport(dir, entry string) (bool, error) {
 	return found, err
 }
 
+var (
+	fnPattern    = regexp.MustCompile(`(?m)#?let\s+[A-Za-z_][\w-]*\s*\(([^)]*)\)`)
+	paramPattern = regexp.MustCompile(`^[A-Za-z_][\w-]*$`)
+	callPattern  = regexp.MustCompile(`\b(read|image)\s*\(\s*([A-Za-z_][\w-]*)\s*[,)]`)
+)
+
 func checkTypstSources(root string) []Finding {
 	var out []Finding
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
@@ -119,13 +127,16 @@ func checkTypstSources(root string) []Finding {
 				out = append(out, Finding{File: rel, Line: i + 1, Message: "legacy /lib.typ import rejected; use /components/<pkg>/..."})
 			}
 			if inComponents {
-				for _, call := range []string{"read(", "image("} {
-					if idx := strings.Index(ln, call); idx >= 0 {
-						arg := strings.TrimSpace(ln[idx+len(call):])
-						for name := range params {
-							if arg == name || strings.HasPrefix(arg, name+",") || strings.HasPrefix(arg, name+")") || strings.HasPrefix(arg, name+" ") {
-								out = append(out, Finding{File: rel, Line: i + 1, Message: fmt.Sprintf("%s on function parameter %q rejected; components take content, never paths", strings.TrimSuffix(call, "("), name)})
-							}
+				for _, m := range callPattern.FindAllStringSubmatch(ln, -1) {
+					if len(m) == 3 {
+						fn := m[1]
+						ident := m[2]
+						if params[ident] {
+							out = append(out, Finding{
+								File:    rel,
+								Line:    i + 1,
+								Message: fmt.Sprintf("%s on function parameter %q rejected; components take content, never paths", fn, ident),
+							})
 						}
 					}
 				}
@@ -138,27 +149,18 @@ func checkTypstSources(root string) []Finding {
 
 func collectParams(src string) map[string]bool {
 	out := map[string]bool{}
-	for _, line := range strings.Split(src, "\n") {
-		t := strings.TrimSpace(line)
-		if strings.HasPrefix(t, "#let ") && strings.Contains(t, "(") {
-			start := strings.Index(t, "(")
-			end := strings.Index(t, ")")
-			if start >= 0 && end > start {
-				for _, p := range strings.Split(t[start+1:end], ",") {
-					p = strings.TrimSpace(p)
-					if p == "" {
-						continue
-					}
-					if idx := strings.Index(p, ":"); idx >= 0 {
-						p = strings.TrimSpace(p[:idx])
-					}
-					if idx := strings.Index(p, "="); idx >= 0 {
-						p = strings.TrimSpace(p[:idx])
-					}
-					if p != "" {
-						out[p] = true
-					}
-				}
+	matches := fnPattern.FindAllStringSubmatch(src, -1)
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		for _, p := range strings.Split(m[1], ",") {
+			head := strings.TrimSpace(p)
+			if idx := strings.IndexAny(head, ":="); idx >= 0 {
+				head = strings.TrimSpace(head[:idx])
+			}
+			if paramPattern.MatchString(head) {
+				out[head] = true
 			}
 		}
 	}
@@ -169,23 +171,23 @@ func checkLock(root string) []Finding {
 	var out []Finding
 	l, err := lock.Load(root)
 	if err != nil {
-		return []Finding{{File: filepath.Join(root, ".unsareport.lock"), Message: err.Error()}}
+		return []Finding{{File: filepath.Join(root, config.LockFileName), Message: err.Error()}}
 	}
 	for _, p := range l.Pkg {
 		dir := filepath.Join(root, "components", p.Name)
 		if _, err := os.Stat(dir); err != nil {
-			out = append(out, Finding{File: ".unsareport.lock", Message: fmt.Sprintf("locked package %q missing on disk at components/%s", p.Name, p.Name)})
+			out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked package %q missing on disk at components/%s", p.Name, p.Name)})
 			continue
 		}
 		for _, f := range p.Files {
 			fp := filepath.Join(dir, filepath.FromSlash(f.Path))
 			b, err := os.ReadFile(fp)
 			if err != nil {
-				out = append(out, Finding{File: ".unsareport.lock", Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
+				out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
 				continue
 			}
 			if got := lock.SHA256Hex(b); got != f.SHA256 {
-				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: "drift: sha256 mismatch vs .unsareport.lock"})
+				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: fmt.Sprintf("drift: sha256 mismatch vs %s", config.LockFileName)})
 			}
 		}
 	}

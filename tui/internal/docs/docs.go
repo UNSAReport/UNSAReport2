@@ -3,6 +3,7 @@ package docs
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Masterminds/semver/v3"
 	"github.com/UNSAReport/tui/internal/check"
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
@@ -19,6 +21,13 @@ import (
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/UNSAReport/tui/internal/registry"
 	"github.com/UNSAReport/tui/internal/scripts"
+)
+
+const (
+	PromptReplaceFiles   = "Do you want to continue and replace these files? [y/N]:"
+	WarnConflictingFiles = "Warning: The following files already exist and will be replaced:"
+	ErrInitCancelled     = "init cancelled"
+	ErrNonTTYRequiresYes = "init aborted: conflicting files exist; rerun with --yes to overwrite"
 )
 
 func isTTY() bool {
@@ -76,6 +85,11 @@ func parseNameRange(arg string) (name, rng string) {
 }
 
 func installComponentTree(ctx context.Context, root, name, version string) (pkg.PkgToml, error) {
+	visited := map[string]bool{name: true}
+	return installComponentTreeRecursive(ctx, root, name, version, visited)
+}
+
+func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool) (pkg.PkgToml, error) {
 	client := registry.NewClient()
 	files, err := client.DownloadSection(ctx, name, version, "components")
 	if err != nil {
@@ -130,6 +144,39 @@ func installComponentTree(ctx context.Context, root, name, version string) (pkg.
 	if err := lock.Write(root, l); err != nil {
 		return pkg.PkgToml{}, err
 	}
+
+	for _, d := range p.Components.DependsOn {
+		depName, depRange, ok := strings.Cut(strings.TrimSpace(d), " ")
+		if !ok || strings.TrimSpace(depName) == "" {
+			continue
+		}
+		depName = strings.TrimSpace(depName)
+		depRange = strings.TrimSpace(depRange)
+		if visited[depName] {
+			continue
+		}
+		visited[depName] = true
+
+		if existing, ok := l.Find(depName); ok {
+			compDir := filepath.Join(root, "components", depName)
+			if _, statErr := os.Stat(compDir); statErr == nil {
+				c, cErr := semver.NewConstraint(depRange)
+				v, vErr := semver.StrictNewVersion(existing.Version)
+				if cErr == nil && vErr == nil && c.Check(v) {
+					continue
+				}
+			}
+		}
+
+		depVersion, err := client.ResolveVersion(ctx, depName, depRange)
+		if err != nil {
+			return pkg.PkgToml{}, fmt.Errorf("resolve dependency %q (%s): %w", depName, depRange, err)
+		}
+		if _, err := installComponentTreeRecursive(ctx, root, depName, depVersion, visited); err != nil {
+			return pkg.PkgToml{}, fmt.Errorf("install dependency %q: %w", depName, err)
+		}
+	}
+
 	return p, nil
 }
 
@@ -163,6 +210,65 @@ func promptLine(prompt string) (string, error) {
 type InitOptions struct {
 	Template string
 	Report   string
+	Yes      bool
+	Flags    []string
+	Confirm  func(conflicts []string) (bool, error)
+}
+
+func normalizeTemplateFiles(files map[string][]byte) (map[string][]byte, error) {
+	if len(files) == 0 {
+		return map[string][]byte{}, nil
+	}
+
+	cleaned := make(map[string][]byte, len(files))
+	for rawPath, data := range files {
+		clean := filepath.ToSlash(rawPath)
+		clean = strings.TrimPrefix(clean, "./")
+		clean = strings.TrimPrefix(clean, "/")
+		if clean == "" || clean == "." {
+			continue
+		}
+		if strings.Contains(clean, "..") || filepath.IsAbs(clean) {
+			return nil, fmt.Errorf("illegal template path %q", rawPath)
+		}
+		cleaned[clean] = data
+	}
+	if len(cleaned) == 0 {
+		return cleaned, nil
+	}
+
+	var topDir string
+	hasSingleTopDir := true
+	for p := range cleaned {
+		parts := strings.Split(p, "/")
+		if len(parts) <= 1 {
+			hasSingleTopDir = false
+			break
+		} else if topDir == "" {
+			topDir = parts[0]
+		} else if parts[0] != topDir {
+			hasSingleTopDir = false
+			break
+		}
+	}
+
+	if hasSingleTopDir && topDir != "" {
+		prefix := topDir + "/"
+		out := make(map[string][]byte, len(cleaned))
+		for p, data := range cleaned {
+			stripped := strings.TrimPrefix(p, prefix)
+			if stripped == "" || stripped == "." {
+				continue
+			}
+			if _, exists := out[stripped]; exists {
+				return nil, fmt.Errorf("duplicate template file destination %q", stripped)
+			}
+			out[stripped] = data
+		}
+		return out, nil
+	}
+
+	return cleaned, nil
 }
 
 func Init(ctx context.Context, cwd string, opt InitOptions) error {
@@ -177,37 +283,10 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	root := cwd
 	var existing *project.SpecConfig
 	if r, cfg, err := resolveRoot(cwd); err == nil {
-		if _, err := os.Stat(filepath.Join(r, report)); err == nil {
-			entries, _ := os.ReadDir(filepath.Join(r, report))
-			if len(entries) > 0 {
-				return fmt.Errorf("report dir %s non-empty; refusing", filepath.Join(r, report))
-			}
-		}
 		root = r
 		existing = &cfg
-		_ = existing
-	} else {
-		entries, err := os.ReadDir(cwd)
-		if err != nil {
-			return err
-		}
-		if len(entries) > 0 {
-			return fmt.Errorf("init requires an empty directory; %q is not empty", cwd)
-		}
-		cfg := project.SpecConfig{}
-		cfg.Project.TypstEntry = config.DefaultTypstEntry
-		cfg.Project.ConfigVersion = config.ConfigVersion
-		cfg.Scripts = map[string]project.ScriptDef{}
-		cfg.Hooks = map[string]project.HookTiming{}
-		cfg.Dependencies = map[string]string{}
-		if err := saveConfig(cwd, cfg); err != nil {
-			return err
-		}
 	}
-	cfg, err := project.Load(filepath.Join(root, config.ConfigFileName))
-	if err != nil {
-		return err
-	}
+
 	client := registry.NewClient()
 	version, err := client.ResolveVersion(ctx, name, rng)
 	if err != nil {
@@ -217,17 +296,84 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	if err != nil {
 		return err
 	}
+
 	reportDir := filepath.Join(root, report)
+
+	normalizedTplFiles, err := normalizeTemplateFiles(tplFiles)
+	if err != nil {
+		return err
+	}
+
+	var conflicts []string
+	if existing == nil {
+		cfgPath := filepath.Join(root, config.ConfigFileName)
+		if _, err := os.Stat(cfgPath); err == nil {
+			conflicts = append(conflicts, config.ConfigFileName)
+		}
+	}
+	for n := range normalizedTplFiles {
+		target := filepath.Join(reportDir, filepath.FromSlash(n))
+		if _, err := os.Stat(target); err == nil {
+			rel, err := filepath.Rel(root, target)
+			if err != nil {
+				rel = target
+			}
+			conflicts = append(conflicts, filepath.ToSlash(rel))
+		}
+	}
+	sort.Strings(conflicts)
+
+	if len(conflicts) > 0 {
+		if opt.Confirm != nil {
+			confirmed, err := opt.Confirm(conflicts)
+			if err != nil {
+				return err
+			}
+			if !confirmed {
+				return errors.New(ErrInitCancelled)
+			}
+		} else if opt.Yes {
+			fmt.Println(WarnConflictingFiles)
+			for _, f := range conflicts {
+				fmt.Printf("  - %s\n", f)
+			}
+		} else {
+			fmt.Println(WarnConflictingFiles)
+			for _, f := range conflicts {
+				fmt.Printf("  - %s\n", f)
+			}
+			if !isTTY() {
+				return errors.New(ErrNonTTYRequiresYes)
+			}
+			ans, err := promptLine(PromptReplaceFiles)
+			if err != nil {
+				return err
+			}
+			if strings.ToLower(ans) != "y" && strings.ToLower(ans) != "yes" {
+				return errors.New(ErrInitCancelled)
+			}
+		}
+	}
+
+	if existing == nil {
+		cfg := project.SpecConfig{}
+		cfg.Project.TypstEntry = config.DefaultTypstEntry
+		cfg.Project.ConfigVersion = config.ConfigVersion
+		cfg.Scripts = map[string]project.ScriptDef{}
+		cfg.Hooks = map[string]project.HookTiming{}
+		cfg.Dependencies = map[string]string{}
+		if err := saveConfig(root, cfg); err != nil {
+			return err
+		}
+	}
+
 	if err := os.MkdirAll(reportDir, config.PermDirPublic); err != nil {
 		return err
 	}
-	for n, b := range tplFiles {
+	for n, b := range normalizedTplFiles {
 		target := filepath.Join(reportDir, filepath.FromSlash(n))
 		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(reportDir)) {
 			return fmt.Errorf("illegal template path %q", n)
-		}
-		if _, err := os.Stat(target); err == nil {
-			continue
 		}
 		if err := os.MkdirAll(filepath.Dir(target), config.PermDirPublic); err != nil {
 			return err
@@ -236,16 +382,46 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			return err
 		}
 	}
-	l, err := lock.Load(root)
+
+	p, err := installComponentTree(ctx, root, name, version)
 	if err != nil {
 		return err
 	}
-	if _, ok := l.Find(name); !ok {
-		if _, err := installComponentTree(ctx, root, name, version); err != nil {
+
+	cfg, err := project.Load(filepath.Join(root, config.ConfigFileName))
+	if err != nil {
+		return err
+	}
+	if cfg.Dependencies == nil {
+		cfg.Dependencies = map[string]string{}
+	}
+	if _, ok := cfg.Dependencies[name]; !ok {
+		depRng := rng
+		if depRng == "" || depRng == "*" {
+			depRng = "^" + version
+		}
+		cfg.Dependencies[name] = depRng
+		if err := saveConfig(root, cfg); err != nil {
 			return err
 		}
 	}
-	_ = cfg
+
+	if len(opt.Flags) > 0 {
+		mode, mErr := selectMode(opt.Flags)
+		if mErr != nil {
+			return mErr
+		}
+		if mode != "" && mode != "none" {
+			if err := copyCommands(root, &cfg, p, mode); err != nil {
+				return err
+			}
+		}
+	} else if opt.Yes {
+		if err := copyCommands(root, &cfg, p, "all"); err != nil {
+			return err
+		}
+	}
+
 	return runCheck(root)
 }
 
