@@ -200,15 +200,16 @@ func checkScriptsHooks(root string, cfg project.SpecConfig) []Finding {
 			file = src
 		}
 		total := 0
-		for key, lines := range s.Commands {
+		for key, cmd := range s.Commands {
 			if !project.OSKeys[key] {
 				out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s] unknown os key %q", alias, key)})
 			}
-			total += len(lines)
-			for _, l := range lines {
-				if strings.Contains(l, "allow_read") || strings.Contains(l, "allow_write") {
-					out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s]: legacy allow_read/allow_write rejected", alias)})
-				}
+			if strings.TrimSpace(cmd) == "" {
+				continue
+			}
+			total++
+			if strings.Contains(cmd, "allow_read") || strings.Contains(cmd, "allow_write") {
+				out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s]: legacy allow_read/allow_write rejected", alias)})
 			}
 		}
 		if total == 0 {
@@ -218,26 +219,33 @@ func checkScriptsHooks(root string, cfg project.SpecConfig) []Finding {
 			out = append(out, Finding{File: file, Message: fmt.Sprintf("[scripts.%s]: %v", alias, err)})
 		}
 	}
-	seen := map[string]map[string]bool{}
-	for std, aliases := range cfg.Hooks {
+	seen := map[string]bool{}
+	for std, timing := range cfg.Hooks {
 		if !scripts.HookStandards[std] {
 			out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("unknown [hooks.%s] (hookable: build, check)", std)})
 			continue
 		}
-		if seen[std] == nil {
-			seen[std] = map[string]bool{}
-		}
-		for _, a := range aliases {
-			name := a
-			if idx := strings.Index(a, "]"); strings.HasPrefix(a, "[") && idx >= 0 {
-				name = strings.TrimSpace(a[idx+1:])
-			}
-			if seen[std][name] {
-				out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("duplicate alias %q in [hooks.%s]", name, std)})
-			}
-			seen[std][name] = true
-			if _, ok := cfg.Scripts[name]; !ok {
-				out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[hooks.%s] unknown alias %q", std, name)})
+		for _, list := range []struct {
+			when    string
+			aliases []string
+		}{
+			{project.HookBefore, timing.Before},
+			{project.HookAfter, timing.After},
+		} {
+			for _, a := range list.aliases {
+				_, name, err := scripts.SplitPrefix(strings.TrimSpace(a))
+				if err != nil {
+					out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[hooks.%s] %v", std, err)})
+					continue
+				}
+				key := std + "\x00" + list.when + "\x00" + name
+				if seen[key] {
+					out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("duplicate alias %q in [hooks.%s.%s]", name, std, list.when)})
+				}
+				seen[key] = true
+				if _, ok := cfg.Scripts[name]; !ok {
+					out = append(out, Finding{File: "unsareport.toml", Message: fmt.Sprintf("[hooks.%s] unknown alias %q", std, name)})
+				}
 			}
 		}
 	}

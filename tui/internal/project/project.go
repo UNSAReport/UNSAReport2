@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -12,8 +13,31 @@ import (
 )
 
 // OSCommands maps an OS key (any|linux|windows|macos) to shell lines.
-// Selection order is fixed: [any] lines first, then the matching-OS lines.
+// This is the published pkg.toml shape; local scripts use ScriptCommands.
 type OSCommands map[string][]string
+
+// ScriptCommands maps an OS key (any|linux|windows|macos) to one shell
+// command. Selection order is fixed: the any command runs first, then the
+// matching-OS command. Multi-line shell goes in one string.
+type ScriptCommands map[string]string
+
+// JoinCommands flattens published per-OS shell lines into one command per
+// OS, dropping blank lines and OS keys left empty.
+func JoinCommands(cmds OSCommands) ScriptCommands {
+	out := ScriptCommands{}
+	for key, lines := range cmds {
+		var kept []string
+		for _, l := range lines {
+			if strings.TrimSpace(l) != "" {
+				kept = append(kept, l)
+			}
+		}
+		if len(kept) > 0 {
+			out[key] = strings.Join(kept, "\n")
+		}
+	}
+	return out
+}
 
 var OSKeys = map[string]bool{
 	"any": true, "linux": true, "windows": true, "macos": true,
@@ -26,14 +50,20 @@ var HookStandards = map[string]bool{
 	"check": true,
 }
 
+var pkgNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
+
 type ProjectDef struct {
-	TypstEntry        string `toml:"typst_entry"`
-	RootMarkerVersion int    `toml:"root_marker_version"`
+	TypstEntry    string `toml:"typst_entry"`
+	ConfigVersion int    `toml:"config_version"`
+	// LegacyRootMarkerVersion is the pre-rename key for ConfigVersion.
+	// Accepted on read so the rename never breaks existing setups;
+	// never written.
+	LegacyRootMarkerVersion int `toml:"root_marker_version"`
 }
 
 type ScriptDef struct {
-	Commands    OSCommands `toml:"commands"`
-	Description string     `toml:"description"`
+	Commands    ScriptCommands `toml:"commands"`
+	Description string         `toml:"description"`
 }
 
 // PackageDecl is the optional package-declaration side of unsareport.toml.
@@ -47,11 +77,11 @@ type PackageDecl struct {
 	CommandPrefix string   `toml:"command_prefix"`
 }
 type SpecConfig struct {
-	Project      ProjectDef           `toml:"project"`
-	Scripts      map[string]ScriptDef `toml:"scripts"`
-	Hooks        map[string][]string  `toml:"hooks"`
-	Package      *PackageDecl         `toml:"package"`
-	Dependencies map[string]string    `toml:"dependencies"`
+	Project      ProjectDef            `toml:"project"`
+	Scripts      map[string]ScriptDef  `toml:"scripts"`
+	Hooks        map[string]HookTiming `toml:"hooks"`
+	Package      *PackageDecl          `toml:"package"`
+	Dependencies map[string]string     `toml:"dependencies"`
 
 	provenance map[string]string
 }
@@ -64,17 +94,30 @@ func (c SpecConfig) ScriptSource(alias string) string {
 
 // ScriptFragment is one unsareport.d/scripts/*.toml file: a single script.
 type ScriptFragment struct {
-	Alias       string     `toml:"alias"`
-	Description string     `toml:"description"`
-	Origin      string     `toml:"origin"`
-	Commands    OSCommands `toml:"commands"`
+	Alias       string         `toml:"alias"`
+	Description string         `toml:"description"`
+	Origin      string         `toml:"origin"`
+	Commands    ScriptCommands `toml:"commands"`
 }
 
 // HookFragment is one unsareport.d/hooks/*.toml file: bindings for one standard.
 type HookFragment struct {
 	Standard string   `toml:"standard"`
-	Aliases  []string `toml:"aliases"`
+	Before   []string `toml:"before"`
+	After    []string `toml:"after"`
 	Origin   string   `toml:"origin"`
+}
+
+const (
+	HookBefore = "before"
+	HookAfter  = "after"
+)
+
+// HookTiming is the before/after alias lists bound to one standard.
+// Before entries run pre-action in list order, after entries post-action;
+type HookTiming struct {
+	Before []string `toml:"before"`
+	After  []string `toml:"after"`
 }
 
 type Context struct {
@@ -108,11 +151,8 @@ func validatePackageDecl(p *PackageDecl) error {
 	if len(n) < 3 || len(n) > 64 {
 		return fmt.Errorf("invalid [package] name %q (want 3-64 chars)", p.Name)
 	}
-	for _, r := range n {
-		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' {
-			continue
-		}
-		return fmt.Errorf("invalid [package] name %q (want [a-z0-9-], 3-64 chars)", p.Name)
+	if !pkgNameRe.MatchString(n) {
+		return fmt.Errorf("invalid [package] name %q (want [a-z0-9._~-], optionally \"@scope/name\", 3-64 chars)", p.Name)
 	}
 	if _, err := semver.StrictNewVersion(strings.TrimSpace(p.Version)); err != nil {
 		return fmt.Errorf("invalid [package] version %q: %w", p.Version, err)
@@ -132,14 +172,23 @@ func Load(path string) (SpecConfig, error) {
 	if cfg.Project.TypstEntry == "" {
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
 	}
-	if cfg.Project.RootMarkerVersion != config.RootMarkerVersion {
-		return SpecConfig{}, fmt.Errorf("unsupported root_marker_version %d in %s (want %d)", cfg.Project.RootMarkerVersion, config.ConfigFileName, config.RootMarkerVersion)
+	version := cfg.Project.ConfigVersion
+	if version == 0 {
+		if cfg.Project.LegacyRootMarkerVersion == 0 {
+			return SpecConfig{}, fmt.Errorf("missing config_version in %s (want %d)", config.ConfigFileName, config.ConfigVersion)
+		}
+		version = cfg.Project.LegacyRootMarkerVersion
+	} else if cfg.Project.LegacyRootMarkerVersion != 0 && cfg.Project.LegacyRootMarkerVersion != version {
+		return SpecConfig{}, fmt.Errorf("conflicting config_version %d and root_marker_version %d in %s", version, cfg.Project.LegacyRootMarkerVersion, config.ConfigFileName)
+	}
+	if version < 1 || version > config.ConfigVersion {
+		return SpecConfig{}, fmt.Errorf("unsupported config_version %d in %s (supported 1-%d)", version, config.ConfigFileName, config.ConfigVersion)
 	}
 	if cfg.Scripts == nil {
 		cfg.Scripts = map[string]ScriptDef{}
 	}
 	if cfg.Hooks == nil {
-		cfg.Hooks = map[string][]string{}
+		cfg.Hooks = map[string]HookTiming{}
 	}
 	if cfg.Dependencies == nil {
 		cfg.Dependencies = map[string]string{}
@@ -153,6 +202,9 @@ func Load(path string) (SpecConfig, error) {
 		if strings.TrimSpace(name) == "" {
 			return SpecConfig{}, fmt.Errorf("empty package name in [dependencies]")
 		}
+		if !pkgNameRe.MatchString(strings.TrimSpace(name)) {
+			return SpecConfig{}, fmt.Errorf("invalid package name %q in [dependencies]", name)
+		}
 		if _, err := semver.NewConstraint(strings.TrimSpace(rng)); err != nil {
 			return SpecConfig{}, fmt.Errorf("invalid [dependencies] range for %q: %w", name, err)
 		}
@@ -160,7 +212,78 @@ func Load(path string) (SpecConfig, error) {
 	if err := mergeFragments(filepath.Dir(path), &cfg); err != nil {
 		return SpecConfig{}, err
 	}
+	if err := checkHookDuplicates(cfg.Hooks); err != nil {
+		return SpecConfig{}, err
+	}
 	return cfg, nil
+}
+
+// checkHookDuplicates rejects repeats within one timing list of one
+// standard. before+after twins are allowed (the alias runs twice).
+func checkHookDuplicates(hooks map[string]HookTiming) error {
+	for std, timing := range hooks {
+		for _, list := range []struct {
+			when    string
+			aliases []string
+		}{
+			{HookBefore, timing.Before},
+			{HookAfter, timing.After},
+		} {
+			seen := map[string]bool{}
+			for _, a := range list.aliases {
+				name := stripHookPrefix(a)
+				if seen[name] {
+					return fmt.Errorf("duplicate alias %q in [hooks.%s.%s]", name, std, list.when)
+				}
+				seen[name] = true
+			}
+		}
+	}
+	return nil
+}
+
+// hookProvKey identifies one merged hook binding by standard, timing, and
+// stripped alias. Root-owned bindings have no provenance entry.
+func hookProvKey(std, when, alias string) string {
+	return "hook:" + std + "\x00" + when + "\x00" + stripHookPrefix(alias)
+}
+
+// RootOnly returns a copy of c with fragment-owned entries removed: scripts
+// from unsareport.d/scripts and hook bindings from unsareport.d/hooks. The
+// root file holds local config only; saving a merged cfg without stripping
+// would inline imports back into it.
+func (c SpecConfig) RootOnly() SpecConfig {
+	out := c
+	if c.Scripts != nil {
+		scripts := make(map[string]ScriptDef, len(c.Scripts))
+		for alias, def := range c.Scripts {
+			if c.provenance["script:"+alias] == "" {
+				scripts[alias] = def
+			}
+		}
+		out.Scripts = scripts
+	}
+	if c.Hooks != nil {
+		hooks := make(map[string]HookTiming, len(c.Hooks))
+		for std, timing := range c.Hooks {
+			var kept HookTiming
+			for _, a := range timing.Before {
+				if c.provenance[hookProvKey(std, HookBefore, a)] == "" {
+					kept.Before = append(kept.Before, a)
+				}
+			}
+			for _, a := range timing.After {
+				if c.provenance[hookProvKey(std, HookAfter, a)] == "" {
+					kept.After = append(kept.After, a)
+				}
+			}
+			if len(kept.Before) > 0 || len(kept.After) > 0 {
+				hooks[std] = kept
+			}
+		}
+		out.Hooks = hooks
+	}
+	return out
 }
 
 // mergeFragments merges unsareport.d/scripts/*.toml and unsareport.d/hooks/*.toml
@@ -181,11 +304,13 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 			return fmt.Errorf("%s: fragment alias must not be empty", relRoot(root, f))
 		}
 		total := 0
-		for key, lines := range frag.Commands {
+		for key, cmd := range frag.Commands {
 			if !OSKeys[key] {
 				return fmt.Errorf("%s: unknown os key %q (want any|linux|windows|macos)", relRoot(root, f), key)
 			}
-			total += len(lines)
+			if strings.TrimSpace(cmd) != "" {
+				total++
+			}
 		}
 		if total == 0 {
 			return fmt.Errorf("%s: fragment commands must not be empty", relRoot(root, f))
@@ -214,17 +339,34 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 			return fmt.Errorf("%s: unknown hook standard %q (hookable: build, check)", relRoot(root, f), frag.Standard)
 		}
 		seen := map[string]bool{}
-		for _, a := range cfg.Hooks[frag.Standard] {
-			seen[stripHookPrefix(a)] = true
+		mark := func(when, alias string) { seen[when+"\x00"+stripHookPrefix(alias)] = true }
+		for _, a := range cfg.Hooks[frag.Standard].Before {
+			mark(HookBefore, a)
 		}
-		for _, a := range frag.Aliases {
-			name := stripHookPrefix(a)
-			if seen[name] {
-				return fmt.Errorf("duplicate alias %q in [hooks.%s] (%s)", name, frag.Standard, relRoot(root, f))
+		for _, a := range cfg.Hooks[frag.Standard].After {
+			mark(HookAfter, a)
+		}
+		merged := cfg.Hooks[frag.Standard]
+		rel := relRoot(root, f)
+		merge := func(when string, aliases []string, dst *[]string) error {
+			for _, a := range aliases {
+				name := stripHookPrefix(a)
+				if seen[when+"\x00"+name] {
+					return fmt.Errorf("duplicate alias %q in [hooks.%s.%s] (%s)", name, frag.Standard, when, rel)
+				}
+				seen[when+"\x00"+name] = true
+				*dst = append(*dst, a)
+				cfg.provenance[hookProvKey(frag.Standard, when, a)] = rel
 			}
-			seen[name] = true
-			cfg.Hooks[frag.Standard] = append(cfg.Hooks[frag.Standard], a)
+			return nil
 		}
+		if err := merge(HookBefore, frag.Before, &merged.Before); err != nil {
+			return err
+		}
+		if err := merge(HookAfter, frag.After, &merged.After); err != nil {
+			return err
+		}
+		cfg.Hooks[frag.Standard] = merged
 	}
 	return nil
 }
@@ -267,12 +409,29 @@ func relRoot(root, path string) string {
 
 func stripHookPrefix(a string) string {
 	a = strings.TrimSpace(a)
-	if strings.HasPrefix(a, "[") {
-		if idx := strings.Index(a, "]"); idx >= 0 {
-			return strings.TrimSpace(a[idx+1:])
-		}
+	if rest, ok := cutOSPrefix(a); ok {
+		return rest
 	}
 	return a
+}
+
+// cutOSPrefix splits a leading "os:<key> " prefix (see scripts.SplitPrefix).
+// Lenient: anything else passes through for validation to reject.
+func cutOSPrefix(a string) (string, bool) {
+	if !strings.HasPrefix(a, "os:") {
+		return "", false
+	}
+	key, rest, found := strings.Cut(a[len("os:"):], " ")
+	if !found {
+		return "", false
+	}
+	if !OSKeys[key] {
+		return "", false
+	}
+	if strings.TrimSpace(rest) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(rest), true
 }
 func Detect(start string) (*Context, error) {
 	abs, _ := filepath.Abs(start)

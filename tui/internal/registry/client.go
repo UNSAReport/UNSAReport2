@@ -116,6 +116,14 @@ func (c *Client) base() (string, error) {
 	return c.BaseURL, nil
 }
 
+func encodePackageName(name string) string {
+	segs := strings.Split(name, "/")
+	for i, s := range segs {
+		segs[i] = url.PathEscape(s)
+	}
+	return strings.Join(segs, "/")
+}
+
 func (c *Client) Resolve(ctx context.Context, reqs map[string]string) ([]ResolvedPackage, error) {
 	base, err := c.base()
 	if err != nil {
@@ -173,7 +181,7 @@ func (c *Client) DownloadSection(ctx context.Context, name, version, section str
 	if section != "components" && section != "templates" {
 		return nil, fmt.Errorf("unknown section %q", section)
 	}
-	u := fmt.Sprintf("%s/v1/%s/%s/archive?section=%s", base, url.PathEscape(name), url.PathEscape(version), section)
+	u := fmt.Sprintf("%s/v1/%s/%s/archive?section=%s", base, encodePackageName(name), url.PathEscape(version), section)
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create archive request: %w", err)

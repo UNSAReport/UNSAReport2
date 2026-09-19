@@ -17,7 +17,7 @@ func write(t *testing.T, path, content string) {
 	}
 }
 
-const cfgText = "[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"
+const cfgText = "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n"
 
 func TestCleanProjectPasses(t *testing.T) {
 	root := t.TempDir()
@@ -79,13 +79,13 @@ func TestMissingRootFails(t *testing.T) {
 
 func TestOsMapScripts(t *testing.T) {
 	root := t.TempDir()
-	write(t, filepath.Join(root, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { any = [\"rm -f s.zip\"], linux = [\"bash zip.sh\"] }\ndescription = \"zip\"\n")
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { any = \"rm -f s.zip\", linux = \"bash zip.sh\" }\ndescription = \"zip\"\n")
 	write(t, filepath.Join(root, "l1", "report.typ"), "Hi\n")
 	if findings := Run(root); len(findings) != 0 {
 		t.Fatalf("findings: %v", findings)
 	}
 	bad := t.TempDir()
-	write(t, filepath.Join(bad, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { plan9 = [\"x\"] }\n")
+	write(t, filepath.Join(bad, "unsareport.toml"), cfgText+"\n[scripts.\"zip:make\"]\ncommands = { plan9 = \"x\" }\n")
 	write(t, filepath.Join(bad, "l1", "report.typ"), "Hi\n")
 	if findings := Run(bad); len(findings) == 0 {
 		t.Fatal("expected unknown-os-key finding")
@@ -98,5 +98,33 @@ func TestPackageDeclValidated(t *testing.T) {
 	write(t, filepath.Join(root, "l1", "report.typ"), "Hi\n")
 	if findings := Run(root); len(findings) == 0 {
 		t.Fatal("expected bad-range finding")
+	}
+}
+
+func TestHooksTimingChecked(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText+
+		"\n[scripts.\"a:run\"]\ncommands = { any = \"echo hi\" }\n"+
+		"\n[hooks.build]\nbefore = [\"a:run\"]\nafter = [\"os:linux a:run\", \"a:missing\"]\n")
+	write(t, filepath.Join(root, "l1", "report.typ"), "Hi\n")
+	findings := Run(root)
+	if len(findings) != 1 || !strings.Contains(findings[0].Message, `unknown alias "a:missing"`) {
+		t.Fatalf("findings: %v", findings)
+	}
+	dup := t.TempDir()
+	write(t, filepath.Join(dup, "unsareport.toml"), cfgText+
+		"\n[scripts.\"a:run\"]\ncommands = { any = \"echo hi\" }\n"+
+		"\n[hooks.build]\nbefore = [\"a:run\", \"a:run\"]\n")
+	write(t, filepath.Join(dup, "l1", "report.typ"), "Hi\n")
+	if findings := Run(dup); len(findings) == 0 {
+		t.Fatal("expected duplicate-alias finding")
+	}
+	badPrefix := t.TempDir()
+	write(t, filepath.Join(badPrefix, "unsareport.toml"), cfgText+
+		"\n[scripts.\"a:run\"]\ncommands = { any = \"echo hi\" }\n"+
+		"\n[hooks.build]\nbefore = [\"[linux:] a:run\"]\n")
+	write(t, filepath.Join(badPrefix, "l1", "report.typ"), "Hi\n")
+	if findings := Run(badPrefix); len(findings) == 0 {
+		t.Fatal("expected retired-prefix finding")
 	}
 }

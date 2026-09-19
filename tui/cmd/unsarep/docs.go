@@ -2,268 +2,454 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/UNSAReport/tui/internal/docs"
-	"github.com/UNSAReport/tui/internal/registry"
+	"github.com/UNSAReport/tui/internal/project"
 	"github.com/charmbracelet/huh"
+	"github.com/spf13/cobra"
 )
 
-// boolFlags are flags that take no value; everything else starting with --
-// consumes the next token. Go's flag package stops at the first positional,
-// so reorderArgs moves flags first to support interspersed flag placement.
-var boolFlags = map[string]bool{"yes": true, "all": true, "none": true}
-
-func reorderArgs(args []string) []string {
-	var flags, pos []string
-	i := 0
-	for i < len(args) {
-		a := args[i]
-		if a == "--" {
-			pos = append(pos, args[i:]...)
-			break
-		}
-		if strings.HasPrefix(a, "--") && len(a) > 2 {
-			name := strings.TrimPrefix(a, "--")
-			if strings.Contains(name, "=") || boolFlags[name] {
-				flags = append(flags, a)
-				i++
-				continue
-			}
-			flags = append(flags, a)
-			if i+1 < len(args) {
-				flags = append(flags, args[i+1])
-				i += 2
-			} else {
-				i++
-			}
-			continue
-		}
-		pos = append(pos, a)
-		i++
+func newDocsCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "docs",
+		Short: "Scaffold, manage, check, and build report projects",
 	}
-	return append(flags, pos...)
-}
-
-func handleDocs(args []string) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: unsarep docs <init|add|update|remove|check|build|watch|run> ...")
-		os.Exit(2)
-	}
-	ctx := context.Background()
-	cwd, _ := os.Getwd()
-	switch args[0] {
-	case "init":
-		fs := flag.NewFlagSet("docs init", flag.ExitOnError)
-		report := fs.String("report", "t1", "Report dir")
-		_ = fs.Parse(reorderArgs(args[1:]))
-		rest := fs.Args()
-		if len(rest) == 0 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs init <template-pkg>[@<range>] [--report R]")
-			os.Exit(2)
-		}
-		if err := docs.Init(ctx, cwd, docs.InitOptions{Template: rest[0], Report: *report}); err != nil {
-			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "add":
-		fs := flag.NewFlagSet("docs add", flag.ExitOnError)
-		yes := fs.Bool("yes", false, "Select defaults only")
-		all := fs.Bool("all", false, "Select defaults+all")
-		none := fs.Bool("none", false, "Select none")
-		_ = fs.Parse(reorderArgs(args[1:]))
-		rest := fs.Args()
-		if len(rest) == 0 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs add <pkg>@<ver-req> [--yes|--all|--none]")
-			os.Exit(2)
-		}
-		var flags []string
-		if *yes {
-			flags = append(flags, "--yes")
-		}
-		if *all {
-			flags = append(flags, "--all")
-		}
-		if *none {
-			flags = append(flags, "--none")
-		}
-		if err := docs.Add(ctx, cwd, docs.AddOptions{Package: rest[0], Flags: flags}); err != nil {
-			fmt.Fprintf(os.Stderr, "add failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "update":
-		fs := flag.NewFlagSet("docs update", flag.ExitOnError)
-		yes := fs.Bool("yes", false, "Apply all")
-		all := fs.Bool("all", false, "Apply all")
-		none := fs.Bool("none", false, "Apply none")
-		_ = fs.Parse(reorderArgs(args[1:]))
-		rest := fs.Args()
-		pkg := ""
-		if len(rest) > 0 {
-			pkg = rest[0]
-		}
-		if err := docs.Update(ctx, cwd, docs.UpdateOptions{Package: pkg, Flags: selectFlags(*yes, *all, *none)}); err != nil {
-			fmt.Fprintf(os.Stderr, "update failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "remove":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs remove <pkg>")
-			os.Exit(2)
-		}
-		if err := docs.Remove(cwd, args[1]); err != nil {
-			fmt.Fprintf(os.Stderr, "remove failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "check":
-		if err := docs.Check(cwd); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("check passed: no findings.")
-	case "build":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs build <report-dir>")
-			os.Exit(2)
-		}
-		if err := docs.Build(cwd, args[1]); err != nil {
-			fmt.Fprintf(os.Stderr, "build failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "watch":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs watch <report-dir>")
-			os.Exit(2)
-		}
-		if err := docs.Watch(cwd, args[1]); err != nil {
-			fmt.Fprintf(os.Stderr, "watch failed: %v\n", err)
-			os.Exit(1)
-		}
-	case "run":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep docs run <alias> [-- <args...>]")
-			os.Exit(2)
-		}
-		alias := args[1]
-		var extra []string
-		for i, a := range args[2:] {
-			if a == "--" {
-				extra = args[2+i+1:]
-				break
-			}
-		}
-		if err := docs.Run(cwd, alias, extra); err != nil {
-			fmt.Fprintf(os.Stderr, "run failed: %v\n", err)
-			os.Exit(1)
-		}
-	default:
-		fmt.Fprintf(os.Stderr, "unknown docs command %q\n", args[0])
-		os.Exit(2)
-	}
-}
-
-func selectFlags(yes, all, none bool) []string {
-	var out []string
-	if yes {
-		out = append(out, "--yes")
-	}
-	if all {
-		out = append(out, "--all")
-	}
-	if none {
-		out = append(out, "--none")
-	}
-	return out
-}
-
-func handleRegistry(args []string) {
-	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "usage: unsarep registry <check|publish|init> ...")
-		os.Exit(2)
-	}
-	ctx := context.Background()
-	switch args[0] {
-	case "init":
-		fs := flag.NewFlagSet("registry init", flag.ContinueOnError)
-		dir := fs.String("dir", "", "Target directory (default ./name)")
-		name := fs.String("name", "", "Package name")
-		description := fs.String("description", "", "Package description")
-		version := fs.String("version", "0.1.0", "Initial version")
-		prefix := fs.String("prefix", "", "Command prefix (default name)")
-		_ = fs.Parse(reorderArgs(args[1:]))
-		opt := registry.InitOptions{Dir: *dir, Name: *name, Description: *description, Version: *version, CommandPrefix: *prefix}
-		if opt.Name == "" {
-			if !isTerm() {
-				fmt.Fprintln(os.Stderr, "registry init requires --name outside a terminal")
-				os.Exit(2)
-			}
-			var err error
-			opt, err = registryInitForm(opt)
-			if err != nil {
-				fmt.Fprintf(os.Stderr, "init cancelled: %v\n", err)
-				os.Exit(1)
-			}
-		}
-		if err := registry.InitPackage(opt); err != nil {
-			fmt.Fprintf(os.Stderr, "init failed: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("package scaffolded.")
-	case "publish":
-		if len(args) < 2 {
-			fmt.Fprintln(os.Stderr, "usage: unsarep registry publish <pkg-dir>")
-			os.Exit(2)
-		}
-		client := registry.NewClient()
-		if err := client.Publish(ctx, args[1], "", ""); err != nil {
-			fmt.Fprintf(os.Stderr, "publish failed: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("published.")
-	case "check":
-		dir := "."
-		if len(args) > 1 {
-			dir = args[1]
-		}
-		if err := registry.CheckPackageDir(dir); err != nil {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-			os.Exit(1)
-		}
-		fmt.Println("package check passed.")
-	default:
-		fmt.Fprintf(os.Stderr, "unknown registry command %q\n", args[0])
-		os.Exit(2)
-	}
-}
-
-func isTerm() bool {
-	fi, err := os.Stdin.Stat()
-	if err != nil {
-		return false
-	}
-	return fi.Mode()&os.ModeCharDevice != 0
-}
-
-func registryInitForm(opt registry.InitOptions) (registry.InitOptions, error) {
-	form := huh.NewForm(
-		huh.NewGroup(
-			huh.NewInput().Title("Directory").Description("Target dir (default ./name)").Value(&opt.Dir),
-			huh.NewInput().Title("Name").Description("Package name [a-z0-9-]").Value(&opt.Name).Validate(func(s string) error {
-				if strings.TrimSpace(s) == "" {
-					return fmt.Errorf("name is required")
-				}
-				return nil
-			}),
-			huh.NewInput().Title("Description").Value(&opt.Description),
-			huh.NewInput().Title("Version").Value(&opt.Version),
-			huh.NewInput().Title("Command prefix").Description("Default: name").Value(&opt.CommandPrefix),
-		),
+	cmd.AddCommand(
+		newDocsInitCmd(),
+		newDocsAddCmd(),
+		newDocsUpdateCmd(),
+		newDocsRemoveCmd(),
+		newDocsCheckCmd(),
+		newDocsBuildCmd(),
+		newDocsWatchCmd(),
+		newDocsRunCmd(),
 	)
-	if err := form.Run(); err != nil {
-		return opt, err
+	return cmd
+}
+
+func newDocsInitCmd() *cobra.Command {
+	var templateFlag, report string
+	cmd := &cobra.Command{
+		Use:   "init [template[@range]]",
+		Short: "Scaffold a project or add a report dir",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			template, err := resolvePosOrFlag(cmd, "template", pos, "template", templateFlag)
+			if err != nil {
+				return err
+			}
+			if template == "" {
+				if !canPrompt() {
+					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R]")
+				}
+				reportVal := report
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Template package").
+						Description("Name[@version-range] from the registry").
+						Value(&template).
+						Validate(func(s string) error {
+							if strings.TrimSpace(s) == "" {
+								return fmt.Errorf("template is required")
+							}
+							return nil
+						}),
+					huh.NewInput().
+						Title("Report dir").
+						Value(&reportVal),
+				))
+				if err := runForm(form); err != nil {
+					return err
+				}
+				report = reportVal
+			}
+			ctx := context.Background()
+			cwd, _ := os.Getwd()
+			if err := docs.Init(ctx, cwd, docs.InitOptions{Template: template, Report: report}); err != nil {
+				return err
+			}
+			printOK("Project initialized.")
+			return nil
+		},
 	}
-	return opt, nil
+	cmd.Flags().StringVar(&templateFlag, "template", "", "Template package [name[@range]], same as positional")
+	cmd.Flags().StringVar(&report, "report", "t1", "Report dir")
+	return cmd
+}
+
+func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
+	var mode string
+	form := huh.NewForm(huh.NewGroup(
+		huh.NewSelect[string]().
+			Title("Component selection").
+			Options(
+				huh.NewOption("Defaults only (--yes)", "yes"),
+				huh.NewOption("Defaults and all (--all)", "all"),
+				huh.NewOption("None (--none)", "none"),
+			).
+			Value(&mode),
+	))
+	if err := runForm(form); err != nil {
+		return false, false, false, err
+	}
+	switch mode {
+	case "yes":
+		return true, false, false, nil
+	case "all":
+		return false, true, false, nil
+	case "none":
+		return false, false, true, nil
+	}
+	return false, false, false, usagef(cmd, "select one of --yes, --all, --none")
+}
+func newDocsAddCmd() *cobra.Command {
+	var pkgFlag string
+	var yes, all, none bool
+	cmd := &cobra.Command{
+		Use:   "add [pkg@range]",
+		Short: "Install a component package",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exclusiveMode(cmd, yes, all, none); err != nil {
+				return err
+			}
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			pkg, err := resolvePosOrFlag(cmd, "package", pos, "package", pkgFlag)
+			if err != nil {
+				return err
+			}
+			fromForm := pkg == ""
+			if pkg == "" {
+				if !canPrompt() {
+					return usagef(cmd, "usage: unsarep docs add <pkg>@<ver-req> [--yes|--all|--none]")
+				}
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Package").
+						Description("Name@version-range from the registry").
+						Value(&pkg).
+						Validate(func(s string) error {
+							if strings.TrimSpace(s) == "" {
+								return fmt.Errorf("package is required")
+							}
+							return nil
+						}),
+				))
+				if err := runForm(form); err != nil {
+					return err
+				}
+			}
+			// Package came from the form above and no mode flag was given:
+			// ask for the mode too. Otherwise the domain ask-mode handles TTYs.
+			if fromForm && !yes && !all && !none {
+				yes, all, none, err = promptMode(cmd)
+				if err != nil {
+					return err
+				}
+			}
+			ctx := context.Background()
+			cwd, _ := os.Getwd()
+			if err := docs.Add(ctx, cwd, docs.AddOptions{Package: pkg, Flags: selectFlags(yes, all, none)}); err != nil {
+				return err
+			}
+			printOK("Package %s added.", pkg)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package [name@range], same as positional")
+	cmd.Flags().BoolVar(&yes, "yes", false, "Select defaults only")
+	cmd.Flags().BoolVar(&all, "all", false, "Select defaults+all")
+	cmd.Flags().BoolVar(&none, "none", false, "Select none")
+	return cmd
+}
+
+func newDocsUpdateCmd() *cobra.Command {
+	var pkgFlag string
+	var yes, all, none bool
+	cmd := &cobra.Command{
+		Use:   "update [pkg]",
+		Short: "Update vendored components",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := exclusiveMode(cmd, yes, all, none); err != nil {
+				return err
+			}
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			pkg, err := resolvePosOrFlag(cmd, "package", pos, "package", pkgFlag)
+			if err != nil {
+				return err
+			}
+			if len(args) == 0 && !cmd.Flags().Changed("package") && !yes && !all && !none && canPrompt() {
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Package").
+						Description("Empty updates every locked package").
+						Value(&pkg),
+				))
+				if err := runForm(form); err != nil {
+					return err
+				}
+				var err error
+				yes, all, none, err = promptMode(cmd)
+				if err != nil {
+					return err
+				}
+			}
+			ctx := context.Background()
+			cwd, _ := os.Getwd()
+			if err := docs.Update(ctx, cwd, docs.UpdateOptions{Package: pkg, Flags: selectFlags(yes, all, none)}); err != nil {
+				return err
+			}
+			printOK("Update complete.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package name (empty updates all), same as positional")
+	cmd.Flags().BoolVar(&yes, "yes", false, "Apply all")
+	cmd.Flags().BoolVar(&all, "all", false, "Apply all")
+	cmd.Flags().BoolVar(&none, "none", false, "Apply none")
+	return cmd
+}
+
+func newDocsRemoveCmd() *cobra.Command {
+	var pkgFlag string
+	var yes bool
+	cmd := &cobra.Command{
+		Use:   "remove [pkg]",
+		Short: "Remove a component package",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			pkg, err := resolvePosOrFlag(cmd, "package", pos, "package", pkgFlag)
+			if err != nil {
+				return err
+			}
+			if pkg == "" {
+				if !canPrompt() {
+					return usagef(cmd, "usage: unsarep docs remove <pkg>")
+				}
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewInput().
+						Title("Package").
+						Description("Installed package to remove").
+						Value(&pkg).
+						Validate(func(s string) error {
+							if strings.TrimSpace(s) == "" {
+								return fmt.Errorf("package is required")
+							}
+							return nil
+						}),
+				))
+				if err := runForm(form); err != nil {
+					return err
+				}
+			}
+			if !yes {
+				if !canPrompt() {
+					return usagef(cmd, "refusing to remove %q without --yes outside a terminal", pkg)
+				}
+				var confirm bool
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewConfirm().Title(fmt.Sprintf("Remove package %q?", pkg)).Value(&confirm),
+				))
+				if err := runForm(form); err != nil {
+					return err
+				}
+				if !confirm {
+					return fmt.Errorf("remove cancelled")
+				}
+			}
+			cwd, _ := os.Getwd()
+			if err := docs.Remove(cwd, pkg); err != nil {
+				return err
+			}
+			printOK("Package %s removed.", pkg)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package name, same as positional")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation")
+	return cmd
+}
+
+func newDocsCheckCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "check",
+		Short: "Run project checks",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			cwd, _ := os.Getwd()
+			if err := docs.Check(cwd); err != nil {
+				return err
+			}
+			printOK("check passed: no findings.")
+			return nil
+		},
+	}
+}
+
+func resolveReport(cmd *cobra.Command, args []string, reportFlag string) (string, error) {
+	pos := ""
+	if len(args) > 0 {
+		pos = args[0]
+	}
+	report, err := resolvePosOrFlag(cmd, "report dir", pos, "report", reportFlag)
+	if err != nil {
+		return "", err
+	}
+	if report == "" {
+		if !canPrompt() {
+			return "", usagef(cmd, "usage: unsarep docs %s <report-dir> [--report R]", cmd.Name())
+		}
+		report = "t1"
+		form := huh.NewForm(huh.NewGroup(
+			huh.NewInput().Title("Report dir").Value(&report),
+		))
+		if err := runForm(form); err != nil {
+			return "", err
+		}
+		if strings.TrimSpace(report) == "" {
+			return "", usagef(cmd, "report dir is required")
+		}
+	}
+	return report, nil
+}
+
+func newDocsBuildCmd() *cobra.Command {
+	var reportFlag string
+	cmd := &cobra.Command{
+		Use:   "build [report-dir]",
+		Short: "Run hooks + typst compile --root",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			report, err := resolveReport(cmd, args, reportFlag)
+			if err != nil {
+				return err
+			}
+			cwd, _ := os.Getwd()
+			if err := docs.Build(cwd, report); err != nil {
+				return err
+			}
+			printOK("Build complete.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&reportFlag, "report", "", "Report dir, same as positional")
+	return cmd
+}
+
+func newDocsWatchCmd() *cobra.Command {
+	var reportFlag string
+	cmd := &cobra.Command{
+		Use:   "watch [report-dir]",
+		Short: "typst watch with managed --root",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			report, err := resolveReport(cmd, args, reportFlag)
+			if err != nil {
+				return err
+			}
+			cwd, _ := os.Getwd()
+			return docs.Watch(cwd, report)
+		},
+	}
+	cmd.Flags().StringVar(&reportFlag, "report", "", "Report dir, same as positional")
+	return cmd
+}
+
+func newDocsRunCmd() *cobra.Command {
+	var aliasFlag string
+	cmd := &cobra.Command{
+		Use:   "run [alias] -- [args...]",
+		Short: "Run a project script alias",
+		Long:  "Run a project script alias. Extra args must follow a -- separator.",
+		Args:  cobra.ArbitraryArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			var extra []string
+			if idx := cmd.Flags().ArgsLenAtDash(); idx >= 0 {
+				if idx > 0 {
+					pos = args[0]
+				}
+				extra = args[idx:]
+			} else {
+				if len(args) > 1 {
+					return usagef(cmd, "extra args must follow a -- separator: unsarep docs run <alias> [-- <args...>]")
+				}
+				if len(args) > 0 {
+					pos = args[0]
+				}
+			}
+			alias, err := resolvePosOrFlag(cmd, "alias", pos, "alias", aliasFlag)
+			if err != nil {
+				return err
+			}
+			if alias == "" {
+				if !canPrompt() {
+					return usagef(cmd, "usage: unsarep docs run <alias> [-- <args...>]")
+				}
+				cwd, _ := os.Getwd()
+				if avail := projectAliases(cwd); len(avail) > 0 {
+					form := huh.NewForm(huh.NewGroup(
+						huh.NewSelect[string]().
+							Title("Script alias").
+							Options(huh.NewOptions(avail...)...).
+							Value(&alias),
+					))
+					if err := runForm(form); err != nil {
+						return err
+					}
+				} else {
+					form := huh.NewForm(huh.NewGroup(
+						huh.NewInput().
+							Title("Script alias").
+							Value(&alias).
+							Validate(func(s string) error {
+								if strings.TrimSpace(s) == "" {
+									return fmt.Errorf("alias is required")
+								}
+								return nil
+							}),
+					))
+					if err := runForm(form); err != nil {
+						return err
+					}
+				}
+			}
+			cwd, _ := os.Getwd()
+			return docs.Run(cwd, alias, extra)
+		},
+	}
+	cmd.Flags().StringVar(&aliasFlag, "alias", "", "Script alias, same as positional")
+	return cmd
+}
+
+func projectAliases(cwd string) []string {
+	pctx, err := project.Detect(cwd)
+	if err != nil || !pctx.IsProject {
+		return nil
+	}
+	var out []string
+	for a := range pctx.Config.Scripts {
+		out = append(out, a)
+	}
+	sort.Strings(out)
+	return out
 }

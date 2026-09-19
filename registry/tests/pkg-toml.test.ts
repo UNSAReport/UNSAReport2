@@ -94,15 +94,38 @@ describe('pkg.toml validation', () => {
     expect(() => parsePkgToml('')).toThrow(ValidationError);
   });
 
-  it('rejects names outside [a-z0-9-] slug shape', () => {
-    for (const name of ['Invalid_Name!', 'ab', 'has_underscore', 'UPPER']) {
+  it('accepts scoped and URL-safe names', () => {
+    for (const name of ['cardo', '@xxx/yyy', 'my.pkg', 'my_pkg', 'a~b']) {
+      const raw = parsePkgToml(
+        BASE_TOML.replace('name = "cardo"', `name = "${name}"`),
+      );
+      expect(validatePkgToml(raw).name).toBe(name);
+    }
+  });
+
+  it('rejects names outside the scoped URL-safe shape', () => {
+    for (const name of [
+      'Invalid_Name!',
+      'ab',
+      'UPPER',
+      '@xxx',
+      'xxx/',
+      '@/y',
+      'a/b/c',
+      'MyPkg',
+      '.foo',
+      '-foo',
+      '_foo',
+      'foo bar',
+      'foo:bar',
+      'foo%20x',
+    ]) {
       const raw = parsePkgToml(
         BASE_TOML.replace('name = "cardo"', `name = "${name}"`),
       );
       expect(() => validatePkgToml(raw)).toThrow(ValidationError);
     }
   });
-
   it('rejects invalid semver version and ranges', () => {
     const badVersion = parsePkgToml(
       BASE_TOML.replace('version = "1.2.0"', 'version = "not-a-version"'),
@@ -113,6 +136,14 @@ describe('pkg.toml validation', () => {
       BASE_TOML.replace('"theme ^1.0.0"', '"theme not-a-range!!!"'),
     );
     expect(() => validatePkgToml(badRange)).toThrow(ValidationError);
+  });
+
+  it('accepts scoped names in depends_on', () => {
+    const raw = parsePkgToml(
+      BASE_TOML.replace('"theme ^1.0.0"', '"@xxx/theme ^1.0.0"'),
+    );
+    const pkg = validatePkgToml(raw);
+    expect(pkg.dependsOn[0]).toEqual({ name: '@xxx/theme', range: '^1.0.0' });
   });
 
   it('accepts full semver ranges in depends_on', () => {

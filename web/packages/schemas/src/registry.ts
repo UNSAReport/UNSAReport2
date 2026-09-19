@@ -41,14 +41,17 @@ export const PkgTomlSchema = z.object({
       .string()
       .min(3)
       .max(64)
-      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'Invalid package name'),
+      .regex(
+        /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/,
+        'Invalid package name',
+      ),
     version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
     description: z.string().max(2048).optional(),
     displayName: z.string().min(1).max(128).optional(),
     tags: z.array(z.string()).optional(),
     command_prefix: z
       .string()
-      .regex(/^[a-z0-9-]+$/, 'Invalid command prefix')
+      .regex(/^[a-z0-9][a-z0-9._~-]*$/, 'Invalid command prefix')
       .optional(),
   }),
   components: z.object({
