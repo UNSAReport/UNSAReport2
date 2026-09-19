@@ -42,6 +42,9 @@ func resolveRoot(start string) (string, project.SpecConfig, error) {
 }
 
 func saveConfig(root string, cfg project.SpecConfig) error {
+	// Imported commands and hook bindings live in unsareport.d/ fragments;
+	// never inline them into the root file.
+	cfg = cfg.RootOnly()
 	f, err := os.Create(filepath.Join(root, config.ConfigFileName))
 	if err != nil {
 		return fmt.Errorf("write %s: %w", config.ConfigFileName, err)
@@ -193,9 +196,9 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 		cfg := project.SpecConfig{}
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
-		cfg.Project.RootMarkerVersion = config.RootMarkerVersion
+		cfg.Project.ConfigVersion = config.ConfigVersion
 		cfg.Scripts = map[string]project.ScriptDef{}
-		cfg.Hooks = map[string][]project.HookBinding{}
+		cfg.Hooks = map[string]project.HookTiming{}
 		cfg.Dependencies = map[string]string{}
 		if err := saveConfig(cwd, cfg); err != nil {
 			return err
@@ -342,8 +345,12 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 	for c := range selected {
 		alias := prefix + ":" + c
 		def := p.Commands[c]
+		converted := project.JoinCommands(def.Commands)
+		if len(converted) == 0 {
+			return fmt.Errorf("package command %q has no runnable lines", c)
+		}
 		if existing, ok := cfg.Scripts[alias]; ok {
-			if !reflect.DeepEqual(existing.Commands, def.Commands) {
+			if !reflect.DeepEqual(existing.Commands, converted) {
 				if mode != "ask" {
 					return fmt.Errorf("alias collision on %q; aborted", alias)
 				}
@@ -359,7 +366,7 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 				continue
 			}
 		}
-		frag := project.ScriptFragment{Alias: alias, Description: def.Description, Origin: p.Package.Name, Commands: def.Commands}
+		frag := project.ScriptFragment{Alias: alias, Description: def.Description, Origin: p.Package.Name, Commands: converted}
 		var buf strings.Builder
 		if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
 			return fmt.Errorf("encode script fragment: %w", err)
@@ -369,7 +376,7 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			return err
 		}
 	}
-	bound := map[string][]project.HookBinding{}
+	bound := map[string][]string{}
 	for std, suggestions := range p.HooksSuggest {
 		if !scripts.HookStandards[std] {
 			return fmt.Errorf("package suggests unknown hook standard %q", std)
@@ -393,7 +400,9 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			} else {
 				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			bound[std] = append(bound[std], project.HookBinding{Alias: alias})
+			// Suggested bindings are before entries; timing stays a
+			// local bind-time decision edited in the fragment file.
+			bound[std] = append(bound[std], alias)
 		}
 	}
 	if len(bound) > 0 {
@@ -410,12 +419,16 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 	return nil
 }
 
-// mergeHookFragment unions aliases into unsareport.d/hooks/<std>-<prefix>.toml.
-func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, already []project.HookBinding) error {
+// mergeHookFragment unions before aliases into
+// unsareport.d/hooks/<std>-<prefix>.toml.
+func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []string, already project.HookTiming) error {
 	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
 	owned := map[string]bool{}
-	for _, b := range already {
-		owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
+	for _, a := range already.Before {
+		owned[stripHookAlias(a)] = true
+	}
+	for _, a := range already.After {
+		owned["after\x00"+stripHookAlias(a)] = true
 	}
 	frag := project.HookFragment{Standard: std, Origin: origin}
 	if raw, err := os.ReadFile(path); err == nil {
@@ -423,7 +436,7 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, alrea
 		if derr != nil {
 			return fmt.Errorf("parse %s: %w", relHookPath(root, path), derr)
 		}
-		if undecoded := project.FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
+		if undecoded := md.Undecoded(); len(undecoded) > 0 {
 			return fmt.Errorf("unknown field %q in %s", undecoded[0].String(), relHookPath(root, path))
 		}
 		if frag.Standard != std {
@@ -433,16 +446,19 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, alrea
 			return fmt.Errorf("%s: owned by package %q", relHookPath(root, path), frag.Origin)
 		}
 		frag.Origin = origin
-		for _, b := range frag.Aliases {
-			owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
+		for _, a := range frag.Before {
+			owned[stripHookAlias(a)] = true
+		}
+		for _, a := range frag.After {
+			owned["after\x00"+stripHookAlias(a)] = true
 		}
 	}
-	for _, b := range aliases {
-		if owned[stripHookAlias(b.Alias)+"\x00"+b.When()] {
+	for _, a := range aliases {
+		if owned[stripHookAlias(a)] {
 			continue
 		}
-		owned[stripHookAlias(b.Alias)+"\x00"+b.When()] = true
-		frag.Aliases = append(frag.Aliases, b)
+		owned[stripHookAlias(a)] = true
+		frag.Before = append(frag.Before, a)
 	}
 	var buf strings.Builder
 	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
@@ -454,11 +470,14 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases, alrea
 	return nil
 }
 
+// stripHookAlias drops a leading "os:<key> " prefix for ownership and
+// reference comparisons. Anything else passes through; SplitPrefix rejects
+// the invalid at run time.
 func stripHookAlias(a string) string {
 	a = strings.TrimSpace(a)
-	if strings.HasPrefix(a, "[") {
-		if idx := strings.Index(a, "]"); idx >= 0 {
-			return strings.TrimSpace(a[idx+1:])
+	if strings.HasPrefix(a, "os:") {
+		if _, rest, err := scripts.SplitPrefix(a); err == nil {
+			return rest
 		}
 	}
 	return a
@@ -472,15 +491,16 @@ func relHookPath(root, path string) string {
 }
 
 func runHooks(root, std, when string, cfg project.SpecConfig) error {
-	aliases, ok := cfg.Hooks[std]
+	timing, ok := cfg.Hooks[std]
 	if !ok {
 		return nil
 	}
-	for _, b := range aliases {
-		if b.When() != when {
-			continue
-		}
-		prefix, name, err := scripts.SplitPrefix(strings.TrimSpace(b.Alias))
+	aliases := timing.Before
+	if when == project.HookAfter {
+		aliases = timing.After
+	}
+	for _, a := range aliases {
+		prefix, name, err := scripts.SplitPrefix(strings.TrimSpace(a))
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
@@ -495,11 +515,11 @@ func runHooks(root, std, when string, cfg project.SpecConfig) error {
 		if !ok {
 			return fmt.Errorf("[hooks.%s] unknown alias %q", std, name)
 		}
-		lines, err := scripts.Select(s.Commands, name, "")
+		cmd, err := scripts.Select(s.Commands, name, "")
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
-		if err := scripts.RunLines(root, lines, ""); err != nil {
+		if err := scripts.RunScript(root, cmd, ""); err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
 	}
@@ -636,9 +656,12 @@ func Remove(cwd, name string) error {
 		return err
 	}
 	hooked := map[string]bool{}
-	for _, aliases := range cfg.Hooks {
-		for _, b := range aliases {
-			hooked[stripHookAlias(b.Alias)] = true
+	for _, timing := range cfg.Hooks {
+		for _, a := range timing.Before {
+			hooked[stripHookAlias(a)] = true
+		}
+		for _, a := range timing.After {
+			hooked[stripHookAlias(a)] = true
 		}
 	}
 	ownScripts, err := originScriptAliases(root, name)
@@ -772,6 +795,55 @@ func typstBin() (string, error) {
 	return p, nil
 }
 
+// resolveTypstEntry picks the file to compile/watch inside reportDir. An
+// existing configured entry wins; otherwise a lone top-level .typ file is
+// assumed, and several are offered for picking via prompt.
+func resolveTypstEntry(reportDir, configured string, prompt func(string) (string, error)) (string, error) {
+	if configured != "" {
+		if _, err := os.Stat(filepath.Join(reportDir, configured)); err == nil {
+			return configured, nil
+		}
+	}
+	entries, err := os.ReadDir(reportDir)
+	if err != nil {
+		return "", err
+	}
+	var cands []string
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".typ") {
+			continue
+		}
+		cands = append(cands, e.Name())
+	}
+	sort.Strings(cands)
+	switch len(cands) {
+	case 0:
+		if configured != "" {
+			return "", fmt.Errorf("typst entry %q not found in %s and no .typ file to fall back to", configured, reportDir)
+		}
+		return "", fmt.Errorf("no .typ file in %s (want %s or set [project] typst_entry)", reportDir, config.DefaultTypstEntry)
+	case 1:
+		if configured != "" && cands[0] != configured {
+			fmt.Printf("typst entry %q not found; using %q\n", configured, cands[0])
+		}
+		return cands[0], nil
+	default:
+		fmt.Println("Typst files:")
+		for i, c := range cands {
+			fmt.Printf("  %d. %s\n", i+1, c)
+		}
+		line, err := prompt("Select [number]:")
+		if err != nil {
+			return "", err
+		}
+		var idx int
+		if _, err := fmt.Sscanf(strings.TrimSpace(line), "%d", &idx); err != nil || idx < 1 || idx > len(cands) {
+			return "", fmt.Errorf("invalid selection %q", line)
+		}
+		return cands[idx-1], nil
+	}
+}
+
 func Build(cwd, report string) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
@@ -788,7 +860,11 @@ func Build(cwd, report string) error {
 		return err
 	}
 	reportDir := filepath.Join(root, report)
-	in := filepath.Join(reportDir, cfg.Project.TypstEntry)
+	entry, err := resolveTypstEntry(reportDir, cfg.Project.TypstEntry, promptLine)
+	if err != nil {
+		return err
+	}
+	in := filepath.Join(reportDir, entry)
 	out := filepath.Join(reportDir, "report.pdf")
 	cmd := exec.Command(bin, "compile", "--root", root, in, out)
 	cmd.Dir = root
@@ -811,7 +887,11 @@ func Watch(cwd, report string) error {
 		return err
 	}
 	reportDir := filepath.Join(root, report)
-	in := filepath.Join(reportDir, cfg.Project.TypstEntry)
+	entry, err := resolveTypstEntry(reportDir, cfg.Project.TypstEntry, promptLine)
+	if err != nil {
+		return err
+	}
+	in := filepath.Join(reportDir, entry)
 	out := filepath.Join(reportDir, "report.pdf")
 	cmd := exec.Command(bin, "watch", "--root", root, in, out)
 	cmd.Dir = root
@@ -839,9 +919,9 @@ func Run(cwd, alias string, args []string) error {
 		return fmt.Errorf("unknown alias %q (available: %s)", alias, strings.Join(avail, ", "))
 	}
 	extra := strings.Join(args, " ")
-	lines, err := scripts.Select(s.Commands, alias, "")
+	cmd, err := scripts.Select(s.Commands, alias, "")
 	if err != nil {
 		return err
 	}
-	return scripts.RunLines(root, lines, extra)
+	return scripts.RunScript(root, cmd, extra)
 }

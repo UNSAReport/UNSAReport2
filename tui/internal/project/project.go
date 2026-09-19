@@ -13,8 +13,31 @@ import (
 )
 
 // OSCommands maps an OS key (any|linux|windows|macos) to shell lines.
-// Selection order is fixed: [any] lines first, then the matching-OS lines.
+// This is the published pkg.toml shape; local scripts use ScriptCommands.
 type OSCommands map[string][]string
+
+// ScriptCommands maps an OS key (any|linux|windows|macos) to one shell
+// command. Selection order is fixed: the any command runs first, then the
+// matching-OS command. Multi-line shell goes in one string.
+type ScriptCommands map[string]string
+
+// JoinCommands flattens published per-OS shell lines into one command per
+// OS, dropping blank lines and OS keys left empty.
+func JoinCommands(cmds OSCommands) ScriptCommands {
+	out := ScriptCommands{}
+	for key, lines := range cmds {
+		var kept []string
+		for _, l := range lines {
+			if strings.TrimSpace(l) != "" {
+				kept = append(kept, l)
+			}
+		}
+		if len(kept) > 0 {
+			out[key] = strings.Join(kept, "\n")
+		}
+	}
+	return out
+}
 
 var OSKeys = map[string]bool{
 	"any": true, "linux": true, "windows": true, "macos": true,
@@ -30,13 +53,17 @@ var HookStandards = map[string]bool{
 var pkgNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
 
 type ProjectDef struct {
-	TypstEntry        string `toml:"typst_entry"`
-	RootMarkerVersion int    `toml:"root_marker_version"`
+	TypstEntry    string `toml:"typst_entry"`
+	ConfigVersion int    `toml:"config_version"`
+	// LegacyRootMarkerVersion is the pre-rename key for ConfigVersion.
+	// Accepted on read so the rename never breaks existing setups;
+	// never written.
+	LegacyRootMarkerVersion int `toml:"root_marker_version"`
 }
 
 type ScriptDef struct {
-	Commands    OSCommands `toml:"commands"`
-	Description string     `toml:"description"`
+	Commands    ScriptCommands `toml:"commands"`
+	Description string         `toml:"description"`
 }
 
 // PackageDecl is the optional package-declaration side of unsareport.toml.
@@ -50,11 +77,11 @@ type PackageDecl struct {
 	CommandPrefix string   `toml:"command_prefix"`
 }
 type SpecConfig struct {
-	Project      ProjectDef               `toml:"project"`
-	Scripts      map[string]ScriptDef     `toml:"scripts"`
-	Hooks        map[string][]HookBinding `toml:"hooks"`
-	Package      *PackageDecl             `toml:"package"`
-	Dependencies map[string]string        `toml:"dependencies"`
+	Project      ProjectDef            `toml:"project"`
+	Scripts      map[string]ScriptDef  `toml:"scripts"`
+	Hooks        map[string]HookTiming `toml:"hooks"`
+	Package      *PackageDecl          `toml:"package"`
+	Dependencies map[string]string     `toml:"dependencies"`
 
 	provenance map[string]string
 }
@@ -67,17 +94,18 @@ func (c SpecConfig) ScriptSource(alias string) string {
 
 // ScriptFragment is one unsareport.d/scripts/*.toml file: a single script.
 type ScriptFragment struct {
-	Alias       string     `toml:"alias"`
-	Description string     `toml:"description"`
-	Origin      string     `toml:"origin"`
-	Commands    OSCommands `toml:"commands"`
+	Alias       string         `toml:"alias"`
+	Description string         `toml:"description"`
+	Origin      string         `toml:"origin"`
+	Commands    ScriptCommands `toml:"commands"`
 }
 
 // HookFragment is one unsareport.d/hooks/*.toml file: bindings for one standard.
 type HookFragment struct {
-	Standard string        `toml:"standard"`
-	Aliases  []HookBinding `toml:"aliases"`
-	Origin   string        `toml:"origin"`
+	Standard string   `toml:"standard"`
+	Before   []string `toml:"before"`
+	After    []string `toml:"after"`
+	Origin   string   `toml:"origin"`
 }
 
 const (
@@ -85,60 +113,11 @@ const (
 	HookAfter  = "after"
 )
 
-type HookBinding struct {
-	Alias string
-	Time  string
-}
-
-func (b HookBinding) When() string {
-	if b.Time == HookAfter {
-		return HookAfter
-	}
-	return HookBefore
-}
-
-func (b *HookBinding) UnmarshalTOML(v any) error {
-	switch t := v.(type) {
-	case string:
-		if strings.TrimSpace(t) == "" {
-			return fmt.Errorf("hook alias must not be empty")
-		}
-		b.Alias = t
-		b.Time = HookBefore
-		return nil
-	case map[string]any:
-		for k := range t {
-			if k != "alias" && k != "time" {
-				return fmt.Errorf("unknown field %q in hook binding", k)
-			}
-		}
-		raw, ok := t["alias"]
-		s, sok := raw.(string)
-		if !ok || !sok || strings.TrimSpace(s) == "" {
-			return fmt.Errorf("hook alias must not be empty")
-		}
-		b.Alias = s
-		b.Time = HookBefore
-		if tv, present := t["time"]; present {
-			ts, tok := tv.(string)
-			if !tok || (ts != "" && ts != HookBefore && ts != HookAfter) {
-				return fmt.Errorf("unknown hook time %q (want before|after)", fmt.Sprintf("%v", tv))
-			}
-			if ts == HookAfter {
-				b.Time = HookAfter
-			}
-		}
-		return nil
-	default:
-		return fmt.Errorf("hook binding must be a string or { alias, time } table")
-	}
-}
-
-func (b HookBinding) MarshalTOML() ([]byte, error) {
-	if b.When() == HookAfter {
-		return []byte(fmt.Sprintf(`{ alias = %q, time = "after" }`, b.Alias)), nil
-	}
-	return []byte(fmt.Sprintf(`%q`, b.Alias)), nil
+// HookTiming is the before/after alias lists bound to one standard.
+// Before entries run pre-action in list order, after entries post-action;
+type HookTiming struct {
+	Before []string `toml:"before"`
+	After  []string `toml:"after"`
 }
 
 type Context struct {
@@ -187,20 +166,29 @@ func Load(path string) (SpecConfig, error) {
 	if err != nil {
 		return SpecConfig{}, fmt.Errorf("parse %s: %w", config.ConfigFileName, err)
 	}
-	if undecoded := FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
+	if undecoded := md.Undecoded(); len(undecoded) > 0 {
 		return SpecConfig{}, fmt.Errorf("unknown field %q in %s", undecoded[0].String(), config.ConfigFileName)
 	}
 	if cfg.Project.TypstEntry == "" {
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
 	}
-	if cfg.Project.RootMarkerVersion != config.RootMarkerVersion {
-		return SpecConfig{}, fmt.Errorf("unsupported root_marker_version %d in %s (want %d)", cfg.Project.RootMarkerVersion, config.ConfigFileName, config.RootMarkerVersion)
+	version := cfg.Project.ConfigVersion
+	if version == 0 {
+		if cfg.Project.LegacyRootMarkerVersion == 0 {
+			return SpecConfig{}, fmt.Errorf("missing config_version in %s (want %d)", config.ConfigFileName, config.ConfigVersion)
+		}
+		version = cfg.Project.LegacyRootMarkerVersion
+	} else if cfg.Project.LegacyRootMarkerVersion != 0 && cfg.Project.LegacyRootMarkerVersion != version {
+		return SpecConfig{}, fmt.Errorf("conflicting config_version %d and root_marker_version %d in %s", version, cfg.Project.LegacyRootMarkerVersion, config.ConfigFileName)
+	}
+	if version < 1 || version > config.ConfigVersion {
+		return SpecConfig{}, fmt.Errorf("unsupported config_version %d in %s (supported 1-%d)", version, config.ConfigFileName, config.ConfigVersion)
 	}
 	if cfg.Scripts == nil {
 		cfg.Scripts = map[string]ScriptDef{}
 	}
 	if cfg.Hooks == nil {
-		cfg.Hooks = map[string][]HookBinding{}
+		cfg.Hooks = map[string]HookTiming{}
 	}
 	if cfg.Dependencies == nil {
 		cfg.Dependencies = map[string]string{}
@@ -224,7 +212,78 @@ func Load(path string) (SpecConfig, error) {
 	if err := mergeFragments(filepath.Dir(path), &cfg); err != nil {
 		return SpecConfig{}, err
 	}
+	if err := checkHookDuplicates(cfg.Hooks); err != nil {
+		return SpecConfig{}, err
+	}
 	return cfg, nil
+}
+
+// checkHookDuplicates rejects repeats within one timing list of one
+// standard. before+after twins are allowed (the alias runs twice).
+func checkHookDuplicates(hooks map[string]HookTiming) error {
+	for std, timing := range hooks {
+		for _, list := range []struct {
+			when    string
+			aliases []string
+		}{
+			{HookBefore, timing.Before},
+			{HookAfter, timing.After},
+		} {
+			seen := map[string]bool{}
+			for _, a := range list.aliases {
+				name := stripHookPrefix(a)
+				if seen[name] {
+					return fmt.Errorf("duplicate alias %q in [hooks.%s.%s]", name, std, list.when)
+				}
+				seen[name] = true
+			}
+		}
+	}
+	return nil
+}
+
+// hookProvKey identifies one merged hook binding by standard, timing, and
+// stripped alias. Root-owned bindings have no provenance entry.
+func hookProvKey(std, when, alias string) string {
+	return "hook:" + std + "\x00" + when + "\x00" + stripHookPrefix(alias)
+}
+
+// RootOnly returns a copy of c with fragment-owned entries removed: scripts
+// from unsareport.d/scripts and hook bindings from unsareport.d/hooks. The
+// root file holds local config only; saving a merged cfg without stripping
+// would inline imports back into it.
+func (c SpecConfig) RootOnly() SpecConfig {
+	out := c
+	if c.Scripts != nil {
+		scripts := make(map[string]ScriptDef, len(c.Scripts))
+		for alias, def := range c.Scripts {
+			if c.provenance["script:"+alias] == "" {
+				scripts[alias] = def
+			}
+		}
+		out.Scripts = scripts
+	}
+	if c.Hooks != nil {
+		hooks := make(map[string]HookTiming, len(c.Hooks))
+		for std, timing := range c.Hooks {
+			var kept HookTiming
+			for _, a := range timing.Before {
+				if c.provenance[hookProvKey(std, HookBefore, a)] == "" {
+					kept.Before = append(kept.Before, a)
+				}
+			}
+			for _, a := range timing.After {
+				if c.provenance[hookProvKey(std, HookAfter, a)] == "" {
+					kept.After = append(kept.After, a)
+				}
+			}
+			if len(kept.Before) > 0 || len(kept.After) > 0 {
+				hooks[std] = kept
+			}
+		}
+		out.Hooks = hooks
+	}
+	return out
 }
 
 // mergeFragments merges unsareport.d/scripts/*.toml and unsareport.d/hooks/*.toml
@@ -245,11 +304,13 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 			return fmt.Errorf("%s: fragment alias must not be empty", relRoot(root, f))
 		}
 		total := 0
-		for key, lines := range frag.Commands {
+		for key, cmd := range frag.Commands {
 			if !OSKeys[key] {
 				return fmt.Errorf("%s: unknown os key %q (want any|linux|windows|macos)", relRoot(root, f), key)
 			}
-			total += len(lines)
+			if strings.TrimSpace(cmd) != "" {
+				total++
+			}
 		}
 		if total == 0 {
 			return fmt.Errorf("%s: fragment commands must not be empty", relRoot(root, f))
@@ -278,17 +339,34 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 			return fmt.Errorf("%s: unknown hook standard %q (hookable: build, check)", relRoot(root, f), frag.Standard)
 		}
 		seen := map[string]bool{}
-		for _, b := range cfg.Hooks[frag.Standard] {
-			seen[stripHookPrefix(b.Alias)+"\x00"+b.When()] = true
+		mark := func(when, alias string) { seen[when+"\x00"+stripHookPrefix(alias)] = true }
+		for _, a := range cfg.Hooks[frag.Standard].Before {
+			mark(HookBefore, a)
 		}
-		for _, b := range frag.Aliases {
-			name := stripHookPrefix(b.Alias)
-			if seen[name+"\x00"+b.When()] {
-				return fmt.Errorf("duplicate alias %q in [hooks.%s] (%s)", name, frag.Standard, relRoot(root, f))
+		for _, a := range cfg.Hooks[frag.Standard].After {
+			mark(HookAfter, a)
+		}
+		merged := cfg.Hooks[frag.Standard]
+		rel := relRoot(root, f)
+		merge := func(when string, aliases []string, dst *[]string) error {
+			for _, a := range aliases {
+				name := stripHookPrefix(a)
+				if seen[when+"\x00"+name] {
+					return fmt.Errorf("duplicate alias %q in [hooks.%s.%s] (%s)", name, frag.Standard, when, rel)
+				}
+				seen[when+"\x00"+name] = true
+				*dst = append(*dst, a)
+				cfg.provenance[hookProvKey(frag.Standard, when, a)] = rel
 			}
-			seen[name+"\x00"+b.When()] = true
-			cfg.Hooks[frag.Standard] = append(cfg.Hooks[frag.Standard], b)
+			return nil
 		}
+		if err := merge(HookBefore, frag.Before, &merged.Before); err != nil {
+			return err
+		}
+		if err := merge(HookAfter, frag.After, &merged.After); err != nil {
+			return err
+		}
+		cfg.Hooks[frag.Standard] = merged
 	}
 	return nil
 }
@@ -316,51 +394,10 @@ func decodeFragment(path string, v any) error {
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", path, err)
 	}
-	if undecoded := FilterHookBindingUndecoded(md.Undecoded()); len(undecoded) > 0 {
+	if undecoded := md.Undecoded(); len(undecoded) > 0 {
 		return fmt.Errorf("unknown field %q in %s", undecoded[0].String(), path)
 	}
 	return nil
-}
-
-// FilterHookBindingUndecoded drops the two scalar leaves of table-form hook
-// bindings ({ alias, time }) from an Undecoded key list.
-//
-// BurntSushi/toml v1.4.0 short-circuits unify() into UnmarshalTOML without
-// marking any keys decoded, so table-form bindings surface as e.g.
-// "hooks.build.alias" or "aliases.time". Upstream fixed this in v1.5.0
-// (markDecodedRecursive); until the pin moves, filter those leaves here. No
-// strictness is lost: unknown fields inside binding tables are rejected by
-// HookBinding.UnmarshalTOML itself, and these exact paths cannot arise from
-// any other document shape (anything else is a decode-time type mismatch,
-// never an undecoded key).
-func FilterHookBindingUndecoded(keys []toml.Key) []toml.Key {
-	out := make([]toml.Key, 0, len(keys))
-	for _, k := range keys {
-		if !isHookBindingLeaf(k.String()) {
-			out = append(out, k)
-		}
-	}
-	return out
-}
-
-func isHookBindingLeaf(path string) bool {
-	i := strings.LastIndex(path, ".")
-	if i < 0 {
-		return false
-	}
-	leaf, rest := path[i+1:], path[:i]
-	if leaf != "alias" && leaf != "time" {
-		return false
-	}
-	// Fragment files: "aliases.alias" / "aliases.time".
-	if rest == "aliases" {
-		return true
-	}
-	// Root config: "hooks.<std>.alias" / "hooks.<std>.time".
-	if j := strings.LastIndex(rest, "."); j >= 0 {
-		return rest[:j] == "hooks" && rest[j+1:] != ""
-	}
-	return false
 }
 
 func relRoot(root, path string) string {
@@ -372,12 +409,29 @@ func relRoot(root, path string) string {
 
 func stripHookPrefix(a string) string {
 	a = strings.TrimSpace(a)
-	if strings.HasPrefix(a, "[") {
-		if idx := strings.Index(a, "]"); idx >= 0 {
-			return strings.TrimSpace(a[idx+1:])
-		}
+	if rest, ok := cutOSPrefix(a); ok {
+		return rest
 	}
 	return a
+}
+
+// cutOSPrefix splits a leading "os:<key> " prefix (see scripts.SplitPrefix).
+// Lenient: anything else passes through for validation to reject.
+func cutOSPrefix(a string) (string, bool) {
+	if !strings.HasPrefix(a, "os:") {
+		return "", false
+	}
+	key, rest, found := strings.Cut(a[len("os:"):], " ")
+	if !found {
+		return "", false
+	}
+	if !OSKeys[key] {
+		return "", false
+	}
+	if strings.TrimSpace(rest) == "" {
+		return "", false
+	}
+	return strings.TrimSpace(rest), true
 }
 func Detect(start string) (*Context, error) {
 	abs, _ := filepath.Abs(start)

@@ -89,7 +89,7 @@ func TestResolvePublishSource(t *testing.T) {
 	}
 	// Project root with [package] synthesizes from components/<name>/.
 	root := t.TempDir()
-	cfgText := "[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n\n[package]\nname = \"mine\"\nversion = \"0.2.0\"\ndescription = \"m\"\n\n[dependencies]\ntheme = \">=1.0.0\"\n"
+	cfgText := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[package]\nname = \"mine\"\nversion = \"0.2.0\"\ndescription = \"m\"\n\n[dependencies]\ntheme = \">=1.0.0\"\n"
 	if err := os.WriteFile(filepath.Join(root, "unsareport.toml"), []byte(cfgText), 0o644); err != nil {
 		t.Fatal(err)
 	}

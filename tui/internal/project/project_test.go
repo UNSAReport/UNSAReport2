@@ -16,7 +16,7 @@ func TestFindRootMissing(t *testing.T) {
 	}
 }
 
-const minimalToml = "[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"
+const minimalToml = "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n"
 
 func TestLoadStrict(t *testing.T) {
 	tmp := t.TempDir()
@@ -32,25 +32,49 @@ func TestLoadStrict(t *testing.T) {
 		t.Fatalf("entry %q", cfg.Project.TypstEntry)
 	}
 	bad := filepath.Join(tmp, "bad.toml")
-	if err := os.WriteFile(bad, []byte("[project]\nbogus = 1\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"), 0o644); err != nil {
+	if err := os.WriteFile(bad, []byte("[project]\nbogus = 1\ntypst_entry = \"report.typ\"\nconfig_version = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(bad); err == nil {
 		t.Fatal("expected unknown-field error")
 	}
 	named := filepath.Join(tmp, "named.toml")
-	if err := os.WriteFile(named, []byte("[project]\nname = \"x\"\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"), 0o644); err != nil {
+	if err := os.WriteFile(named, []byte("[project]\nname = \"x\"\ntypst_entry = \"report.typ\"\nconfig_version = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(named); err == nil {
 		t.Fatal("expected rejection of dropped [project] name")
 	}
 	wrong := filepath.Join(tmp, "wrong.toml")
-	if err := os.WriteFile(wrong, []byte("[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 99\n"), 0o644); err != nil {
+	if err := os.WriteFile(wrong, []byte("[project]\ntypst_entry = \"report.typ\"\nconfig_version = 99\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(wrong); err == nil {
 		t.Fatal("expected version error")
+	}
+}
+
+func TestConfigVersionLegacy(t *testing.T) {
+	legacy := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(legacy, []byte("[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(legacy); err != nil {
+		t.Fatalf("legacy root_marker_version must still load: %v", err)
+	}
+	missing := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(missing, []byte("[project]\ntypst_entry = \"report.typ\"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(missing); err == nil {
+		t.Fatal("expected missing-version error")
+	}
+	conflict := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(conflict, []byte("[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\nroot_marker_version = 99\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(conflict); err == nil {
+		t.Fatal("expected conflicting-version error")
 	}
 }
 
@@ -137,14 +161,14 @@ func TestFragments(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "scripts"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	frag := "alias = \"cardo:zip\"\ndescription = \"zip\"\norigin = \"cardo\"\n\n[commands]\nany = [\"rm -f s.zip\"]\nlinux = [\"bash zip.sh\"]\n"
+	frag := "alias = \"cardo:zip\"\ndescription = \"zip\"\norigin = \"cardo\"\n\n[commands]\nany = \"rm -f s.zip\"\nlinux = \"bash zip.sh\"\n"
 	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "scripts", "cardo-zip.toml"), []byte(frag), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "hooks"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	hook := "standard = \"build\"\naliases = [\"cardo:zip\"]\norigin = \"cardo\"\n"
+	hook := "standard = \"build\"\nbefore = [\"cardo:zip\"]\nafter = [\"os:linux cardo:zip\"]\norigin = \"cardo\"\n"
 	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "hooks", "build-cardo.toml"), []byte(hook), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -152,16 +176,20 @@ func TestFragments(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(cfg.Scripts["cardo:zip"].Commands["any"]) != 1 {
+	if cfg.Scripts["cardo:zip"].Commands["any"] != "rm -f s.zip" {
 		t.Fatalf("scripts %+v", cfg.Scripts)
 	}
 	if cfg.ScriptSource("cardo:zip") != "unsareport.d/scripts/cardo-zip.toml" {
 		t.Fatalf("provenance %q", cfg.ScriptSource("cardo:zip"))
 	}
-	if len(cfg.Hooks["build"]) != 1 || cfg.Hooks["build"][0].Alias != "cardo:zip" {
+	got := cfg.Hooks["build"]
+	if len(got.Before) != 1 || got.Before[0] != "cardo:zip" {
 		t.Fatalf("hooks %+v", cfg.Hooks)
 	}
-	dup := "alias = \"cardo:zip\"\n\n[commands]\nany = [\"x\"]\n"
+	if len(got.After) != 1 || got.After[0] != "os:linux cardo:zip" {
+		t.Fatalf("hooks %+v", cfg.Hooks)
+	}
+	dup := "alias = \"cardo:zip\"\n\n[commands]\nany = \"x\"\n"
 	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "scripts", "other.toml"), []byte(dup), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -169,9 +197,9 @@ func TestFragments(t *testing.T) {
 		t.Fatal("expected duplicate-alias error")
 	}
 }
-func TestHookBindingRoundTrip(t *testing.T) {
+func TestHooksTimingRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "unsareport.toml")
-	body := minimalToml + "\n[hooks]\nbuild = [\"a:b\", { alias = \"c:d\", time = \"after\" }]\n"
+	body := minimalToml + "\n[hooks.build]\nbefore = [\"a:pre\", \"os:linux a:other\"]\nafter = [\"a:post\"]\n"
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -180,33 +208,50 @@ func TestHookBindingRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := cfg.Hooks["build"]
-	if len(got) != 2 || got[0].Alias != "a:b" || got[0].When() != HookBefore {
-		t.Fatalf("before binding %+v", got)
+	if len(got.Before) != 2 || got.Before[0] != "a:pre" || got.Before[1] != "os:linux a:other" {
+		t.Fatalf("before %+v", got)
 	}
-	if got[1].Alias != "c:d" || got[1].When() != HookAfter {
-		t.Fatalf("after binding %+v", got)
+	if len(got.After) != 1 || got.After[0] != "a:post" {
+		t.Fatalf("after %+v", got)
 	}
 	var buf strings.Builder
 	if err := toml.NewEncoder(&buf).Encode(cfg); err != nil {
 		t.Fatal(err)
 	}
 	out := buf.String()
-	if !strings.Contains(out, `"a:b"`) {
-		t.Fatalf("before entry must stay a bare string:\n%s", out)
-	}
-	if !strings.Contains(out, `time = "after"`) {
-		t.Fatalf("after entry must keep its time:\n%s", out)
+	if !strings.Contains(out, "before = ") || !strings.Contains(out, "after = ") {
+		t.Fatalf("timing lists must survive encode:\n%s", out)
 	}
 }
 
-func TestHookBindingRejects(t *testing.T) {
+// TestHooksNoFalseUndecoded answers the v1.4.0 report: table-form bindings
+// used to false-positive md.Undecoded() because HookBinding.UnmarshalTOML
+// short-circuited unify(). HookTiming has no custom codec, so plain
+// Undecoded() is exact: valid timing keys decode silently, unknown keys
+// still fail. No BurntSushi upgrade needed for this.
+func TestHooksNoFalseUndecoded(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "unsareport.toml")
+	body := minimalToml + "\n[hooks.build]\nbefore = [\"a:b\"]\nafter = [\"c:d\"]\n"
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(path); err != nil {
+		t.Fatalf("valid timing must not trip Undecoded: %v", err)
+	}
+	bad := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(bad, []byte(minimalToml+"\n[hooks.build]\nbefore = [\"a:b\"]\nwhen = [\"x\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(bad); err == nil {
+		t.Fatal("expected unknown-field error under [hooks.build]")
+	}
+}
+
+func TestHooksTimingRejects(t *testing.T) {
 	cases := []string{
-		"\n[hooks]\nbuild = [{ alias = \"c:d\", time = \"eventually\" }]\n",
-		"\n[hooks]\nbuild = [{ time = \"after\" }]\n",
-		"\n[hooks]\nbuild = [{ alias = \"\" }]\n",
-		"\n[hooks]\nbuild = [\"\"]\n",
-		"\n[hooks]\nbuild = [{ alias = \"c:d\", when = \"after\" }]\n",
-		"\n[hooks]\nbuild = [42]\n",
+		"\n[hooks.build]\nbefore = [\"a:b\", \"a:b\"]\n",
+		"\n[hooks.build]\nafter = [\"a:b\", \"a:b\"]\n",
+		"\n[hooks]\nbuild = [\"a:b\"]\n",
 	}
 	for _, extra := range cases {
 		path := filepath.Join(t.TempDir(), "unsareport.toml")
@@ -216,5 +261,49 @@ func TestHookBindingRejects(t *testing.T) {
 		if _, err := Load(path); err == nil {
 			t.Fatalf("expected rejection of %q", extra)
 		}
+	}
+}
+
+func TestRootOnlyStripsFragments(t *testing.T) {
+	tmp := t.TempDir()
+	root := minimalToml + "\n[scripts.\"local:one\"]\ndescription = \"local\"\n[scripts.\"local:one\".commands]\nany = \"echo local\"\n\n[hooks.build]\nbefore = [\"local:one\"]\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(root), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	frag := "alias = \"cardo:zip\"\ndescription = \"zip\"\norigin = \"cardo\"\n\n[commands]\nany = \"rm -f s.zip\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "scripts", "cardo-zip.toml"), []byte(frag), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "hooks"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	buildHook := "standard = \"build\"\nbefore = [\"cardo:zip\"]\norigin = \"cardo\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "hooks", "build-cardo.toml"), []byte(buildHook), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	checkHook := "standard = \"check\"\nbefore = [\"cardo:zip\"]\norigin = \"cardo\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "hooks", "check-cardo.toml"), []byte(checkHook), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(filepath.Join(tmp, "unsareport.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	stripped := cfg.RootOnly()
+	if len(stripped.Scripts) != 1 || stripped.Scripts["local:one"].Description != "local" {
+		t.Fatalf("scripts %+v", stripped.Scripts)
+	}
+	got := stripped.Hooks["build"]
+	if len(got.Before) != 1 || got.Before[0] != "local:one" || len(got.After) != 0 {
+		t.Fatalf("build %+v", got)
+	}
+	if _, ok := stripped.Hooks["check"]; ok {
+		t.Fatalf("fragment-only standard survived: %+v", stripped.Hooks)
+	}
+	if _, ok := cfg.Scripts["cardo:zip"]; !ok {
+		t.Fatal("RootOnly mutated the merged config")
 	}
 }

@@ -97,10 +97,12 @@ const (
 	LockFileName        = ".unsareport.lock"
 )
 
-// Project marker values
+// Project marker values. ConfigVersion is the newest unsareport.toml schema
+// this binary understands: older files load with defaults filled in, newer
+// files fail with an upgrade prompt instead of a cryptic field error.
 const (
-	RootMarkerVersion = 1
-	DefaultTypstEntry = "report.typ"
+	ConfigVersion     = 1
+	DefaultTypstEntry = "main.typ"
 )
 
 // Regexes (compiled)
