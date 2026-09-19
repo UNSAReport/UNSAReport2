@@ -1,20 +1,155 @@
 import { describe, expect, it, mock } from 'bun:test';
-import { eq } from 'drizzle-orm';
+import { eq, getTableName } from 'drizzle-orm';
 import JSZip from 'jszip';
-import { db } from '@/db';
-import { packages } from '@/db/schema';
+import * as schema from '@/db/schema';
+
+const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
+const MOCK_USER_EMAIL = 'publisher@example.com';
+const MOCK_USER_ROLE = 'user';
+const MOCK_PRESIGNED_BASE_URL = 'http://localhost/s3-mock';
+
+const TABLE_PACKAGES = 'packages';
+const TABLE_PACKAGE_VERSIONS = 'package_versions';
+const TABLE_PACKAGE_FILES = 'package_files';
+const TABLE_TRUSTED_USERS = 'trusted_users';
+const TABLE_TAGS = 'tags';
+const TABLE_PACKAGE_TAGS = 'package_tags';
+const TABLE_PACKAGE_DEPENDENCIES = 'package_dependencies';
+
+let mockPackages: Record<string, unknown>[] = [];
+let mockVersions: Record<string, unknown>[] = [];
+let mockFiles: Record<string, unknown>[] = [];
+
+function createMockQuery(tableName: string) {
+  const getRows = (): Record<string, unknown>[] => {
+    if (tableName === TABLE_PACKAGES) {
+      return [...mockPackages];
+    }
+    if (tableName === TABLE_PACKAGE_VERSIONS) {
+      return [...mockVersions];
+    }
+    if (tableName === TABLE_PACKAGE_FILES) {
+      return [...mockFiles];
+    }
+    if (
+      tableName === TABLE_TRUSTED_USERS ||
+      tableName === TABLE_TAGS ||
+      tableName === TABLE_PACKAGE_TAGS ||
+      tableName === TABLE_PACKAGE_DEPENDENCIES
+    ) {
+      return [];
+    }
+    throw new Error(`Unhandled mock table in query: ${tableName}`);
+  };
+
+  const query = {
+    innerJoin: () => query,
+    where: () => query,
+    orderBy: () => query,
+    limit: (n: number) => ({
+      // biome-ignore lint/suspicious/noThenProperty: Query builder is a thenable representing a Drizzle query
+      then: (
+        resolve?: (value: Record<string, unknown>[]) => unknown,
+        reject?: (reason: unknown) => unknown,
+      ) => {
+        try {
+          const sliced = getRows().slice(0, n);
+          return Promise.resolve(resolve ? resolve(sliced) : sliced);
+        } catch (err) {
+          if (reject) {
+            return Promise.resolve(reject(err));
+          }
+          throw err;
+        }
+      },
+    }),
+    // biome-ignore lint/suspicious/noThenProperty: Query builder is a thenable representing a Drizzle query
+    then: (
+      resolve?: (value: Record<string, unknown>[]) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) => {
+      try {
+        const rows = getRows();
+        return Promise.resolve(resolve ? resolve(rows) : rows);
+      } catch (err) {
+        if (reject) {
+          return Promise.resolve(reject(err));
+        }
+        throw err;
+      }
+    },
+  };
+
+  return query;
+}
+
+const mockDb = {
+  select: (_fields?: unknown) => ({
+    from: (table: Parameters<typeof getTableName>[0]) =>
+      createMockQuery(getTableName(table)),
+  }),
+  insert: (table: Parameters<typeof getTableName>[0]) => ({
+    values: (values: unknown) => {
+      const tableName = getTableName(table);
+      if (tableName === TABLE_PACKAGES) {
+        mockPackages.push(values as Record<string, unknown>);
+      } else if (tableName === TABLE_PACKAGE_VERSIONS) {
+        mockVersions.push(values as Record<string, unknown>);
+      } else if (tableName === TABLE_PACKAGE_FILES) {
+        if (Array.isArray(values)) {
+          mockFiles.push(...(values as Record<string, unknown>[]));
+        } else {
+          mockFiles.push(values as Record<string, unknown>);
+        }
+      } else {
+        throw new Error(`Unhandled mock table in insert: ${tableName}`);
+      }
+      return Promise.resolve();
+    },
+  }),
+  delete: (table: Parameters<typeof getTableName>[0]) => ({
+    where: () => {
+      const tableName = getTableName(table);
+      if (tableName === TABLE_PACKAGES) {
+        mockPackages = [];
+        mockVersions = [];
+        mockFiles = [];
+      } else {
+        throw new Error(`Unhandled mock table in delete: ${tableName}`);
+      }
+      return Promise.resolve();
+    },
+  }),
+};
+
+mock.module('@/db', () => ({
+  db: mockDb,
+  schema,
+}));
 
 mock.module('@/lib/auth', () => ({
   verifyJWT: async () => ({
-    id: '00000000-0000-4000-8000-000000000001',
-    email: 'publisher@example.com',
-    roles: ['user'],
+    id: MOCK_USER_ID,
+    email: MOCK_USER_EMAIL,
+    roles: [MOCK_USER_ROLE],
   }),
+}));
+
+mock.module('@/lib/s3', () => ({
+  ensureBucketExists: async () => {},
+  uploadS3Object: async (key: string) => key,
+  getPresignedUrl: async (key: string) => `${MOCK_PRESIGNED_BASE_URL}/${key}`,
+  deleteS3Object: async () => {},
+  buildAndUploadZipArchive: async (key: string) => key,
+  s3Client: {},
+  s3PresignClient: {},
 }));
 
 // Dynamic import: mock.module must register before the app graph loads,
 // and static imports hoist above it. Test-only module-loading boundary.
 const { default: app } = await import('@/index');
+const { db } = await import('@/db');
+const { packages } = schema;
 
 async function buildZip(entries: Record<string, string>): Promise<File> {
   const zip = new JSZip();
