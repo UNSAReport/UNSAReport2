@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/UNSAReport/tui/internal/scripts"
@@ -169,23 +170,23 @@ func checkLock(root string) []Finding {
 	var out []Finding
 	l, err := lock.Load(root)
 	if err != nil {
-		return []Finding{{File: filepath.Join(root, ".unsareport.lock"), Message: err.Error()}}
+		return []Finding{{File: filepath.Join(root, config.LockFileName), Message: err.Error()}}
 	}
 	for _, p := range l.Pkg {
 		dir := filepath.Join(root, "components", p.Name)
 		if _, err := os.Stat(dir); err != nil {
-			out = append(out, Finding{File: ".unsareport.lock", Message: fmt.Sprintf("locked package %q missing on disk at components/%s", p.Name, p.Name)})
+			out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked package %q missing on disk at components/%s", p.Name, p.Name)})
 			continue
 		}
 		for _, f := range p.Files {
 			fp := filepath.Join(dir, filepath.FromSlash(f.Path))
 			b, err := os.ReadFile(fp)
 			if err != nil {
-				out = append(out, Finding{File: ".unsareport.lock", Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
+				out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
 				continue
 			}
 			if got := lock.SHA256Hex(b); got != f.SHA256 {
-				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: "drift: sha256 mismatch vs .unsareport.lock"})
+				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: fmt.Sprintf("drift: sha256 mismatch vs %s", config.LockFileName)})
 			}
 		}
 	}

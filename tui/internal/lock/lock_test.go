@@ -2,7 +2,6 @@ package lock
 
 import (
 	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -51,7 +50,7 @@ func TestLoadMissingIsEmpty(t *testing.T) {
 
 func TestLoadInvalid(t *testing.T) {
 	root := t.TempDir()
-	if err := os.WriteFile(filepath.Join(root, ".unsareport.lock"), []byte("[[pkg]\nname = 1\n"), 0o644); err != nil {
+	if err := os.WriteFile(Path(root), []byte("[[pkg]\nname = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Load(root); err == nil {

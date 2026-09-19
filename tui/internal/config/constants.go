@@ -85,7 +85,7 @@ const (
 	EnvLCMessages      = "LC_MESSAGES"
 )
 
-// Project file layout (Typst restructure: TOML project, dot TOML lock)
+// Project file layout (Typst restructure: TOML project, TOML lock)
 const (
 	AppDirName          = "unsareport"
 	ConfigFileName      = "unsareport.toml"
@@ -94,7 +94,7 @@ const (
 	CredentialsFileName = "credentials.json"
 	TokenFileName       = "token"
 	CacheFileName       = "registry.json"
-	LockFileName        = ".unsareport.lock"
+	LockFileName        = "unsareport.lock"
 )
 
 // Project marker values. ConfigVersion is the newest unsareport.toml schema
