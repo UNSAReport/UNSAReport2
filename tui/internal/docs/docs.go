@@ -213,6 +213,62 @@ type InitOptions struct {
 	Confirm  func(conflicts []string) (bool, error)
 }
 
+func normalizeTemplateFiles(files map[string][]byte) (map[string][]byte, error) {
+	if len(files) == 0 {
+		return map[string][]byte{}, nil
+	}
+
+	cleaned := make(map[string][]byte, len(files))
+	for rawPath, data := range files {
+		clean := filepath.ToSlash(rawPath)
+		clean = strings.TrimPrefix(clean, "./")
+		clean = strings.TrimPrefix(clean, "/")
+		if clean == "" || clean == "." {
+			continue
+		}
+		if strings.Contains(clean, "..") || filepath.IsAbs(clean) {
+			return nil, fmt.Errorf("illegal template path %q", rawPath)
+		}
+		cleaned[clean] = data
+	}
+	if len(cleaned) == 0 {
+		return cleaned, nil
+	}
+
+	var topDir string
+	hasSingleTopDir := true
+	for p := range cleaned {
+		parts := strings.Split(p, "/")
+		if len(parts) <= 1 {
+			hasSingleTopDir = false
+			break
+		} else if topDir == "" {
+			topDir = parts[0]
+		} else if parts[0] != topDir {
+			hasSingleTopDir = false
+			break
+		}
+	}
+
+	if hasSingleTopDir && topDir != "" {
+		prefix := topDir + "/"
+		out := make(map[string][]byte, len(cleaned))
+		for p, data := range cleaned {
+			stripped := strings.TrimPrefix(p, prefix)
+			if stripped == "" || stripped == "." {
+				continue
+			}
+			if _, exists := out[stripped]; exists {
+				return nil, fmt.Errorf("duplicate template file destination %q", stripped)
+			}
+			out[stripped] = data
+		}
+		return out, nil
+	}
+
+	return cleaned, nil
+}
+
 func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	name, rng := parseNameRange(opt.Template)
 	if name == "" {
@@ -241,6 +297,11 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 
 	reportDir := filepath.Join(root, report)
 
+	normalizedTplFiles, err := normalizeTemplateFiles(tplFiles)
+	if err != nil {
+		return err
+	}
+
 	var conflicts []string
 	if existing == nil {
 		cfgPath := filepath.Join(root, config.ConfigFileName)
@@ -248,7 +309,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			conflicts = append(conflicts, config.ConfigFileName)
 		}
 	}
-	for n := range tplFiles {
+	for n := range normalizedTplFiles {
 		target := filepath.Join(reportDir, filepath.FromSlash(n))
 		if _, err := os.Stat(target); err == nil {
 			rel, err := filepath.Rel(root, target)
@@ -307,7 +368,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	if err := os.MkdirAll(reportDir, config.PermDirPublic); err != nil {
 		return err
 	}
-	for n, b := range tplFiles {
+	for n, b := range normalizedTplFiles {
 		target := filepath.Join(reportDir, filepath.FromSlash(n))
 		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(reportDir)) {
 			return fmt.Errorf("illegal template path %q", n)

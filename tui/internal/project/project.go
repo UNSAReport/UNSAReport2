@@ -55,10 +55,6 @@ var pkgNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._
 type ProjectDef struct {
 	TypstEntry    string `toml:"typst_entry"`
 	ConfigVersion int    `toml:"config_version"`
-	// LegacyRootMarkerVersion is the pre-rename key for ConfigVersion.
-	// Accepted on read so the rename never breaks existing setups;
-	// never written.
-	LegacyRootMarkerVersion int `toml:"root_marker_version"`
 }
 
 type ScriptDef struct {
@@ -174,12 +170,7 @@ func Load(path string) (SpecConfig, error) {
 	}
 	version := cfg.Project.ConfigVersion
 	if version == 0 {
-		if cfg.Project.LegacyRootMarkerVersion == 0 {
-			return SpecConfig{}, fmt.Errorf("missing config_version in %s (want %d)", config.ConfigFileName, config.ConfigVersion)
-		}
-		version = cfg.Project.LegacyRootMarkerVersion
-	} else if cfg.Project.LegacyRootMarkerVersion != 0 && cfg.Project.LegacyRootMarkerVersion != version {
-		return SpecConfig{}, fmt.Errorf("conflicting config_version %d and root_marker_version %d in %s", version, cfg.Project.LegacyRootMarkerVersion, config.ConfigFileName)
+		return SpecConfig{}, fmt.Errorf("missing config_version in %s (want %d)", config.ConfigFileName, config.ConfigVersion)
 	}
 	if version < 1 || version > config.ConfigVersion {
 		return SpecConfig{}, fmt.Errorf("unsupported config_version %d in %s (supported 1-%d)", version, config.ConfigFileName, config.ConfigVersion)

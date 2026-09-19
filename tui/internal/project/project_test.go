@@ -54,14 +54,15 @@ func TestLoadStrict(t *testing.T) {
 	}
 }
 
-func TestConfigVersionLegacy(t *testing.T) {
+func TestConfigVersion(t *testing.T) {
 	legacy := filepath.Join(t.TempDir(), "unsareport.toml")
 	if err := os.WriteFile(legacy, []byte("[project]\ntypst_entry = \"report.typ\"\nroot_marker_version = 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(legacy); err != nil {
-		t.Fatalf("legacy root_marker_version must still load: %v", err)
+	if _, err := Load(legacy); err == nil {
+		t.Fatal("expected error on unknown field root_marker_version")
 	}
+
 	missing := filepath.Join(t.TempDir(), "unsareport.toml")
 	if err := os.WriteFile(missing, []byte("[project]\ntypst_entry = \"report.typ\"\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -69,12 +70,25 @@ func TestConfigVersionLegacy(t *testing.T) {
 	if _, err := Load(missing); err == nil {
 		t.Fatal("expected missing-version error")
 	}
-	conflict := filepath.Join(t.TempDir(), "unsareport.toml")
-	if err := os.WriteFile(conflict, []byte("[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\nroot_marker_version = 99\n"), 0o644); err != nil {
+
+	wrong := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(wrong, []byte("[project]\ntypst_entry = \"report.typ\"\nconfig_version = 99\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := Load(conflict); err == nil {
-		t.Fatal("expected conflicting-version error")
+	if _, err := Load(wrong); err == nil {
+		t.Fatal("expected unsupported config_version error")
+	}
+
+	valid := filepath.Join(t.TempDir(), "unsareport.toml")
+	if err := os.WriteFile(valid, []byte("[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(valid)
+	if err != nil {
+		t.Fatalf("expected valid config_version to load: %v", err)
+	}
+	if cfg.Project.ConfigVersion != 1 {
+		t.Fatalf("got config_version %d, want 1", cfg.Project.ConfigVersion)
 	}
 }
 

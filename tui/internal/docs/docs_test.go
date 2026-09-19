@@ -223,6 +223,22 @@ func setupMockRegistry(t *testing.T) *httptest.Server {
 		"pkg.toml": "[package]\nname = \"utils\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = []\n",
 		"lib.typ":  "#let util(x) = x\n",
 	})
+	tplpkgComp := createZip(map[string]string{
+		"pkg.toml": "[package]\nname = \"tplpkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = [\"template/**/*\"]\n",
+		"lib.typ":  "#let note(body) = block()[#body]\n",
+	})
+	tplpkgTpl := createZip(map[string]string{
+		"template/report.typ":      "= Templated Report\n",
+		"template/assets/logo.png": "png-bytes",
+	})
+	siblingComp := createZip(map[string]string{
+		"pkg.toml": "[package]\nname = \"siblingpkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = [\"**/*\"]\n",
+		"lib.typ":  "#let note(body) = block()[#body]\n",
+	})
+	siblingTpl := createZip(map[string]string{
+		"template/report.typ": "= Report\n",
+		"README.md":           "# Readme\n",
+	})
 
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
@@ -276,6 +292,22 @@ func setupMockRegistry(t *testing.T) *httptest.Server {
 					_, _ = w.Write(utilsComp)
 					return
 				}
+				if pkgName == "tplpkg" && file == "templates.zip" {
+					_, _ = w.Write(tplpkgTpl)
+					return
+				}
+				if pkgName == "tplpkg" && file == "components.zip" {
+					_, _ = w.Write(tplpkgComp)
+					return
+				}
+				if pkgName == "siblingpkg" && file == "templates.zip" {
+					_, _ = w.Write(siblingTpl)
+					return
+				}
+				if pkgName == "siblingpkg" && file == "components.zip" {
+					_, _ = w.Write(siblingComp)
+					return
+				}
 			}
 		}
 
@@ -306,6 +338,16 @@ func TestInitNonEmptyDirNoConflicts(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(tmp, "unsareport.toml")); err != nil {
 		t.Fatalf("expected unsareport.toml to exist: %v", err)
+	}
+	rawToml, err := os.ReadFile(filepath.Join(tmp, "unsareport.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(rawToml), "root_marker_version") {
+		t.Fatalf("unsareport.toml must not contain root_marker_version: %s", string(rawToml))
+	}
+	if !strings.Contains(string(rawToml), "config_version") {
+		t.Fatalf("unsareport.toml must contain config_version: %s", string(rawToml))
 	}
 
 	// Verify recursive dependency installation
@@ -444,3 +486,148 @@ func TestAddRecursiveDependencies(t *testing.T) {
 		t.Fatal("utils not in lock")
 	}
 }
+
+func TestNormalizeTemplateFiles(t *testing.T) {
+	t.Run("single top level dir with no siblings is stripped", func(t *testing.T) {
+		input := map[string][]byte{
+			"template/report.typ":      []byte("report"),
+			"template/assets/logo.png": []byte("logo"),
+		}
+		got, err := normalizeTemplateFiles(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(got) != 2 {
+			t.Fatalf("got %d files, want 2", len(got))
+		}
+		if string(got["report.typ"]) != "report" {
+			t.Fatalf("expected report.typ to be present")
+		}
+		if string(got["assets/logo.png"]) != "logo" {
+			t.Fatalf("expected assets/logo.png to be present")
+		}
+	})
+
+	t.Run("custom single top level dir is stripped", func(t *testing.T) {
+		input := map[string][]byte{
+			"custom_name/report.typ": []byte("report"),
+		}
+		got, err := normalizeTemplateFiles(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(got["report.typ"]) != "report" {
+			t.Fatalf("expected report.typ to be present")
+		}
+	})
+
+	t.Run("top level dir with sibling file is not stripped", func(t *testing.T) {
+		input := map[string][]byte{
+			"template/report.typ": []byte("report"),
+			"README.md":           []byte("readme"),
+		}
+		got, err := normalizeTemplateFiles(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(got["template/report.typ"]) != "report" {
+			t.Fatalf("expected template/report.typ to be preserved")
+		}
+		if string(got["README.md"]) != "readme" {
+			t.Fatalf("expected README.md to be preserved")
+		}
+	})
+
+	t.Run("multiple top level dirs are not stripped", func(t *testing.T) {
+		input := map[string][]byte{
+			"dir1/a.typ": []byte("a"),
+			"dir2/b.typ": []byte("b"),
+		}
+		got, err := normalizeTemplateFiles(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(got["dir1/a.typ"]) != "a" || string(got["dir2/b.typ"]) != "b" {
+			t.Fatalf("expected multiple top-level dirs to be preserved")
+		}
+	})
+
+	t.Run("files at root are not stripped", func(t *testing.T) {
+		input := map[string][]byte{
+			"report.typ": []byte("report"),
+		}
+		got, err := normalizeTemplateFiles(input)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if string(got["report.typ"]) != "report" {
+			t.Fatalf("expected report.typ to be preserved")
+		}
+	})
+
+	t.Run("rejects path traversal", func(t *testing.T) {
+		input := map[string][]byte{
+			"../outside.typ": []byte("bad"),
+		}
+		if _, err := normalizeTemplateFiles(input); err == nil {
+			t.Fatalf("expected path traversal error")
+		}
+	})
+}
+
+func TestInitTemplateStripsTemplateSubdir(t *testing.T) {
+	srv := setupMockRegistry(t)
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	reportDir := filepath.Join("destination", "dir")
+	err := Init(context.Background(), tmp, InitOptions{
+		Template: "tplpkg",
+		Report:   reportDir,
+	})
+	if err != nil {
+		t.Fatalf("expected Init to succeed, got %v", err)
+	}
+
+	// Verify report.typ is at destination/dir/report.typ
+	reportTypPath := filepath.Join(tmp, reportDir, "report.typ")
+	if _, err := os.Stat(reportTypPath); err != nil {
+		t.Fatalf("expected report.typ at %s: %v", reportTypPath, err)
+	}
+
+	// Verify asset is at destination/dir/assets/logo.png
+	assetPath := filepath.Join(tmp, reportDir, "assets", "logo.png")
+	if _, err := os.Stat(assetPath); err != nil {
+		t.Fatalf("expected logo.png at %s: %v", assetPath, err)
+	}
+
+	// Verify destination/dir/template does NOT exist
+	nestedTemplateDir := filepath.Join(tmp, reportDir, "template")
+	if _, err := os.Stat(nestedTemplateDir); !os.IsNotExist(err) {
+		t.Fatalf("expected %s to NOT exist, but it does", nestedTemplateDir)
+	}
+}
+
+func TestInitTemplateKeepsSiblings(t *testing.T) {
+	srv := setupMockRegistry(t)
+	defer srv.Close()
+
+	tmp := t.TempDir()
+	reportDir := filepath.Join("destination", "dir")
+	err := Init(context.Background(), tmp, InitOptions{
+		Template: "siblingpkg",
+		Report:   reportDir,
+	})
+	if err != nil {
+		t.Fatalf("expected Init to succeed, got %v", err)
+	}
+
+	// Siblings exist (template/ and README.md), so nothing should be stripped
+	if _, err := os.Stat(filepath.Join(tmp, reportDir, "template", "report.typ")); err != nil {
+		t.Fatalf("expected template/report.typ to exist because sibling README.md exists: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(tmp, reportDir, "README.md")); err != nil {
+		t.Fatalf("expected README.md to exist: %v", err)
+	}
+}
+
