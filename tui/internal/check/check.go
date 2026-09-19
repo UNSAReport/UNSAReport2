@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -98,6 +99,12 @@ func hasNestedReport(dir, entry string) (bool, error) {
 	return found, err
 }
 
+var (
+	fnPattern    = regexp.MustCompile(`(?m)#?let\s+[A-Za-z_][\w-]*\s*\(([^)]*)\)`)
+	paramPattern = regexp.MustCompile(`^[A-Za-z_][\w-]*$`)
+	callPattern  = regexp.MustCompile(`\b(read|image)\s*\(\s*([A-Za-z_][\w-]*)\s*[,)]`)
+)
+
 func checkTypstSources(root string) []Finding {
 	var out []Finding
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
@@ -120,13 +127,16 @@ func checkTypstSources(root string) []Finding {
 				out = append(out, Finding{File: rel, Line: i + 1, Message: "legacy /lib.typ import rejected; use /components/<pkg>/..."})
 			}
 			if inComponents {
-				for _, call := range []string{"read(", "image("} {
-					if idx := strings.Index(ln, call); idx >= 0 {
-						arg := strings.TrimSpace(ln[idx+len(call):])
-						for name := range params {
-							if arg == name || strings.HasPrefix(arg, name+",") || strings.HasPrefix(arg, name+")") || strings.HasPrefix(arg, name+" ") {
-								out = append(out, Finding{File: rel, Line: i + 1, Message: fmt.Sprintf("%s on function parameter %q rejected; components take content, never paths", strings.TrimSuffix(call, "("), name)})
-							}
+				for _, m := range callPattern.FindAllStringSubmatch(ln, -1) {
+					if len(m) == 3 {
+						fn := m[1]
+						ident := m[2]
+						if params[ident] {
+							out = append(out, Finding{
+								File:    rel,
+								Line:    i + 1,
+								Message: fmt.Sprintf("%s on function parameter %q rejected; components take content, never paths", fn, ident),
+							})
 						}
 					}
 				}
@@ -139,27 +149,18 @@ func checkTypstSources(root string) []Finding {
 
 func collectParams(src string) map[string]bool {
 	out := map[string]bool{}
-	for _, line := range strings.Split(src, "\n") {
-		t := strings.TrimSpace(line)
-		if strings.HasPrefix(t, "#let ") && strings.Contains(t, "(") {
-			start := strings.Index(t, "(")
-			end := strings.Index(t, ")")
-			if start >= 0 && end > start {
-				for _, p := range strings.Split(t[start+1:end], ",") {
-					p = strings.TrimSpace(p)
-					if p == "" {
-						continue
-					}
-					if idx := strings.Index(p, ":"); idx >= 0 {
-						p = strings.TrimSpace(p[:idx])
-					}
-					if idx := strings.Index(p, "="); idx >= 0 {
-						p = strings.TrimSpace(p[:idx])
-					}
-					if p != "" {
-						out[p] = true
-					}
-				}
+	matches := fnPattern.FindAllStringSubmatch(src, -1)
+	for _, m := range matches {
+		if len(m) < 2 {
+			continue
+		}
+		for _, p := range strings.Split(m[1], ",") {
+			head := strings.TrimSpace(p)
+			if idx := strings.IndexAny(head, ":="); idx >= 0 {
+				head = strings.TrimSpace(head[:idx])
+			}
+			if paramPattern.MatchString(head) {
+				out[head] = true
 			}
 		}
 	}

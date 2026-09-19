@@ -3,6 +3,7 @@ package docs
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -210,6 +211,7 @@ type InitOptions struct {
 	Template string
 	Report   string
 	Yes      bool
+	Flags    []string
 	Confirm  func(conflicts []string) (bool, error)
 }
 
@@ -328,7 +330,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 				return err
 			}
 			if !confirmed {
-				return fmt.Errorf(ErrInitCancelled)
+				return errors.New(ErrInitCancelled)
 			}
 		} else if opt.Yes {
 			fmt.Println(WarnConflictingFiles)
@@ -341,14 +343,14 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 				fmt.Printf("  - %s\n", f)
 			}
 			if !isTTY() {
-				return fmt.Errorf(ErrNonTTYRequiresYes)
+				return errors.New(ErrNonTTYRequiresYes)
 			}
 			ans, err := promptLine(PromptReplaceFiles)
 			if err != nil {
 				return err
 			}
 			if strings.ToLower(ans) != "y" && strings.ToLower(ans) != "yes" {
-				return fmt.Errorf(ErrInitCancelled)
+				return errors.New(ErrInitCancelled)
 			}
 		}
 	}
@@ -381,7 +383,8 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 	}
 
-	if _, err := installComponentTree(ctx, root, name, version); err != nil {
+	p, err := installComponentTree(ctx, root, name, version)
+	if err != nil {
 		return err
 	}
 
@@ -399,6 +402,22 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 		cfg.Dependencies[name] = depRng
 		if err := saveConfig(root, cfg); err != nil {
+			return err
+		}
+	}
+
+	if len(opt.Flags) > 0 {
+		mode, mErr := selectMode(opt.Flags)
+		if mErr != nil {
+			return mErr
+		}
+		if mode != "" && mode != "none" {
+			if err := copyCommands(root, &cfg, p, mode); err != nil {
+				return err
+			}
+		}
+	} else if opt.Yes {
+		if err := copyCommands(root, &cfg, p, "all"); err != nil {
 			return err
 		}
 	}
