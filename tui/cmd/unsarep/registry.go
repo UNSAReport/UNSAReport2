@@ -134,7 +134,10 @@ func newRegistryPublishCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
-			client := registry.NewClient()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
 			if err := client.Publish(ctx, dir, "", ""); err != nil {
 				return err
 			}
@@ -187,7 +190,10 @@ func newRegistryListCmd() *cobra.Command {
 				return usagef(cmd, "--limit must not be negative")
 			}
 			ctx := context.Background()
-			client := registry.NewClient()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
 			pkgs, err := client.ListPackages(ctx)
 			if err != nil {
 				return err

@@ -33,20 +33,33 @@ type Client struct {
 	Store      Store
 }
 
-func NewClient() *Client {
+func NewClient() (*Client, error) {
+	iss, err := config.ResolveAuthURL()
+	if err != nil {
+		return nil, fmt.Errorf("auth configuration error: %w", err)
+	}
 	return NewClientWithConfig(ClientConfig{
-		IDPIssuer:  config.GetAuthURL(),
+		IDPIssuer:  iss,
 		HTTPClient: &http.Client{Timeout: config.AuthTimeout},
 		Store:      NewStore(),
 	})
 }
 
-func NewClientWithConfig(cfg ClientConfig) *Client {
+func NewClientWithConfig(cfg ClientConfig) (*Client, error) {
 	iss := cfg.IDPIssuer
 	if iss == "" {
-		iss = config.GetAuthURL()
+		var err error
+		iss, err = config.ResolveAuthURL()
+		if err != nil {
+			return nil, fmt.Errorf("auth configuration error: %w", err)
+		}
+	} else {
+		var err error
+		iss, err = config.ValidateURL(iss, "IDPIssuer")
+		if err != nil {
+			return nil, fmt.Errorf("auth configuration error: %w", err)
+		}
 	}
-	iss = strings.TrimSuffix(iss, "/")
 	httpc := cfg.HTTPClient
 	if httpc == nil {
 		httpc = &http.Client{Timeout: config.AuthTimeout}
@@ -55,11 +68,11 @@ func NewClientWithConfig(cfg ClientConfig) *Client {
 	if store == nil {
 		store = NewStore()
 	}
-	return &Client{BaseURL: iss, HTTPClient: httpc, Store: store}
+	return &Client{BaseURL: iss, HTTPClient: httpc, Store: store}, nil
 }
 
-func websiteBase() string {
-	return config.GetWebsiteURL()
+func websiteBase() (string, error) {
+	return config.ResolveWebsiteURL()
 }
 
 func (c *Client) resolveToken() string {
@@ -91,7 +104,7 @@ func (c *Client) whoamiWithToken(ctx context.Context, token string) (UserInfo, m
 	req.Header.Set("User-Agent", "unsarep-tui")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return UserInfo{}, nil, err
+		return UserInfo{}, nil, fmt.Errorf("auth service unreachable at %s: %w", c.BaseURL, err)
 	}
 	body, _ := readAll(resp)
 	if resp.StatusCode != 200 {
@@ -235,7 +248,10 @@ func (c *Client) StartLoginFlow() (*LoginFlow, error) {
 	if err != nil {
 		return nil, err
 	}
-	website := websiteBase()
+	website, err := websiteBase()
+	if err != nil {
+		return nil, fmt.Errorf("auth login configuration error: %w", err)
+	}
 	authURL := fmt.Sprintf("%s/auth/login?tui_callback=%s&state=%s", website, url.QueryEscape(cbURL), url.QueryEscape(state))
 	return &LoginFlow{
 		CallbackServer: cb,

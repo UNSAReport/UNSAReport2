@@ -7,10 +7,11 @@ import (
 
 // Default URLs and endpoints
 const (
-	DefaultRegistryURL    = "https://registry.unsareport.org"
-	DefaultAuthURL        = "https://auth.unsareport.org"
-	DefaultSlidesURL      = "https://slides.unsareport.org"
-	DefaultWebsiteURL     = "https://unsareport.org"
+	DefaultBaseURL        = "https://unsareport.ynoacamino.tech"
+	DefaultRegistryURL    = "https://unsareport.ynoacamino.tech/api/registry"
+	DefaultAuthURL        = "https://unsareport.ynoacamino.tech/api/auth"
+	DefaultSlidesURL      = "https://unsareport.ynoacamino.tech/api/slides"
+	DefaultWebsiteURL     = "https://unsareport.ynoacamino.tech"
 	SchemaBaseURL         = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
 	DefaultCallbackHost   = "127.0.0.1:0"
 	CallbackBaseURLPrefix = "http://"

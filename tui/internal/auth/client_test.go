@@ -34,7 +34,10 @@ func TestValidateAndStore(t *testing.T) {
 	if fs.Path != filepath.Join(tmp, "unsareport", "credentials.json") {
 		fs.Path = filepath.Join(tmp, "unsareport", "credentials.json")
 	}
-	client := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: srv.Client(), Store: fs})
+	client, err := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: srv.Client(), Store: fs})
+	if err != nil {
+		t.Fatal(err)
+	}
 	cred, err := client.ValidateAndStore(context.Background(), "unsareport_pat_good")
 	if err != nil {
 		t.Fatal(err)
@@ -66,8 +69,11 @@ func TestValidateAndStoreInvalid(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("UNSAREP_TOKEN", "")
 	fs := &FileStore{Path: filepath.Join(tmp, "unsareport", "credentials.json")}
-	client := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: srv.Client(), Store: fs})
-	_, err := client.ValidateAndStore(context.Background(), "badpat")
+	client, err := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: srv.Client(), Store: fs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = client.ValidateAndStore(context.Background(), "badpat")
 	if err == nil {
 		t.Fatal("should fail")
 	}
@@ -86,7 +92,10 @@ func TestLoginWithToken(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", tmp)
 	t.Setenv("UNSAREP_TOKEN", "")
 	fs := &FileStore{Path: filepath.Join(tmp, "unsareport", "credentials.json")}
-	client := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: &http.Client{Timeout: 2 * time.Second}, Store: fs})
+	client, err := NewClientWithConfig(ClientConfig{IDPIssuer: srv.URL, HTTPClient: &http.Client{Timeout: 2 * time.Second}, Store: fs})
+	if err != nil {
+		t.Fatal(err)
+	}
 	cred, err := client.LoginWithToken(context.Background(), "unsareport_pat_good2")
 	if err != nil {
 		t.Fatal(err)

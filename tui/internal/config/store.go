@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 type XDGConfig struct {
 	APIURL      string `json:"apiUrl,omitempty"`
 	RegistryURL string `json:"registryUrl,omitempty"`
+	SlidesURL   string `json:"slidesUrl,omitempty"`
 	TokenPath   string `json:"tokenPath,omitempty"`
 	Locale      string `json:"locale,omitempty"`
 }
@@ -82,47 +84,94 @@ func SaveXDGConfig(cfg *XDGConfig) error {
 	return nil
 }
 
+// ValidateURL ensures raw is a valid http or https URL with non-empty host,
+// returning the URL without trailing slash.
+func ValidateURL(raw, name string) (string, error) {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" {
+		return "", fmt.Errorf("%s must not be empty", name)
+	}
+	u, err := url.ParseRequestURI(trimmed)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", fmt.Errorf("invalid %s %q: must be a valid http or https URL", name, raw)
+	}
+	return trimmed, nil
+}
+
+func ResolveRegistryURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvRegistryURL)); v != "" {
+		return ValidateURL(v, EnvRegistryURL)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.RegistryURL) != "" {
+		return ValidateURL(cfg.RegistryURL, "xdg config registryUrl")
+	}
+	return ValidateURL(DefaultRegistryURL, "DefaultRegistryURL")
+}
+
+func ResolveSlidesURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvSlidesURL)); v != "" {
+		return ValidateURL(v, EnvSlidesURL)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.SlidesURL) != "" {
+		return ValidateURL(cfg.SlidesURL, "xdg config slidesUrl")
+	}
+	return ValidateURL(DefaultSlidesURL, "DefaultSlidesURL")
+}
+
+func ResolveAuthURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvIDPIssuer)); v != "" {
+		return ValidateURL(v, EnvIDPIssuer)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.APIURL) != "" {
+		return ValidateURL(cfg.APIURL, "xdg config apiUrl")
+	}
+	return ValidateURL(DefaultAuthURL, "DefaultAuthURL")
+}
+
+func ResolveWebsiteURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvWebsiteURL)); v != "" {
+		return ValidateURL(v, EnvWebsiteURL)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.APIURL) != "" {
+		return ValidateURL(cfg.APIURL, "xdg config apiUrl")
+	}
+	return ValidateURL(DefaultWebsiteURL, "DefaultWebsiteURL")
+}
+
 func GetRegistryURL() string {
-	if v := os.Getenv(EnvRegistryURL); v != "" {
-		return v
+	u, err := ResolveRegistryURL()
+	if err != nil {
+		panic(err)
 	}
-	cfg, _ := LoadXDGConfig()
-	if cfg != nil && cfg.RegistryURL != "" {
-		return cfg.RegistryURL
-	}
-	return DefaultRegistryURL
+	return u
 }
 
 func GetSlidesURL() string {
-	if v := os.Getenv(EnvSlidesURL); v != "" {
-		return v
+	u, err := ResolveSlidesURL()
+	if err != nil {
+		panic(err)
 	}
-	if w := os.Getenv(EnvWebsiteURL); w != "" {
-		return strings.TrimSuffix(w, "/") + "/api/slides"
-	}
-	return DefaultSlidesURL
+	return u
 }
 
 func GetAuthURL() string {
-	if v := os.Getenv(EnvIDPIssuer); v != "" {
-		return v
+	u, err := ResolveAuthURL()
+	if err != nil {
+		panic(err)
 	}
-	cfg, _ := LoadXDGConfig()
-	if cfg != nil && cfg.APIURL != "" {
-		return cfg.APIURL
-	}
-	return DefaultAuthURL
+	return u
 }
 
 func GetWebsiteURL() string {
-	if v := os.Getenv(EnvWebsiteURL); v != "" {
-		return strings.TrimSuffix(v, "/")
+	u, err := ResolveWebsiteURL()
+	if err != nil {
+		panic(err)
 	}
-	cfg, _ := LoadXDGConfig()
-	if cfg != nil && cfg.APIURL != "" {
-		return strings.TrimSuffix(cfg.APIURL, "/")
-	}
-	return DefaultWebsiteURL
+	return u
 }
 
 func GetToken() string {

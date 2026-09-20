@@ -91,7 +91,10 @@ func installComponentTree(ctx context.Context, root, name, version string) (pkg.
 }
 
 func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool) (pkg.PkgToml, error) {
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return pkg.PkgToml{}, err
+	}
 	files, err := client.DownloadSection(ctx, name, version, "components")
 	if err != nil {
 		return pkg.PkgToml{}, err
@@ -288,7 +291,10 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		existing = &cfg
 	}
 
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	version, err := client.ResolveVersion(ctx, name, rng)
 	if err != nil {
 		return err
@@ -444,7 +450,10 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err != nil {
 		return err
 	}
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	version, err := client.ResolveVersion(ctx, name, rng)
 	if err != nil {
 		return err
@@ -874,7 +883,10 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 	} else {
 		targets = l.Pkg
 	}
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	for _, t := range targets {
 		version, err := client.ResolveVersion(ctx, t.Name, "*")
 		if err != nil {

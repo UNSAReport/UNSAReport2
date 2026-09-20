@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
@@ -48,11 +47,15 @@ type Client struct {
 }
 
 // NewClient builds a client against the configured slides service URL.
-func NewClient() *Client {
-	return &Client{
-		BaseURL:    strings.TrimSuffix(config.GetSlidesURL(), "/"),
-		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+func NewClient() (*Client, error) {
+	base, err := config.ResolveSlidesURL()
+	if err != nil {
+		return nil, fmt.Errorf("slides configuration error: %w", err)
 	}
+	return &Client{
+		BaseURL:    base,
+		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+	}, nil
 }
 
 func (c *Client) authToken() string {
@@ -89,7 +92,7 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	c.setAuth(req, token)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("slides service unreachable: %w", err)
+		return fmt.Errorf("slides service unreachable at %s: %w", c.BaseURL, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {

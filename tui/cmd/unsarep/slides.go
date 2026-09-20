@@ -289,7 +289,10 @@ func newSlidesDeployCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client := slides.NewClient()
+			client, err := slides.NewClient()
+			if err != nil {
+				return err
+			}
 			dir := slidesCwd()
 			project, err := slides.LoadProjectConfig(dir)
 			if err != nil {
@@ -352,8 +355,14 @@ func newSlidesWhoamiCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client := slides.NewClient()
-			authClient := auth.NewClient()
+			client, err := slides.NewClient()
+			if err != nil {
+				return err
+			}
+			authClient, err := auth.NewClient()
+			if err != nil {
+				return err
+			}
 			cred, user, err := authClient.Status(ctx)
 			if err != nil {
 				return fmt.Errorf("slides whoami: %w", err)

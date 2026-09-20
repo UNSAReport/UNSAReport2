@@ -38,15 +38,17 @@ type Client struct {
 	CachePath  string
 }
 
-func NewClient() *Client {
-	base := config.GetRegistryURL()
-	base = strings.TrimSuffix(base, "/")
+func NewClient() (*Client, error) {
+	base, err := config.ResolveRegistryURL()
+	if err != nil {
+		return nil, fmt.Errorf("registry configuration error: %w", err)
+	}
 	cache := filepath.Join(xdgCacheDir(), config.CacheFileName)
 	return &Client{
 		BaseURL:    base,
 		HTTPClient: &http.Client{Timeout: config.RegistryTimeout},
 		CachePath:  cache,
-	}
+	}, nil
 }
 
 func xdgCacheDir() string {
@@ -94,11 +96,11 @@ func (c *Client) ListPackages(ctx context.Context) ([]PackageInfo, error) {
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("registry unavailable: %w", err)
+		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("registry unavailable: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("registry error at %s: status %d", base, resp.StatusCode)
 	}
 	var out struct {
 		Packages []PackageInfo `json:"packages"`
@@ -139,11 +141,11 @@ func (c *Client) Resolve(ctx context.Context, reqs map[string]string) ([]Resolve
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("registry unavailable: %w", err)
+		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("registry unavailable: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("registry error at %s: status %d", base, resp.StatusCode)
 	}
 	var out struct {
 		Resolved []ResolvedPackage `json:"resolved"`
@@ -190,11 +192,11 @@ func (c *Client) DownloadSection(ctx context.Context, name, version, section str
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("archive metadata request: %w", err)
+		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("get archive URL failed: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("registry archive metadata request at %s failed: status %d", base, resp.StatusCode)
 	}
 	var archiveResp struct {
 		ArchiveURL string `json:"archive_url"`
@@ -343,7 +345,7 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("publish request: %w", err)
+		return fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
@@ -352,9 +354,9 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 			Message string `json:"message"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&errObj); err == nil && errObj.Message != "" {
-			return fmt.Errorf("publish failed (%d): %s", resp.StatusCode, errObj.Message)
+			return fmt.Errorf("publish failed at %s (%d): %s", base, resp.StatusCode, errObj.Message)
 		}
-		return fmt.Errorf("publish failed: status %d", resp.StatusCode)
+		return fmt.Errorf("publish failed at %s: status %d", base, resp.StatusCode)
 	}
 	return nil
 }
