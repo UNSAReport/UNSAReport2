@@ -15,6 +15,7 @@ import (
 
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
+	"github.com/UNSAReport/tui/internal/pkg"
 	"github.com/UNSAReport/tui/internal/project"
 )
 
@@ -631,3 +632,85 @@ func TestInitTemplateKeepsSiblings(t *testing.T) {
 	}
 }
 
+func configTestPkg(schema map[string]pkg.ConfigSchemaEntry) pkg.PkgToml {
+	return pkg.PkgToml{
+		Package: pkg.PackageDef{Name: "@unsareport/epis-lab", Version: "0.1.0", CommandPrefix: "epis-lab"},
+		Commands: map[string]pkg.CommandDef{
+			"copy-report": {Description: "copy", Commands: project.OSCommands{"any": {"echo hi"}}},
+		},
+		ConfigSchema: schema,
+	}
+}
+
+func TestCollectPackageConfigAllMode(t *testing.T) {
+	root := t.TempDir()
+	cfg := &project.SpecConfig{}
+	p := configTestPkg(map[string]pkg.ConfigSchemaEntry{
+		"filename_format": {Type: "string", Required: true, Default: "{course_abbr}.pdf"},
+		"retries":         {Type: "int", Required: false},
+	})
+	if err := copyCommands(root, cfg, p, "all"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "unsareport.d", "config", "unsareport-epis-lab.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(raw)
+	if !strings.Contains(body, `filename_format = "{course_abbr}.pdf"`) {
+		t.Fatalf("fragment %q", body)
+	}
+	if strings.Contains(body, "retries") {
+		t.Fatalf("optional key without default must be skipped: %q", body)
+	}
+	env := cfg.ConfigEnv("@unsareport/epis-lab")
+	if len(env) != 1 || env[0] != "UNSAREP_CONFIG_EPIS_LAB_FILENAME_FORMAT={course_abbr}.pdf" {
+		t.Fatalf("env %+v", env)
+	}
+}
+
+func TestCollectPackageConfigRequiredFailsHeadless(t *testing.T) {
+	root := t.TempDir()
+	cfg := &project.SpecConfig{}
+	p := configTestPkg(map[string]pkg.ConfigSchemaEntry{
+		"filename_format": {Type: "string", Required: true},
+	})
+	if err := copyCommands(root, cfg, p, "all"); err == nil {
+		t.Fatal("expected required-without-default error")
+	}
+}
+
+func TestRunHooksConfigEnv(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "unsareport.toml"), []byte("[project]\ntypst_entry = \"main.typ\"\nconfig_version = 1\n\n[hooks.build]\nafter = [\"lab:copy\"]\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "unsareport.d", "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	script := "alias = \"lab:copy\"\ndescription = \"copy\"\norigin = \"@unsareport/epis-lab\"\n\n[commands]\nany = \"printenv UNSAREP_CONFIG_EPIS_LAB_FILENAME_FORMAT > got.txt\"\n"
+	if err := os.WriteFile(filepath.Join(root, "unsareport.d", "scripts", "lab-copy.toml"), []byte(script), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(root, "unsareport.d", "config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	conf := "origin = \"@unsareport/epis-lab\"\nenv_prefix = \"EPIS_LAB\"\n\n[values]\nfilename_format = \"{course_abbr}.pdf\"\n"
+	if err := os.WriteFile(filepath.Join(root, "unsareport.d", "config", "unsareport-epis-lab.toml"), []byte(conf), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := project.Load(filepath.Join(root, "unsareport.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runHooks(root, "build", project.HookAfter, cfg, nil); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "got.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(raw)) != "{course_abbr}.pdf" {
+		t.Fatalf("hook saw %q", raw)
+	}
+}

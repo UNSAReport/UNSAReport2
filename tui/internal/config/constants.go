@@ -77,6 +77,7 @@ const (
 	EnvLocale          = "UNSAREP_LOCALE"
 	EnvReportDir       = "UNSAREP_REPORT_DIR"
 	EnvTypstEntry      = "UNSAREP_TYPST_ENTRY"
+	EnvConfigPrefix    = "UNSAREP_CONFIG_"
 	EnvXDGConfigHome   = "XDG_CONFIG_HOME"
 	EnvXDGCacheHome    = "XDG_CACHE_HOME"
 	EnvSSHConnection   = "SSH_CONNECTION"

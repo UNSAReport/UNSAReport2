@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -78,6 +79,10 @@ type SpecConfig struct {
 	Hooks        map[string]HookTiming `toml:"hooks"`
 	Package      *PackageDecl          `toml:"package"`
 	Dependencies map[string]string     `toml:"dependencies"`
+	// PackageConfig holds installed per-package config values keyed by
+	// package origin. Fragment-owned (unsareport.d/config/); never
+	// persisted to the root file (see RootOnly).
+	PackageConfig map[string]PackageValues `toml:"-"`
 
 	provenance map[string]string
 }
@@ -102,6 +107,26 @@ type HookFragment struct {
 	Before   []string `toml:"before"`
 	After    []string `toml:"after"`
 	Origin   string   `toml:"origin"`
+}
+
+// ConfigFragment is one unsareport.d/config/*.toml file: installed
+// per-package config values for the package named by Origin.
+type ConfigFragment struct {
+	Origin    string            `toml:"origin"`
+	EnvPrefix string            `toml:"env_prefix"`
+	Values    map[string]string `toml:"values"`
+}
+
+// PackageValues is the merged in-memory view of one ConfigFragment.
+type PackageValues struct {
+	EnvPrefix string
+	Values    map[string]string
+}
+
+// ConfigFileName returns the config fragment filename for a package origin.
+func ConfigFileName(origin string) string {
+	r := strings.NewReplacer("@", "", "/", "-", ":", "-")
+	return r.Replace(origin) + ".toml"
 }
 
 const (
@@ -245,6 +270,7 @@ func hookProvKey(std, when, alias string) string {
 // would inline imports back into it.
 func (c SpecConfig) RootOnly() SpecConfig {
 	out := c
+	out.PackageConfig = nil
 	if c.Scripts != nil {
 		scripts := make(map[string]ScriptDef, len(c.Scripts))
 		for alias, def := range c.Scripts {
@@ -359,6 +385,33 @@ func mergeFragments(root string, cfg *SpecConfig) error {
 		}
 		cfg.Hooks[frag.Standard] = merged
 	}
+	confs, err := fragmentFiles(filepath.Join(root, config.ConfigDirName, "config"))
+	if err != nil {
+		return err
+	}
+	if cfg.PackageConfig == nil {
+		cfg.PackageConfig = map[string]PackageValues{}
+	}
+	for _, f := range confs {
+		var frag ConfigFragment
+		if err := decodeFragment(f, &frag); err != nil {
+			return err
+		}
+		rel := relRoot(root, f)
+		if strings.TrimSpace(frag.Origin) == "" {
+			return fmt.Errorf("%s: fragment origin must not be empty", rel)
+		}
+		if strings.TrimSpace(frag.EnvPrefix) == "" {
+			return fmt.Errorf("%s: fragment env_prefix must not be empty", rel)
+		}
+		if _, ok := cfg.PackageConfig[frag.Origin]; ok {
+			return fmt.Errorf("duplicate config for package %q (%s)", frag.Origin, rel)
+		}
+		if frag.Values == nil {
+			frag.Values = map[string]string{}
+		}
+		cfg.PackageConfig[frag.Origin] = PackageValues{EnvPrefix: frag.EnvPrefix, Values: frag.Values}
+	}
 	return nil
 }
 
@@ -435,4 +488,55 @@ func Detect(start string) (*Context, error) {
 		return nil, err
 	}
 	return &Context{Root: root, Config: cfg, IsProject: true}, nil
+}
+
+// SanitizeEnvPart maps text to [A-Z0-9_]: letters and digits uppercased,
+// anything else an underscore. Used for env prefix and key segments.
+func SanitizeEnvPart(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToUpper(s) {
+		if r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+	}
+	return b.String()
+}
+
+// ConfigEnv returns UNSAREP_CONFIG_<PREFIX>_<KEY>=value entries for the
+// package that owns origin, or nil when it has no installed config.
+func (c SpecConfig) ConfigEnv(origin string) []string {
+	pc, ok := c.PackageConfig[origin]
+	if !ok || len(pc.Values) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(pc.Values))
+	for k := range pc.Values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	out := make([]string, 0, len(keys))
+	for _, k := range keys {
+		out = append(out, config.EnvConfigPrefix+pc.EnvPrefix+"_"+SanitizeEnvPart(k)+"="+pc.Values[k])
+	}
+	return out
+}
+
+// ScriptOrigin returns the package origin that installed alias, or "" when
+// the alias is root-owned or its fragment cannot be read.
+func (c SpecConfig) ScriptOrigin(root, alias string) string {
+	rel := c.provenance["script:"+alias]
+	if rel == "" {
+		return ""
+	}
+	raw, err := os.ReadFile(filepath.Join(root, filepath.FromSlash(rel)))
+	if err != nil {
+		return ""
+	}
+	var frag ScriptFragment
+	if _, err := toml.Decode(string(raw), &frag); err != nil {
+		return ""
+	}
+	return frag.Origin
 }

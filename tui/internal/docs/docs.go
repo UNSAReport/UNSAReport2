@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -592,6 +593,142 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			}
 		}
 	}
+	if len(p.ConfigSchema) > 0 && (len(selected) > 0 || len(bound) > 0) {
+		if err := collectPackageConfig(root, cfg, p, prefix, mode); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// collectPackageConfig gathers a package's [config-schema] values at install
+// time and persists them to unsareport.d/config/<origin>.toml. Existing
+// values survive reinstalls; only missing keys are collected. In ask mode
+// each missing key prompts (empty accepts the default); in yes/all modes
+// defaults apply silently and a required key without default is a hard
+// error (fail fast headless).
+func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, prefix, mode string) error {
+	origin := p.Package.Name
+	keys := make([]string, 0, len(p.ConfigSchema))
+	for k := range p.ConfigSchema {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	vals := map[string]string{}
+	if cfg.PackageConfig != nil {
+		for k, v := range cfg.PackageConfig[origin].Values {
+			vals[k] = v
+		}
+	}
+	for _, k := range keys {
+		e := p.ConfigSchema[k]
+		if v, ok := vals[k]; ok {
+			if err := checkConfigType(k, e.Type, v); err != nil {
+				return err
+			}
+			continue
+		}
+		def, hasDef := configDefault(e)
+		var val string
+		switch mode {
+		case "ask":
+			prompt := fmt.Sprintf("package %q config %q", origin, k)
+			if e.Doc != "" {
+				prompt += fmt.Sprintf(" (%s)", e.Doc)
+			}
+			if hasDef {
+				prompt += fmt.Sprintf(" [default %s]:", def)
+			} else {
+				prompt += " (required):"
+			}
+			line, err := promptLine(prompt)
+			if err != nil {
+				return err
+			}
+			val = strings.TrimSpace(line)
+			if val == "" {
+				val = def
+			}
+			if val == "" {
+				if e.Required {
+					return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+				}
+				continue
+			}
+		case "yes", "all":
+			if !hasDef {
+				if e.Required {
+					return fmt.Errorf("package %q requires config %q with no default; re-run with prompts", origin, k)
+				}
+				continue
+			}
+			val = def
+		default:
+			return fmt.Errorf("unknown command-select mode %q", mode)
+		}
+		if err := checkConfigType(k, e.Type, val); err != nil {
+			return err
+		}
+		vals[k] = val
+	}
+	if len(vals) == 0 {
+		return nil
+	}
+	envPrefix := project.SanitizeEnvPart(prefix)
+	if envPrefix == "" {
+		return fmt.Errorf("package %q yields an empty config env prefix", origin)
+	}
+	frag := project.ConfigFragment{Origin: origin, EnvPrefix: envPrefix, Values: vals}
+	dir := filepath.Join(root, config.ConfigDirName, "config")
+	if err := os.MkdirAll(dir, config.PermDirPublic); err != nil {
+		return err
+	}
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
+		return fmt.Errorf("encode config fragment: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, project.ConfigFileName(origin)), []byte(buf.String()), config.PermFilePublic); err != nil {
+		return err
+	}
+	if cfg.PackageConfig == nil {
+		cfg.PackageConfig = map[string]project.PackageValues{}
+	}
+	cfg.PackageConfig[origin] = project.PackageValues{EnvPrefix: envPrefix, Values: vals}
+	return nil
+}
+
+// configDefault renders a schema default to its env string form.
+func configDefault(e pkg.ConfigSchemaEntry) (string, bool) {
+	if e.Default == nil {
+		return "", false
+	}
+	switch v := e.Default.(type) {
+	case string:
+		return v, true
+	case bool:
+		return strconv.FormatBool(v), true
+	case int64:
+		return strconv.FormatInt(v, 10), true
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true
+	default:
+		return fmt.Sprintf("%v", v), true
+	}
+}
+
+// checkConfigType validates a config value against its schema type. Paths
+// stay unchecked: values like filename formats are not filesystem paths.
+func checkConfigType(key, typ, val string) error {
+	switch typ {
+	case "bool":
+		if _, err := strconv.ParseBool(val); err != nil {
+			return fmt.Errorf("config %q must be bool, got %q", key, val)
+		}
+	case "int":
+		if _, err := strconv.Atoi(val); err != nil {
+			return fmt.Errorf("config %q must be int, got %q", key, val)
+		}
+	}
 	return nil
 }
 
@@ -695,7 +832,11 @@ func runHooks(root, std, when string, cfg project.SpecConfig, env []string) erro
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
-		if err := scripts.RunScript(root, cmd, "", env); err != nil {
+		hookEnv := env
+		if origin := cfg.ScriptOrigin(root, name); origin != "" {
+			hookEnv = append(append([]string{}, env...), cfg.ConfigEnv(origin)...)
+		}
+		if err := scripts.RunScript(root, cmd, "", hookEnv); err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
 	}
@@ -1101,5 +1242,9 @@ func Run(cwd, alias string, args []string) error {
 	if err != nil {
 		return err
 	}
-	return scripts.RunScript(root, cmd, extra, nil)
+	var cfgEnv []string
+	if origin := cfg.ScriptOrigin(root, alias); origin != "" {
+		cfgEnv = cfg.ConfigEnv(origin)
+	}
+	return scripts.RunScript(root, cmd, extra, cfgEnv)
 }
