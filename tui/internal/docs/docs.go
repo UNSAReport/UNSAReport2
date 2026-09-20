@@ -666,7 +666,7 @@ func relHookPath(root, path string) string {
 	return path
 }
 
-func runHooks(root, std, when string, cfg project.SpecConfig) error {
+func runHooks(root, std, when string, cfg project.SpecConfig, env []string) error {
 	timing, ok := cfg.Hooks[std]
 	if !ok {
 		return nil
@@ -695,7 +695,7 @@ func runHooks(root, std, when string, cfg project.SpecConfig) error {
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
-		if err := scripts.RunScript(root, cmd, ""); err != nil {
+		if err := scripts.RunScript(root, cmd, "", env); err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
 	}
@@ -954,13 +954,13 @@ func Check(cwd string) error {
 	if err != nil {
 		return err
 	}
-	if err := runHooks(root, "check", project.HookBefore, cfg); err != nil {
+	if err := runHooks(root, "check", project.HookBefore, cfg, nil); err != nil {
 		return err
 	}
 	if err := runCheck(root); err != nil {
 		return err
 	}
-	return runHooks(root, "check", project.HookAfter, cfg)
+	return runHooks(root, "check", project.HookAfter, cfg, nil)
 }
 
 func typstBin() (string, error) {
@@ -1028,7 +1028,8 @@ func Build(cwd, report string) error {
 	if err := runCheck(root); err != nil {
 		return err
 	}
-	if err := runHooks(root, "build", project.HookBefore, cfg); err != nil {
+	hookEnvBefore := []string{config.EnvReportDir + "=" + report}
+	if err := runHooks(root, "build", project.HookBefore, cfg, hookEnvBefore); err != nil {
 		return err
 	}
 	bin, err := typstBin()
@@ -1041,6 +1042,7 @@ func Build(cwd, report string) error {
 		return err
 	}
 	in := filepath.Join(reportDir, entry)
+	hookEnvAfter := []string{config.EnvReportDir + "=" + report, config.EnvTypstEntry + "=" + entry}
 	out := filepath.Join(reportDir, "report.pdf")
 	cmd := exec.Command(bin, "compile", "--root", root, in, out)
 	cmd.Dir = root
@@ -1050,7 +1052,7 @@ func Build(cwd, report string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("typst compile failed: %w", err)
 	}
-	return runHooks(root, "build", project.HookAfter, cfg)
+	return runHooks(root, "build", project.HookAfter, cfg, hookEnvAfter)
 }
 
 func Watch(cwd, report string) error {
@@ -1099,5 +1101,5 @@ func Run(cwd, alias string, args []string) error {
 	if err != nil {
 		return err
 	}
-	return scripts.RunScript(root, cmd, extra)
+	return scripts.RunScript(root, cmd, extra, nil)
 }

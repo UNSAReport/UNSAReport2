@@ -101,8 +101,9 @@ func shellForOS() (string, string) {
 
 // RunScript executes a selected command with <root> cwd, fail-fast per
 // line. Blank lines are skipped; a command with no runnable lines is an
-// error. extraArgs is appended to every line, as before.
-func RunScript(root, script, extraArgs string) error {
+// error. extraArgs is appended to every line, as before. extraEnv entries
+// ("KEY=value") are appended to the child environment.
+func RunScript(root, script, extraArgs string, extraEnv []string) error {
 	var lines []string
 	for _, body := range strings.Split(script, "\n") {
 		if strings.TrimSpace(body) != "" {
@@ -120,6 +121,9 @@ func RunScript(root, script, extraArgs string) error {
 		}
 		cmd := exec.Command(shell, flag, line)
 		cmd.Dir = root
+		if len(extraEnv) > 0 {
+			cmd.Env = append(os.Environ(), extraEnv...)
+		}
 		cmd.Stdin = os.Stdin
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr

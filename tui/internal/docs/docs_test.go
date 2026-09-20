@@ -52,10 +52,10 @@ func hookTestConfig() project.SpecConfig {
 func TestRunHooksBeforeAfterOrder(t *testing.T) {
 	root := t.TempDir()
 	cfg := hookTestConfig()
-	if err := runHooks(root, "build", project.HookBefore, cfg); err != nil {
+	if err := runHooks(root, "build", project.HookBefore, cfg, nil); err != nil {
 		t.Fatal(err)
 	}
-	if err := runHooks(root, "build", project.HookAfter, cfg); err != nil {
+	if err := runHooks(root, "build", project.HookAfter, cfg, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, err := os.ReadFile(filepath.Join(root, "order.txt"))
@@ -73,7 +73,7 @@ func TestRunHooksAfterSkippedOnBeforeFailure(t *testing.T) {
 	cfg.Scripts["a:pre"] = project.ScriptDef{
 		Commands: project.ScriptCommands{"any": "echo pre >> order.txt\nexit 1"},
 	}
-	if err := runHooks(root, "build", project.HookBefore, cfg); err == nil {
+	if err := runHooks(root, "build", project.HookBefore, cfg, nil); err == nil {
 		t.Fatal("expected before-hook failure")
 	}
 	raw, err := os.ReadFile(filepath.Join(root, "order.txt"))
@@ -85,7 +85,7 @@ func TestRunHooksAfterSkippedOnBeforeFailure(t *testing.T) {
 	}
 	// Fail-fast lives with the caller (Check/Build stop on error): the after
 	// filter alone would still run post, so callers must not invoke it.
-	if err := runHooks(root, "build", project.HookAfter, cfg); err != nil {
+	if err := runHooks(root, "build", project.HookAfter, cfg, nil); err != nil {
 		t.Fatal(err)
 	}
 	raw, err = os.ReadFile(filepath.Join(root, "order.txt"))

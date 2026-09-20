@@ -116,10 +116,10 @@ func TestHookApplies(t *testing.T) {
 }
 
 func TestRunScriptBlank(t *testing.T) {
-	if err := RunScript(t.TempDir(), "", ""); err == nil {
+	if err := RunScript(t.TempDir(), "", "", nil); err == nil {
 		t.Fatal("expected blank-command error")
 	}
-	if err := RunScript(t.TempDir(), "  \n\t\n", ""); err == nil {
+	if err := RunScript(t.TempDir(), "  \n\t\n", "", nil); err == nil {
 		t.Fatal("expected blank-command error")
 	}
 }
