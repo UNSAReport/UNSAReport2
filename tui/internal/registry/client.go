@@ -16,6 +16,7 @@ import (
 
 	"github.com/UNSAReport/tui/internal/auth"
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/UNSAReport/tui/internal/pkg"
 )
 
 type PackageInfo struct {
@@ -314,12 +315,12 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 	_ = templatesGlob
 	var reqBody bytes.Buffer
 	mw := multipart.NewWriter(&reqBody)
-	fw, err := mw.CreateFormField("pkg")
+	fw, err := mw.CreateFormField("manifest")
 	if err != nil {
-		return fmt.Errorf("create pkg field: %w", err)
+		return fmt.Errorf("create manifest field: %w", err)
 	}
 	if _, err := fw.Write([]byte(pkgText)); err != nil {
-		return fmt.Errorf("write pkg field: %w", err)
+		return fmt.Errorf("write manifest field: %w", err)
 	}
 	compZip, _, err := zipAll(compDir)
 	if err != nil {
@@ -359,4 +360,175 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 		return fmt.Errorf("publish failed at %s: status %d", base, resp.StatusCode)
 	}
 	return nil
+}
+
+func (c *Client) PushScope(ctx context.Context, dir string) error {
+	base, err := c.base()
+	if err != nil {
+		return err
+	}
+	cfgPath := filepath.Join(dir, config.ConfigFileName)
+	raw, err := os.ReadFile(cfgPath)
+	if err != nil {
+		return fmt.Errorf("read %s in %s: %w", config.ConfigFileName, dir, err)
+	}
+	p, err := pkg.Parse(string(raw))
+	if err != nil {
+		return err
+	}
+	if p.Scope == nil {
+		return fmt.Errorf("%s has no [scope] declaration", config.ConfigFileName)
+	}
+	if p.Scope.Name == "" {
+		return fmt.Errorf("[scope] missing name")
+	}
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for _, pattern := range p.Scope.Files {
+		matches, gerr := filepath.Glob(filepath.Join(dir, pattern))
+		if gerr != nil {
+			_ = zw.Close()
+			return fmt.Errorf("glob %q: %w", pattern, gerr)
+		}
+		for _, m := range matches {
+			rel, relErr := filepath.Rel(dir, m)
+			if relErr != nil {
+				continue
+			}
+			fBytes, rErr := os.ReadFile(m)
+			if rErr != nil {
+				continue
+			}
+			w, cErr := zw.Create(filepath.ToSlash(rel))
+			if cErr != nil {
+				_ = zw.Close()
+				return cErr
+			}
+			if _, wErr := w.Write(fBytes); wErr != nil {
+				_ = zw.Close()
+				return wErr
+			}
+		}
+	}
+	if err := zw.Close(); err != nil {
+		return err
+	}
+
+	var reqBody bytes.Buffer
+	mw := multipart.NewWriter(&reqBody)
+	fw, err := mw.CreateFormField("manifest")
+	if err != nil {
+		return err
+	}
+	if _, err := fw.Write(raw); err != nil {
+		return err
+	}
+	fz, err := mw.CreateFormFile("files", "scope.zip")
+	if err != nil {
+		return err
+	}
+	if _, err := fz.Write(buf.Bytes()); err != nil {
+		return err
+	}
+	if err := mw.Close(); err != nil {
+		return err
+	}
+
+	u := fmt.Sprintf("%s/v1/scopes/%s/contents", base, url.PathEscape(p.Scope.Name))
+	req, err := http.NewRequestWithContext(ctx, "POST", u, &reqBody)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	req.Header.Set("User-Agent", "unsarep-tui")
+	c.setAuth(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("registry unreachable at %s: %w", base, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		var errObj struct {
+			Error   string `json:"error"`
+			Message string `json:"message"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errObj); err == nil && errObj.Message != "" {
+			return fmt.Errorf("push scope failed (%d): %s", resp.StatusCode, errObj.Message)
+		}
+		return fmt.Errorf("push scope failed: status %d", resp.StatusCode)
+	}
+	return nil
+}
+
+func (c *Client) DownloadScopeArchive(ctx context.Context, scopeName string) (map[string][]byte, error) {
+	base, err := c.base()
+	if err != nil {
+		return nil, err
+	}
+	u := fmt.Sprintf("%s/v1/scopes/%s/archive", base, url.PathEscape(scopeName))
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", "unsarep-tui")
+	c.setAuth(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("scope archive failed: status %d", resp.StatusCode)
+	}
+	var resObj struct {
+		DownloadURL string `json:"downloadUrl"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&resObj); err != nil {
+		return nil, err
+	}
+	if resObj.DownloadURL == "" {
+		return nil, nil
+	}
+
+	downReq, err := http.NewRequestWithContext(ctx, "GET", resObj.DownloadURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	downResp, err := c.HTTPClient.Do(downReq)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = downResp.Body.Close() }()
+	if downResp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("download scope payload failed: status %d", downResp.StatusCode)
+	}
+	rawZip, err := io.ReadAll(downResp.Body)
+	if err != nil {
+		return nil, err
+	}
+	zr, err := zip.NewReader(bytes.NewReader(rawZip), int64(len(rawZip)))
+	if err != nil {
+		return nil, err
+	}
+	out := make(map[string][]byte, len(zr.File))
+	for _, f := range zr.File {
+		if f.FileInfo().IsDir() {
+			continue
+		}
+		rc, err := f.Open()
+		if err != nil {
+			return nil, err
+		}
+		data, err := io.ReadAll(rc)
+		_ = rc.Close()
+		if err != nil {
+			return nil, err
+		}
+		out[filepath.ToSlash(f.Name)] = data
+	}
+	return out, nil
 }

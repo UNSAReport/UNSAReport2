@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/pkg"
 )
 
@@ -167,9 +168,9 @@ func scanTemplateContent(templatePath, content string, presentFiles map[string]b
 }
 
 func CheckPackageDir(dir string) error {
-	raw, err := os.ReadFile(filepath.Join(dir, "pkg.toml"))
+	raw, err := os.ReadFile(filepath.Join(dir, config.ConfigFileName))
 	if err != nil {
-		return fmt.Errorf("pkg.toml not found in %s: %w", dir, err)
+		return fmt.Errorf("%s not found in %s: %w", config.ConfigFileName, dir, err)
 	}
 	p, err := pkg.Parse(string(raw))
 	if err != nil {

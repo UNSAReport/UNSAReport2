@@ -7,14 +7,16 @@ import (
 	"testing"
 )
 
-const basePkgToml = `[package]
-name = "cardo"
+const basePkgToml = `[project]
+config_version = 1
+
+[package]
+name = "@scope/cardo"
 version = "0.1.0"
 description = "cards"
 
 [components]
 files = ["lib.typ", "assets/**/*"]
-depends_on = []
 
 [templates]
 files = ["template/**/*"]
@@ -23,7 +25,7 @@ files = ["template/**/*"]
 func setupPackageDir(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "pkg.toml"), []byte(basePkgToml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "unsareport.toml"), []byte(basePkgToml), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "lib.typ"), []byte("#let card(x) = x\n"), 0o644); err != nil {

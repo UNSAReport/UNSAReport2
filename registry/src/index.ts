@@ -5,6 +5,7 @@ import { globalErrorHandler } from '@/middleware/error-handler';
 import adminRouter from '@/routes/admin';
 import downloadRouter from '@/routes/download';
 import packagesRouter from '@/routes/packages';
+import { scopesRouter } from '@/routes/scopes';
 import tagsRouter from '@/routes/tags';
 import type { HonoEnv } from '@/types';
 
@@ -33,6 +34,7 @@ app.onError(globalErrorHandler);
 
 const v1 = new Hono<HonoEnv>();
 v1.route('/packages', packagesRouter);
+v1.route('/scopes', scopesRouter);
 v1.route('/tags', tagsRouter);
 v1.route('/admin', adminRouter);
 v1.route('/', downloadRouter);

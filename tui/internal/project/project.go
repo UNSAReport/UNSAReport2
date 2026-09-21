@@ -14,7 +14,7 @@ import (
 )
 
 // OSCommands maps an OS key (any|linux|windows|macos) to shell lines.
-// This is the published pkg.toml shape; local scripts use ScriptCommands.
+// This is the published unsareport.toml shape; local scripts use ScriptCommands.
 type OSCommands map[string][]string
 
 // ScriptCommands maps an OS key (any|linux|windows|macos) to one shell

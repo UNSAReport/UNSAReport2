@@ -6,17 +6,22 @@ import (
 )
 
 const validToml = `
+[project]
+config_version = 1
+
 [package]
-name = "cardo"
+name = "@test/cardo"
 version = "1.2.0"
 description = "cards"
 displayName = "Cardo"
 tags = ["Layout"]
 command_prefix = "cardo"
 
+[dependencies]
+"@test/theme" = ">=1.0.0, <2.0.0"
+
 [components]
 files = ["lib.typ", "parts/*.typ"]
-depends_on = ["theme >=1.0.0, <2.0.0"]
 
 [templates]
 files = []
@@ -34,7 +39,7 @@ func TestParseValid(t *testing.T) {
 	if err := Validate(p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Package.Name != "cardo" || len(p.Components.Files) != 2 {
+	if p.Package.Name != "@test/cardo" || len(p.Components.Files) != 2 {
 		t.Fatalf("parsed %+v", p.Package)
 	}
 	if len(p.Commands["zip"].Commands["any"]) != 1 || len(p.Commands["zip"].Commands["linux"]) != 1 {
@@ -43,9 +48,9 @@ func TestParseValid(t *testing.T) {
 }
 
 func TestValidateScopedNames(t *testing.T) {
-	accept := []string{"cardo", "@xxx/yyy", "my.pkg", "my_pkg", "a~b"}
+	accept := []string{"@xxx/yyy", "@test/my.pkg", "@test/my_pkg", "@test/a~b"}
 	for _, name := range accept {
-		p, err := Parse(strings.Replace(validToml, `name = "cardo"`, `name = "`+name+`"`, 1))
+		p, err := Parse(strings.Replace(validToml, `name = "@test/cardo"`, `name = "`+name+`"`, 1))
 		if err != nil {
 			t.Fatalf("%s: parse: %v", name, err)
 		}
@@ -53,9 +58,9 @@ func TestValidateScopedNames(t *testing.T) {
 			t.Fatalf("%s: expected accept: %v", name, err)
 		}
 	}
-	reject := []string{"@xxx", "xxx/", "@/y", "a/b/c", "MyPkg", ".foo", "-foo", "_foo", "foo bar", "foo:bar", "foo%20x", "ab"}
+	reject := []string{"cardo", "@xxx", "xxx/", "@/y", "a/b/c", "MyPkg", ".foo", "-foo", "_foo", "foo bar", "foo:bar", "foo%20x", "ab"}
 	for _, name := range reject {
-		p, err := Parse(strings.Replace(validToml, `name = "cardo"`, `name = "`+name+`"`, 1))
+		p, err := Parse(strings.Replace(validToml, `name = "@test/cardo"`, `name = "`+name+`"`, 1))
 		if err != nil {
 			continue
 		}
@@ -66,14 +71,14 @@ func TestValidateScopedNames(t *testing.T) {
 }
 
 func TestValidateScopedDependsOn(t *testing.T) {
-	p, err := Parse(strings.Replace(validToml, "theme >=1.0.0, <2.0.0", "@xxx/theme ^1.0.0", 1))
+	p, err := Parse(strings.Replace(validToml, `"@test/theme" = ">=1.0.0, <2.0.0"`, `"@xxx/theme" = "^1.0.0"`, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := Validate(p); err != nil {
 		t.Fatalf("expected scoped depends_on accept: %v", err)
 	}
-	p, err = Parse(strings.Replace(validToml, "theme >=1.0.0, <2.0.0", "Bad_Name ^1.0.0", 1))
+	p, err = Parse(strings.Replace(validToml, `"@test/theme" = ">=1.0.0, <2.0.0"`, `"Bad_Name" = "^1.0.0"`, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -87,10 +92,10 @@ func TestValidateRejects(t *testing.T) {
 		name   string
 		mutate func(string) string
 	}{
-		{"bad name", func(s string) string { return strings.Replace(s, `name = "cardo"`, `name = "Bad Name!"`, 1) }},
+		{"bad name", func(s string) string { return strings.Replace(s, `name = "@test/cardo"`, `name = "Bad Name!"`, 1) }},
 		{"bad version", func(s string) string { return strings.Replace(s, `version = "1.2.0"`, `version = "1.2"`, 1) }},
 		{"abs glob", func(s string) string { return strings.Replace(s, `"lib.typ"`, `"/lib.typ"`, 1) }},
-		{"bad range", func(s string) string { return strings.Replace(s, "theme >=1.0.0, <2.0.0", "theme not-a-range", 1) }},
+		{"bad range", func(s string) string { return strings.Replace(s, `">=1.0.0, <2.0.0"`, `"not-a-range"`, 1) }},
 		{"entrypoint dropped", func(s string) string { return s + "\n[package]\nentrypoint = \"lib.typ\"\n" }},
 		{"default_select dropped", func(s string) string {
 			return strings.Replace(s, `commands = { any`, `default_select = true`+"\ncommands = { any", 1)

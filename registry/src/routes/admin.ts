@@ -1,7 +1,14 @@
 import { and, desc, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { db } from '@/db';
-import { packages, packageVersions, trustedUsers } from '@/db/schema';
+import {
+  packages,
+  packageVersions,
+  scopeMembers,
+  scopeRequests,
+  scopes,
+  trustedUsers,
+} from '@/db/schema';
 import {
   requestPackageName,
   scopedNameRoute,
@@ -281,6 +288,194 @@ adminRouter.delete('/trusted/:userId', async (c) => {
   return c.json({
     message: `Trusted status revoked for user '${targetUserId}'`,
   });
+});
+
+/**
+ * List all pending scope requests.
+ */
+adminRouter.get('/scopes/requests', async (c) => {
+  const requests = await db
+    .select()
+    .from(scopeRequests)
+    .where(eq(scopeRequests.status, 'pending'))
+    .orderBy(desc(scopeRequests.createdAt));
+  return c.json({ requests });
+});
+
+/**
+ * Approve a pending scope request.
+ */
+adminRouter.post('/scopes/requests/:id/approve', async (c) => {
+  const user = c.get('user')!;
+  const id = c.req.param('id');
+
+  const reqRows = await db
+    .select()
+    .from(scopeRequests)
+    .where(
+      and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')),
+    )
+    .limit(1);
+
+  if (reqRows.length === 0) {
+    throw new NotFoundError(`Pending scope request "${id}" not found`);
+  }
+  const request = reqRows[0];
+
+  const existingScope = await db
+    .select({ id: scopes.id })
+    .from(scopes)
+    .where(eq(scopes.name, request.scopeName))
+    .limit(1);
+
+  if (existingScope.length > 0) {
+    throw new ConflictError(
+      `Scope "${request.scopeName}" already exists in registry`,
+    );
+  }
+
+  const now = new Date();
+  const scopeId = crypto.randomUUID();
+
+  await db.insert(scopes).values({
+    id: scopeId,
+    name: request.scopeName,
+    description: `Scope approved for reason: ${request.reason}`,
+    ownerId: request.requestedBy,
+    scopeType: 'custom',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await db.insert(scopeMembers).values({
+    id: crypto.randomUUID(),
+    scopeId,
+    userId: request.requestedBy,
+    role: 'admin',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await db
+    .update(scopeRequests)
+    .set({
+      status: 'approved',
+      reviewedBy: user.id,
+      reviewedAt: now,
+    })
+    .where(eq(scopeRequests.id, id));
+
+  return c.json({
+    message: `Scope request for "${request.scopeName}" approved`,
+    scope: { id: scopeId, name: request.scopeName, ownerId: request.requestedBy },
+  });
+});
+
+/**
+ * Reject a pending scope request.
+ */
+adminRouter.post('/scopes/requests/:id/reject', async (c) => {
+  const user = c.get('user')!;
+  const id = c.req.param('id');
+
+  const body = (await c.req.json().catch(() => ({}))) as {
+    reason?: string;
+  };
+  const rejectionReason = body.reason?.trim() ?? 'Rejected by admin';
+
+  const reqRows = await db
+    .select()
+    .from(scopeRequests)
+    .where(
+      and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')),
+    )
+    .limit(1);
+
+  if (reqRows.length === 0) {
+    throw new NotFoundError(`Pending scope request "${id}" not found`);
+  }
+
+  const now = new Date();
+  await db
+    .update(scopeRequests)
+    .set({
+      status: 'rejected',
+      reviewedBy: user.id,
+      reviewedAt: now,
+      rejectionReason,
+    })
+    .where(eq(scopeRequests.id, id));
+
+  return c.json({
+    message: `Scope request "${id}" rejected`,
+    rejectionReason,
+  });
+});
+
+/**
+ * Direct admin scope creation or assignment (e.g. bootstrap @unsareport).
+ */
+adminRouter.post('/scopes', async (c) => {
+  const user = c.get('user')!;
+  const body = (await c.req.json().catch(() => ({}))) as {
+    name?: string;
+    description?: string;
+    ownerId?: string;
+  };
+
+  const name = body.name?.trim();
+  if (!name || !name.startsWith('@')) {
+    throw new ValidationError(
+      'Field "name" is required and must start with "@"',
+      { field: 'name' },
+    );
+  }
+
+  const existing = await db
+    .select({ id: scopes.id })
+    .from(scopes)
+    .where(eq(scopes.name, name))
+    .limit(1);
+
+  if (existing.length > 0) {
+    throw new ConflictError(`Scope "${name}" already exists`);
+  }
+
+  const ownerId = body.ownerId?.trim() || user.id;
+  const scopeId = crypto.randomUUID();
+  const now = new Date();
+
+  await db.insert(scopes).values({
+    id: scopeId,
+    name,
+    description: body.description?.trim() || `Admin-created scope ${name}`,
+    ownerId,
+    scopeType: 'custom',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await db.insert(scopeMembers).values({
+    id: crypto.randomUUID(),
+    scopeId,
+    userId: ownerId,
+    role: 'admin',
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return c.json(
+    {
+      scope: {
+        id: scopeId,
+        name,
+        description: body.description,
+        ownerId,
+        scopeType: 'custom',
+      },
+    },
+    201,
+  );
 });
 
 export default adminRouter;

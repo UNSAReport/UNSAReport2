@@ -84,8 +84,8 @@ func TestDownloadSection(t *testing.T) {
 
 func TestPublish(t *testing.T) {
 	tmpDir := t.TempDir()
-	pkgToml := "[package]\nname = \"test-pkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = []\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "pkg.toml"), []byte(pkgToml), 0o600); err != nil {
+	pkgToml := "[project]\nconfig_version = 1\n\n[package]\nname = \"@test/pkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "unsareport.toml"), []byte(pkgToml), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(tmpDir, "lib.typ"), []byte("#let x = 1"), 0o600); err != nil {
@@ -106,6 +106,6 @@ func TestPublish(t *testing.T) {
 	}
 	empty := t.TempDir()
 	if err := c.Publish(context.Background(), empty, "", ""); err == nil {
-		t.Fatal("expected pkg.toml error")
+		t.Fatal("expected unsareport.toml error")
 	}
 }

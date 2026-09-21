@@ -10,6 +10,8 @@ import {
   packages,
   packageTags,
   packageVersions,
+  scopeMembers,
+  scopes,
   tags,
   trustedUsers,
 } from '@/db/schema';
@@ -19,7 +21,11 @@ import {
   scopedNameRoute,
   unscopedNameRoute,
 } from '@/lib/package-name';
-import { expandGlobs, parsePkgToml, validatePkgToml } from '@/lib/pkg-toml';
+import {
+  expandGlobs,
+  parseUnsareportToml,
+  validateUnsareportToml,
+} from '@/lib/unsareport-toml';
 import {
   buildAndUploadZipArchive,
   deleteS3Object,
@@ -303,7 +309,7 @@ packagesRouter.on(
 );
 
 /**
- * Route handler for publishing a new package version from a pkg.toml
+ * Route handler for publishing a new package version from an unsareport.toml
  * document plus a components/templates .zip payload (split archives).
  */
 packagesRouter.post('/', requireAuth, async (c) => {
@@ -315,11 +321,14 @@ packagesRouter.post('/', requireAuth, async (c) => {
   const formData = await c.req.parseBody({ all: true });
 
   let pkgText: string | null = null;
-  const pkgField = formData.pkg ?? formData['pkg.toml'];
-  if (typeof pkgField === 'string') {
-    pkgText = pkgField;
-  } else if (pkgField instanceof File) {
-    pkgText = await pkgField.text();
+  const manifestField =
+    formData.manifest ??
+    formData['unsareport.toml'] ??
+    formData.pkg;
+  if (typeof manifestField === 'string') {
+    pkgText = manifestField;
+  } else if (manifestField instanceof File) {
+    pkgText = await manifestField.text();
   }
 
   let archiveFile: File | null = null;
@@ -357,14 +366,9 @@ packagesRouter.post('/', requireAuth, async (c) => {
   }
 
   if (!pkgText || pkgText.trim().length === 0) {
-    const hasManifestJson = Object.keys(zip.files).some(
-      (name) => name === 'manifest.json' || name.endsWith('/manifest.json'),
-    );
     throw new ValidationError(
-      hasManifestJson
-        ? 'Package uses manifest.json which is no longer supported; publish with a pkg.toml document in the "pkg" multipart field instead'
-        : 'Missing pkg.toml document in the "pkg" multipart field',
-      { field: 'pkg' },
+      'Missing unsareport.toml document in the "manifest" or "unsareport.toml" multipart field',
+      { field: 'manifest' },
     );
   }
 
@@ -389,8 +393,8 @@ packagesRouter.post('/', requireAuth, async (c) => {
     zipBuffers.set(normalized, await entry.async('nodebuffer'));
   }
 
-  const rawPkg = parsePkgToml(pkgText);
-  const pkg = validatePkgToml(rawPkg, {
+  const rawPkg = parseUnsareportToml(pkgText);
+  const pkg = validateUnsareportToml(rawPkg, {
     presentFiles: zipPaths,
     readFile: (path) => {
       const buf = zipBuffers.get(path);
@@ -400,13 +404,75 @@ packagesRouter.post('/', requireAuth, async (c) => {
     },
   });
 
+  if (!pkg.name || !pkg.version) {
+    throw new ValidationError(
+      'unsareport.toml requires a [package] table to publish a package',
+      { field: 'package' },
+    );
+  }
+
+  // Ensure package is scoped
+  if (!pkg.name.startsWith('@')) {
+    throw new ValidationError(
+      'Unscoped packages are not allowed. Please publish under your personal scope (@<slug>) or request a custom scope.',
+      { field: 'package.name' },
+    );
+  }
+
+  const slashIndex = pkg.name.indexOf('/');
+  const scopeName = slashIndex === -1 ? pkg.name : pkg.name.slice(0, slashIndex);
+
+  // Verify scope exists in database
+  const scopeRows = await db
+    .select()
+    .from(scopes)
+    .where(eq(scopes.name, scopeName))
+    .limit(1);
+
+  if (scopeRows.length === 0) {
+    throw new ForbiddenError(
+      `Scope "${scopeName}" does not exist in registry. You must create or request the scope before publishing.`,
+    );
+  }
+  const scope = scopeRows[0];
+
+  // Verify user authorization: system admin, scope owner, or scope member (admin or contributor)
+  const isSysAdmin = user.roles.includes('admin');
+  const isOwner = scope.ownerId === user.id;
+  let isAuthorized = isSysAdmin || isOwner;
+
+  if (!isAuthorized) {
+    const memberRows = await db
+      .select({ role: scopeMembers.role })
+      .from(scopeMembers)
+      .where(
+        and(
+          eq(scopeMembers.scopeId, scope.id),
+          eq(scopeMembers.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (
+      memberRows.length > 0 &&
+      (memberRows[0].role === 'admin' || memberRows[0].role === 'contributor')
+    ) {
+      isAuthorized = true;
+    }
+  }
+
+  if (!isAuthorized) {
+    throw new ForbiddenError(
+      `User is not authorized to publish packages under scope "${scopeName}". Contributor or admin membership is required.`,
+    );
+  }
+
   const componentPaths = expandGlobs(pkg.componentGlobs, zipPaths);
   const templatePaths = expandGlobs(pkg.templateGlobs, zipPaths);
   const templateOnly = templatePaths.filter((p) => !componentPaths.includes(p));
   const overlap = templatePaths.filter((p) => componentPaths.includes(p));
   if (overlap.length > 0) {
     throw new ValidationError(
-      `pkg.toml [components] and [templates] globs overlap on "${overlap[0]}"; a file belongs to exactly one section`,
+      `unsareport.toml [components] and [templates] globs overlap on "${overlap[0]}"; a file belongs to exactly one section`,
       { field: 'templates.files' },
     );
   }
@@ -420,7 +486,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
   let packageId: string;
 
   if (existingPkg.length > 0) {
-    if (existingPkg[0].authorId !== user.id && !user.roles.includes('admin')) {
+    if (existingPkg[0].authorId !== user.id && !isAuthorized) {
       throw new ForbiddenError(
         `Package '${pkg.name}' is owned by another user`,
       );
@@ -447,10 +513,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
     packageId = crypto.randomUUID();
   }
 
-  const declaredDeps: Record<string, string> = {};
-  for (const dep of pkg.dependsOn) {
-    declaredDeps[dep.name] = dep.range;
-  }
+  const declaredDeps: Record<string, string> = pkg.dependencies ?? {};
 
   if (Object.keys(declaredDeps).length > 0) {
     for (const depName of Object.keys(declaredDeps)) {
@@ -462,8 +525,8 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
       if (depPkg.length === 0) {
         throw new ValidationError(
-          `pkg.toml [components] depends_on '${depName}' does not exist in registry`,
-          { field: 'components.depends_on' },
+          `unsareport.toml [dependencies] package '${depName}' does not exist in registry`,
+          { field: `dependencies.${depName}` },
         );
       }
     }
@@ -580,7 +643,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
       path,
       content: zipBuffers.get(path) as Buffer,
     })),
-    { path: 'pkg.toml', content: Buffer.from(pkgText, 'utf8') },
+    { path: 'unsareport.toml', content: Buffer.from(pkgText, 'utf8') },
   ];
   await buildAndUploadZipArchive(componentsS3Key, componentsArchive);
 

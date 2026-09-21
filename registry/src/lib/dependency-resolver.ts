@@ -17,7 +17,7 @@ import type { ResolvedPackage } from '@/types';
 
 /**
  * Fetches declared dependency names and version ranges for a given package version ID.
- * Rows are populated from pkg.toml [components] depends_on at publish time.
+ * Rows are populated from unsareport.toml [components] depends_on at publish time.
  *
  * @param versionId - Unique identifier of the package version.
  * @returns Array of dependency records containing dependencyName and versionRange.
@@ -36,7 +36,7 @@ async function getVersionDependencies(versionId: string) {
  * Traverses dependency trees of existing packages to detect circular dependency chains involving a newly uploaded package.
  *
  * @param uploadPackageName - Name of the package being uploaded.
- * @param declaredDependencies - Key-value map of pkg.toml depends_on entries (dependency names to SemVer ranges).
+ * @param declaredDependencies - Key-value map of unsareport.toml depends_on entries (dependency names to SemVer ranges).
  * @throws ValidationError if a circular dependency cycle is detected.
  */
 export async function checkCircularDependencies(

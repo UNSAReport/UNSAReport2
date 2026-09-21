@@ -15,10 +15,28 @@ const TABLE_TRUSTED_USERS = 'trusted_users';
 const TABLE_TAGS = 'tags';
 const TABLE_PACKAGE_TAGS = 'package_tags';
 const TABLE_PACKAGE_DEPENDENCIES = 'package_dependencies';
+const TABLE_SCOPES = 'scopes';
+const TABLE_SCOPE_MEMBERS = 'scope_members';
 
 let mockPackages: Record<string, unknown>[] = [];
 let mockVersions: Record<string, unknown>[] = [];
 let mockFiles: Record<string, unknown>[] = [];
+let mockScopes: Record<string, unknown>[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000010',
+    name: '@xxx',
+    ownerId: MOCK_USER_ID,
+    scopeType: 'custom',
+  },
+];
+let mockScopeMembers: Record<string, unknown>[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000011',
+    scopeId: '00000000-0000-4000-8000-000000000010',
+    userId: MOCK_USER_ID,
+    role: 'admin',
+  },
+];
 
 function createMockQuery(tableName: string) {
   const getRows = (): Record<string, unknown>[] => {
@@ -30,6 +48,12 @@ function createMockQuery(tableName: string) {
     }
     if (tableName === TABLE_PACKAGE_FILES) {
       return [...mockFiles];
+    }
+    if (tableName === TABLE_SCOPES) {
+      return [...mockScopes];
+    }
+    if (tableName === TABLE_SCOPE_MEMBERS) {
+      return [...mockScopeMembers];
     }
     if (
       tableName === TABLE_TRUSTED_USERS ||
@@ -170,7 +194,7 @@ function postPublish(form: FormData) {
   );
 }
 
-describe('POST /v1/packages pkg.toml gate', () => {
+describe('POST /v1/packages unsareport.toml gate', () => {
   it('rejects manifest.json-only uploads with 400', async () => {
     const archive = await buildZip({
       'manifest.json': JSON.stringify({
@@ -187,7 +211,7 @@ describe('POST /v1/packages pkg.toml gate', () => {
     expect(res.status).toBe(400);
     const data = (await res.json()) as { error: string; message: string };
     expect(data.error).toBe('ValidationError');
-    expect(data.message).toMatch(/pkg\.toml/);
+    expect(data.message).toMatch(/unsareport\.toml/);
   });
 
   it('rejects uploads with no pkg field and no manifest with 400', async () => {
@@ -198,13 +222,13 @@ describe('POST /v1/packages pkg.toml gate', () => {
     const res = await postPublish(form);
     expect(res.status).toBe(400);
     const data = (await res.json()) as { error: string; message: string };
-    expect(data.message).toMatch(/Missing pkg\.toml/);
+    expect(data.message).toMatch(/Missing unsareport\.toml/);
   });
 
-  it('rejects invalid pkg.toml text with 400', async () => {
+  it('rejects invalid unsareport.toml text with 400', async () => {
     const archive = await buildZip({ 'lib.typ': '#let x = 1' });
     const form = new FormData();
-    form.append('pkg', '[package');
+    form.append('manifest', '[package');
     form.append('components', archive);
 
     const res = await postPublish(form);
@@ -215,7 +239,7 @@ describe('POST /v1/packages pkg.toml gate', () => {
 
   it('rejects missing archive with 400', async () => {
     const form = new FormData();
-    form.append('pkg', '[package]\nname = "cardo"\n');
+    form.append('manifest', '[project]\nconfig_version = 1\n\n[package]\nname = "@xxx/cardo"\n');
 
     const res = await postPublish(form);
     expect(res.status).toBe(400);
@@ -225,6 +249,9 @@ describe('POST /v1/packages pkg.toml gate', () => {
     await db.delete(packages).where(eq(packages.name, '@xxx/yyy'));
     try {
       const pkgText = [
+        '[project]',
+        'config_version = 1',
+        '',
         '[package]',
         'name = "@xxx/yyy"',
         'version = "0.0.1"',

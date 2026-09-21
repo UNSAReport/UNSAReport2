@@ -11,21 +11,28 @@ import (
 	"github.com/UNSAReport/tui/internal/project"
 )
 
-// resolvePublishSource returns the pkg.toml document and the components dir to
-// zip. Standalone package dirs (pkg.toml present) publish as-is. Project roots
-// with a [package] declaration in unsareport.toml publish the authored subtree
-// components/<name>/ with an explicit file list and depends_on synthesized
-// from [dependencies].
+// resolvePublishSource returns the unsareport.toml document and the components dir to
+// zip. Standalone package dirs (unsareport.toml with [package] and [components]) publish as-is.
+// Project roots with a [package] declaration in unsareport.toml publish the authored subtree
+// components/<name>/ with an explicit file list and [dependencies].
 func resolvePublishSource(dir string) (pkgText, compDir string, err error) {
-	if raw, rerr := os.ReadFile(filepath.Join(dir, "pkg.toml")); rerr == nil {
+	configPath := filepath.Join(dir, config.ConfigFileName)
+	raw, rerr := os.ReadFile(configPath)
+	if rerr != nil {
+		return "", "", fmt.Errorf("%s not found in %s: %w", config.ConfigFileName, dir, rerr)
+	}
+
+	// Try standalone package check first
+	if p, perr := pkg.Parse(string(raw)); perr == nil && p.Package.Name != "" && len(p.Components.Files) > 0 {
 		return string(raw), dir, nil
 	}
-	cfg, cerr := project.Load(filepath.Join(dir, config.ConfigFileName))
+
+	cfg, cerr := project.Load(configPath)
 	if cerr != nil {
-		return "", "", fmt.Errorf("no pkg.toml and no publishable [package] in %s: %v", dir, cerr)
+		return "", "", fmt.Errorf("no publishable [package] in %s: %v", dir, cerr)
 	}
 	if cfg.Package == nil {
-		return "", "", fmt.Errorf("no pkg.toml in %s and unsareport.toml has no [package] declaration", dir)
+		return "", "", fmt.Errorf("%s in %s has no [package] declaration", config.ConfigFileName, dir)
 	}
 	sub := filepath.Join(dir, "components", cfg.Package.Name)
 	st, serr := os.Stat(sub)
@@ -54,12 +61,10 @@ func resolvePublishSource(dir string) (pkgText, compDir string, err error) {
 		return "", "", fmt.Errorf("no files under components/%s", cfg.Package.Name)
 	}
 	sort.Strings(files)
-	var deps []string
-	for name, rng := range cfg.Dependencies {
-		deps = append(deps, name+" "+rng)
-	}
-	sort.Strings(deps)
 	synth := pkg.PkgToml{
+		Project: pkg.ProjectDef{
+			ConfigVersion: config.ConfigVersion,
+		},
 		Package: pkg.PackageDef{
 			Name:          cfg.Package.Name,
 			Version:       cfg.Package.Version,
@@ -68,8 +73,9 @@ func resolvePublishSource(dir string) (pkgText, compDir string, err error) {
 			Tags:          cfg.Package.Tags,
 			CommandPrefix: cfg.Package.CommandPrefix,
 		},
-		Components: pkg.ComponentsDef{Files: files, DependsOn: deps},
-		Templates:  pkg.TemplatesDef{Files: []string{}},
+		Dependencies: cfg.Dependencies,
+		Components:   pkg.ComponentsDef{Files: files},
+		Templates:    pkg.TemplatesDef{Files: []string{}},
 	}
 	if err := pkg.Validate(synth); err != nil {
 		return "", "", err
