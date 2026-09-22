@@ -38,6 +38,7 @@ import {
   ConflictError,
   ForbiddenError,
   NotFoundError,
+  PayloadTooLargeError,
   RateLimitError,
   UnauthorizedError,
   ValidationError,
@@ -337,8 +338,13 @@ packagesRouter.post('/', requireAuth, async (c) => {
       { field: 'components' },
     );
   }
-
   const rawZipBuffer = Buffer.from(await archiveFile.arrayBuffer());
+  if (rawZipBuffer.length > config.maxArchiveBytes) {
+    throw new PayloadTooLargeError(
+      `Package archive exceeds the ${config.maxArchiveBytes} byte limit`,
+      { field: 'components', limit: config.maxArchiveBytes },
+    );
+  }
   let zip: JSZip;
   try {
     zip = await JSZip.loadAsync(rawZipBuffer);

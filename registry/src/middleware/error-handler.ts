@@ -50,6 +50,12 @@ export class ConflictError extends AppError {
   }
 }
 
+export class PayloadTooLargeError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 413, details);
+  }
+}
+
 export class RateLimitError extends AppError {
   constructor(message = 'Rate limit exceeded') {
     super(message, 429);

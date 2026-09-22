@@ -1,5 +1,6 @@
 import {
   DEFAULT_PACKAGES_LIMIT,
+  MAX_ARCHIVE_BYTES,
   PRESIGN_SECONDS,
 } from '@unsa/schemas/constants';
 
@@ -55,5 +56,9 @@ export const config = {
   maxPendingPackages: parseIntOrThrow(
     process.env.MAX_PENDING_PACKAGES || '5',
     'MAX_PENDING_PACKAGES',
+  ),
+  maxArchiveBytes: parseIntOrThrow(
+    process.env.MAX_ARCHIVE_BYTES || String(MAX_ARCHIVE_BYTES),
+    'MAX_ARCHIVE_BYTES',
   ),
 };

@@ -1,6 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { eq, getTableName } from 'drizzle-orm';
 import JSZip from 'jszip';
+import { config } from '@/config';
 import * as schema from '@/db/schema';
 
 const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
@@ -376,20 +377,30 @@ describe('POST /v1/packages invalid behavior', () => {
   });
 
   it('rejects oversized archives with 413', async () => {
-    const archive = await buildZip({ 'lib.typ': '#let x = 1' });
-    const buf = Buffer.from(await archive.arrayBuffer());
-    expect(buf.length).toBeGreaterThan(0);
-    const res = await app.fetch(
-      new Request('http://localhost/v1/packages', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Bearer test-token',
-          'Content-Length': String(60 * 1024 * 1024),
-        },
-        body: new Uint8Array(8),
-      }),
-    );
-    expect([400, 413].includes(res.status)).toBe(true);
+    const originalLimit = config.maxArchiveBytes;
+    Object.defineProperty(config, 'maxArchiveBytes', {
+      value: 8,
+      configurable: true,
+    });
+    try {
+      const archive = await buildZip({ 'lib.typ': '#let x = 1' });
+      const form = new FormData();
+      form.append(
+        'manifest',
+        '[project]\nconfig_version = 1\n\n[package]\nname = "@xxx/yyy"\nversion = "9.9.9"\n',
+      );
+      form.append('components', archive);
+      const res = await postPublish(form);
+      expect(res.status).toBe(413);
+      const data = (await res.json()) as { error: string; message: string };
+      expect(data.error).toBe('PayloadTooLargeError');
+      expect(data.message).toMatch(/exceeds/);
+    } finally {
+      Object.defineProperty(config, 'maxArchiveBytes', {
+        value: originalLimit,
+        configurable: true,
+      });
+    }
   });
 
   it('rejects unknown archive section with 400', async () => {

@@ -142,7 +142,7 @@ describe('Role Management Endpoints & Integration', () => {
 
     expect(res.status).toBe(404);
     const body = await res.json();
-    expect(body.error).toBe('Not Found');
+    expect(body.error).toBe('NotFoundError');
   });
 
   test('5. List roles for sub-app — returns all users with roles', async () => {
@@ -199,7 +199,7 @@ describe('Role Management Endpoints & Integration', () => {
 
     expect(res.status).toBe(403);
     const body = await res.json();
-    expect(body.error).toBe('Forbidden');
+    expect(body.error).toBe('ForbiddenError');
   });
 
   test('8. Admin-key bypass — success', async () => {
