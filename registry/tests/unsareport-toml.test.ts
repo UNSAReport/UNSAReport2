@@ -300,10 +300,7 @@ describe('unsareport.toml invalid documents', () => {
     });
 
     const rawInvalidKey = parseUnsareportToml(
-      BASE_TOML.replace(
-        'before = ["cardo:greet"]',
-        'during = ["cardo:greet"]',
-      ),
+      BASE_TOML.replace('before = ["cardo:greet"]', 'during = ["cardo:greet"]'),
     );
     expect(() => validateUnsareportToml(rawInvalidKey, filesCtx())).toThrow(
       /unknown key "during"/,
