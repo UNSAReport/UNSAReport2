@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/pkg"
 )
 
@@ -82,7 +83,6 @@ func resolveBundledAssetPath(templatePath, rawPath string, presentFiles map[stri
 		return "", false
 	}
 
-	// 1. Relative to template directory:
 	templateDir := path.Dir(templatePath)
 	fromTemplateDir := rawPath
 	if templateDir != "" && templateDir != "." {
@@ -92,7 +92,6 @@ func resolveBundledAssetPath(templatePath, rawPath string, presentFiles map[stri
 		return norm, true
 	}
 
-	// 2. Relative to package root:
 	if norm, ok := normalizeRelativePosixPath(rawPath); ok && presentFiles[norm] {
 		return norm, true
 	}
@@ -167,9 +166,9 @@ func scanTemplateContent(templatePath, content string, presentFiles map[string]b
 }
 
 func CheckPackageDir(dir string) error {
-	raw, err := os.ReadFile(filepath.Join(dir, "pkg.toml"))
+	raw, err := os.ReadFile(filepath.Join(dir, config.ConfigFileName))
 	if err != nil {
-		return fmt.Errorf("pkg.toml not found in %s: %w", dir, err)
+		return fmt.Errorf("%s not found in %s: %w", config.ConfigFileName, dir, err)
 	}
 	p, err := pkg.Parse(string(raw))
 	if err != nil {

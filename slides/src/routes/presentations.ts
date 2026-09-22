@@ -26,10 +26,6 @@ const presentationsRouter = new Hono<HonoEnv>();
 
 presentationsRouter.use('*', requireAuth, requireSlidesRole);
 
-/**
- * Resolves the deploy target owner from the request payload: the deploying
- * user, or an organization (by slug) the user belongs to with a non-viewer role.
- */
 async function resolveOwner(
   userId: string,
   orgSlug: string | undefined,
@@ -63,10 +59,6 @@ async function resolveOwner(
   return { ownerType: 'organization', ownerId: org.id };
 }
 
-/**
- * Deploys a slide bundle: validates the manifest, upserts the presentation
- * slot, and records a new immutable version snapshot.
- */
 presentationsRouter.post('/deploy', async (c) => {
   const user = c.get('user');
   const body = await c.req.json().catch(() => ({}));
@@ -150,10 +142,6 @@ presentationsRouter.post('/deploy', async (c) => {
   return c.json(response);
 });
 
-/**
- * Lists presentations visible to the caller: own slots plus slots of
- * organizations the caller belongs to.
- */
 presentationsRouter.get('/', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -190,10 +178,6 @@ presentationsRouter.get('/', async (c) => {
   return c.json({ presentations: [...own, ...orgSlots] });
 });
 
-/**
- * Returns one presentation with its versions, enforcing visibility:
- * owners and org members always; public/unlisted slots for any caller.
- */
 presentationsRouter.get('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -234,6 +218,26 @@ presentationsRouter.get('/:id', async (c) => {
   ) {
     allowed = true;
   }
+  if (
+    !allowed &&
+    presentation.visibility === 'org' &&
+    presentation.ownerType === 'user'
+  ) {
+    const ownerOrgIds = await db
+      .select({ orgId: orgMembers.orgId })
+      .from(orgMembers)
+      .where(eq(orgMembers.userId, presentation.ownerId));
+    if (ownerOrgIds.length > 0) {
+      const callerOrgIds = await db
+        .select({ orgId: orgMembers.orgId })
+        .from(orgMembers)
+        .where(eq(orgMembers.userId, userId));
+      const callerSet = new Set(callerOrgIds.map((m) => m.orgId));
+      if (ownerOrgIds.some((m) => callerSet.has(m.orgId))) {
+        allowed = true;
+      }
+    }
+  }
   if (!allowed) {
     throw new NotFoundError('Presentation not found');
   }
@@ -253,10 +257,6 @@ const updateSchema = z.object({
   thumbnailUrl: z.string().url().nullable().optional(),
 });
 
-/**
- * Updates presentation metadata. Allowed for the owning user or org
- * owner/admin members.
- */
 presentationsRouter.patch('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -303,9 +303,6 @@ presentationsRouter.patch('/:id', async (c) => {
   return c.json({ presentation: updated });
 });
 
-/**
- * Deletes a presentation and all its versions (cascade). Same permission as update.
- */
 presentationsRouter.delete('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -328,10 +325,6 @@ presentationsRouter.delete('/:id', async (c) => {
   return c.json({ success: true, message: 'Presentation deleted' });
 });
 
-/**
- * Throws unless the user owns the slot (user-owned) or holds an
- * owner/admin membership (org-owned).
- */
 async function assertCanManage(
   userId: string,
   ownerType: string,

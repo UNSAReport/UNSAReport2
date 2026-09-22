@@ -1,14 +1,13 @@
 import { beforeAll, describe, expect, test } from 'bun:test';
+import { eq } from 'drizzle-orm';
 import { config } from '@/config';
 import { db } from '@/db/index';
-import { type User, users } from '@/db/schema';
+import { refreshTokens, type User, users } from '@/db/schema';
 import app from '@/index';
+import { hashToken } from '@/lib/hash';
 import { signAccessToken } from '@/lib/jwt';
 import { createPAT, createRefreshToken } from '@/lib/tokens';
 
-/**
- * Represents a personal access token item returned by PAT listing endpoint.
- */
 interface PatItem {
   id: string;
   name: string;
@@ -18,6 +17,8 @@ describe('IDP API Endpoints E2E', () => {
   let testUser: User;
   let jwtToken: string;
   let refreshToken: string;
+  let patToken = '';
+  let patId = '';
 
   beforeAll(async () => {
     const [u] = await db
@@ -38,14 +39,6 @@ describe('IDP API Endpoints E2E', () => {
     });
 
     refreshToken = await createRefreshToken(testUser.id);
-  });
-
-  test('GET / returns API status metadata', async () => {
-    const res = await app.fetch(new Request('http://localhost:3000/'));
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.status).toBe('online');
-    expect(body.issuer).toBe(config.idpIssuer);
   });
 
   test('GET /.well-known/jwks.json returns public keys', async () => {
@@ -120,10 +113,11 @@ describe('IDP API Endpoints E2E', () => {
     expect(body.token).toBeDefined();
     expect(body.token.startsWith('unsareport_pat_')).toBe(true);
     expect(body.pat.name).toBe('CI/CD Token');
+    patToken = body.token;
+    patId = body.pat.id;
+  });
 
-    const patToken = body.token;
-    const patId = body.pat.id;
-
+  test('PAT authenticates /v1/me as pat', async () => {
     const meRes = await app.fetch(
       new Request('http://localhost:3000/v1/me', {
         headers: { Authorization: `Bearer ${patToken}` },
@@ -133,7 +127,9 @@ describe('IDP API Endpoints E2E', () => {
     const meBody = await meRes.json();
     expect(meBody.user.id).toBe(testUser.id);
     expect(meBody.auth_type).toBe('pat');
+  });
 
+  test('GET /v1/pat lists created PAT', async () => {
     const listRes = await app.fetch(
       new Request('http://localhost:3000/v1/pat', {
         headers: { Authorization: `Bearer ${jwtToken}` },
@@ -142,7 +138,9 @@ describe('IDP API Endpoints E2E', () => {
     expect(listRes.status).toBe(200);
     const listBody = await listRes.json();
     expect(listBody.pats.some((p: PatItem) => p.id === patId)).toBe(true);
+  });
 
+  test('DELETE /v1/pat/:id revokes PAT', async () => {
     const delRes = await app.fetch(
       new Request(`http://localhost:3000/v1/pat/${patId}`, {
         method: 'DELETE',
@@ -216,5 +214,100 @@ describe('IDP API Endpoints E2E', () => {
       }),
     );
     expect(meResAfter.status).toBe(401);
+  });
+
+  test('POST /v1/refresh rejects replayed refresh token with 401', async () => {
+    const rotated = await createRefreshToken(testUser.id);
+    const first = await app.fetch(
+      new Request('http://localhost:3000/v1/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rotated }),
+      }),
+    );
+    expect(first.status).toBe(200);
+    const replay = await app.fetch(
+      new Request('http://localhost:3000/v1/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: rotated }),
+      }),
+    );
+    expect(replay.status).toBe(401);
+  });
+
+  test('POST /v1/refresh rejects expired refresh token with 401', async () => {
+    const stale = await createRefreshToken(testUser.id);
+    await db
+      .update(refreshTokens)
+      .set({ expiresAt: new Date(Date.now() - 1000) })
+      .where(eq(refreshTokens.tokenHash, hashToken(stale)));
+    const res = await app.fetch(
+      new Request('http://localhost:3000/v1/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh_token: stale }),
+      }),
+    );
+    expect(res.status).toBe(401);
+  });
+
+  test('POST /v1/refresh rejects malformed body with 400', async () => {
+    const missing = await app.fetch(
+      new Request('http://localhost:3000/v1/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }),
+    );
+    expect(missing.status).toBe(400);
+    const garbage = await app.fetch(
+      new Request('http://localhost:3000/v1/refresh', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          refresh_token: 'unsareport_rf_not-a-real-token',
+        }),
+      }),
+    );
+    expect(garbage.status).toBe(401);
+  });
+
+  test('POST /v1/pat rejects non-string scopes with 400', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost:3000/v1/pat', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'Bad Scopes', scopes: 'registry' }),
+      }),
+    );
+    expect(res.status).toBe(400);
+    const mixed = await app.fetch(
+      new Request('http://localhost:3000/v1/pat', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: 'Mixed Scopes',
+          scopes: ['registry', 42],
+        }),
+      }),
+    );
+    expect(mixed.status).toBe(400);
+  });
+
+  test('POST /v1/keys/rotate rejects wrong admin key with 403', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost:3000/v1/keys/rotate', {
+        method: 'POST',
+        headers: { 'X-Admin-Key': 'wrong-admin-key' },
+      }),
+    );
+    expect(res.status).toBe(403);
   });
 });

@@ -8,9 +8,6 @@ import (
 	"strings"
 )
 
-// previewHTML renders the local deck preview page. It mirrors the legacy
-// `slides dev` output: a static Reveal.js page over CDN plus a hint slide.
-// Like the original, there is no live reload — edit and refresh.
 func previewHTML(title string) string {
 	return `<!DOCTYPE html>
 <html lang="en">
@@ -52,8 +49,6 @@ func previewHTML(title string) string {
 </html>`
 }
 
-// ServePreview serves dir over HTTP on addr: `/` renders the preview page,
-// any other path serves the matching file from dir (404 otherwise).
 func ServePreview(addr, dir, title string) error {
 	page := previewHTML(title)
 	mux := http.NewServeMux()

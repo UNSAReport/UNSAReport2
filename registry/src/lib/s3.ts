@@ -7,6 +7,7 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { PRESIGN_SECONDS } from '@unsa/schemas/constants';
 import JSZip from 'jszip';
 import { config } from '@/config';
 
@@ -30,38 +31,32 @@ export const s3PresignClient = new S3Client({
   forcePathStyle: config.s3.forcePathStyle,
 });
 
-let bucketChecked = false;
-
-/**
- * Ensures that the configured S3 storage bucket exists, creating it if it does not already exist.
- */
 export async function ensureBucketExists(): Promise<void> {
-  if (bucketChecked) return;
   try {
     await s3Client.send(new HeadBucketCommand({ Bucket: config.s3.bucket }));
-    bucketChecked = true;
+    return;
   } catch {
     try {
       await s3Client.send(
         new CreateBucketCommand({ Bucket: config.s3.bucket }),
       );
-      bucketChecked = true;
     } catch (createErr) {
+      const code = createErr instanceof Error ? createErr.name : '';
+      if (
+        code === 'BucketAlreadyOwnedByYou' ||
+        code === 'BucketAlreadyExists'
+      ) {
+        return;
+      }
+      const message =
+        createErr instanceof Error ? createErr.message : String(createErr);
       throw new Error(
-        `Failed to ensure S3 bucket "${config.s3.bucket}" exists: ${createErr instanceof Error ? createErr.message : String(createErr)}`,
+        `Failed to ensure S3 bucket "${config.s3.bucket}" exists: ${message}`,
       );
     }
   }
 }
 
-/**
- * Uploads an object payload to S3 under the specified key and content type.
- *
- * @param key - Destination object key path in the S3 bucket.
- * @param body - Buffer, Uint8Array, or string content to upload.
- * @param contentType - MIME content type header (defaults to 'application/octet-stream').
- * @returns S3 key path of the uploaded object.
- */
 export async function uploadS3Object(
   key: string,
   body: Buffer | Uint8Array | string,
@@ -79,16 +74,9 @@ export async function uploadS3Object(
   return key;
 }
 
-/**
- * Generates a presigned URL for downloading an S3 object.
- *
- * @param key - S3 object key path to generate presigned URL for.
- * @param expiresInSeconds - Time in seconds until presigned URL expires (defaults to 600).
- * @returns Presigned GET URL string.
- */
 export async function getPresignedUrl(
   key: string,
-  expiresInSeconds = 600,
+  expiresInSeconds = PRESIGN_SECONDS,
 ): Promise<string> {
   const command = new GetObjectCommand({
     Bucket: config.s3.bucket,
@@ -99,11 +87,6 @@ export async function getPresignedUrl(
   });
 }
 
-/**
- * Deletes an object from the S3 storage bucket by key.
- *
- * @param key - S3 object key path to delete.
- */
 export async function deleteS3Object(key: string): Promise<void> {
   await s3Client.send(
     new DeleteObjectCommand({
@@ -113,13 +96,6 @@ export async function deleteS3Object(key: string): Promise<void> {
   );
 }
 
-/**
- * Packs multiple file entries into a ZIP archive and uploads it to S3.
- *
- * @param s3Key - S3 object key path for the zip archive.
- * @param files - Array of objects containing relative file paths and buffer contents.
- * @returns S3 key path of the uploaded zip archive.
- */
 export async function buildAndUploadZipArchive(
   s3Key: string,
   files: { path: string; content: Buffer }[],

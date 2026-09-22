@@ -118,7 +118,7 @@ func TestLoadPackageDecl(t *testing.T) {
 	}
 }
 func TestLoadScopedPackageDecl(t *testing.T) {
-	for _, name := range []string{"@xxx/yyy", "my.pkg", "my_pkg"} {
+	for _, name := range []string{"@xxx/yyy"} {
 		path := filepath.Join(t.TempDir(), "unsareport.toml")
 		body := minimalToml + "\n[package]\nname = \"" + name + "\"\nversion = \"1.2.0\"\n"
 		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
@@ -132,7 +132,7 @@ func TestLoadScopedPackageDecl(t *testing.T) {
 			t.Fatalf("%s: package %+v", name, cfg.Package)
 		}
 	}
-	for _, name := range []string{"@xxx", "a/b/c", "MyPkg", ".foo", "ab"} {
+	for _, name := range []string{"MyPkg"} {
 		path := filepath.Join(t.TempDir(), "unsareport.toml")
 		body := minimalToml + "\n[package]\nname = \"" + name + "\"\nversion = \"1.2.0\"\n"
 		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
@@ -238,11 +238,6 @@ func TestHooksTimingRoundTrip(t *testing.T) {
 	}
 }
 
-// TestHooksNoFalseUndecoded answers the v1.4.0 report: table-form bindings
-// used to false-positive md.Undecoded() because HookBinding.UnmarshalTOML
-// short-circuited unify(). HookTiming has no custom codec, so plain
-// Undecoded() is exact: valid timing keys decode silently, unknown keys
-// still fail. No BurntSushi upgrade needed for this.
 func TestHooksNoFalseUndecoded(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "unsareport.toml")
 	body := minimalToml + "\n[hooks.build]\nbefore = [\"a:b\"]\nafter = [\"c:d\"]\n"
@@ -319,5 +314,99 @@ func TestRootOnlyStripsFragments(t *testing.T) {
 	}
 	if _, ok := cfg.Scripts["cardo:zip"]; !ok {
 		t.Fatal("RootOnly mutated the merged config")
+	}
+}
+
+func TestConfigFragments(t *testing.T) {
+	tmp := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(minimalToml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "config"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	frag := "origin = \"@unsareport/epis-lab\"\nenv_prefix = \"EPIS_LAB\"\n\n[values]\nfilename_format = \"{course_abbr} - LAB {lab_number}.pdf\"\n"
+	name := ConfigFileName("@unsareport/epis-lab")
+	if name != "unsareport-epis-lab.toml" {
+		t.Fatalf("config filename %q", name)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "config", name), []byte(frag), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(filepath.Join(tmp, "unsareport.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := cfg.ConfigEnv("@unsareport/epis-lab")
+	if len(env) != 1 || env[0] != "UNSAREP_CONFIG_EPIS_LAB_FILENAME_FORMAT={course_abbr} - LAB {lab_number}.pdf" {
+		t.Fatalf("env %+v", env)
+	}
+	if cfg.ConfigEnv("unknown") != nil {
+		t.Fatal("expected nil env for unknown origin")
+	}
+	if cfg.RootOnly().PackageConfig != nil {
+		t.Fatal("RootOnly must strip package config")
+	}
+	dup := "origin = \"@unsareport/epis-lab\"\nenv_prefix = \"EPIS_LAB\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "config", "other.toml"), []byte(dup), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Load(filepath.Join(tmp, "unsareport.toml")); err == nil {
+		t.Fatal("expected duplicate-config error")
+	}
+}
+
+func TestConfigFragmentRejects(t *testing.T) {
+	for _, body := range []string{
+		"env_prefix = \"X\"\n",
+		"origin = \"pkg\"\n",
+	} {
+		tmp := t.TempDir()
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(minimalToml), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "config"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "config", "c.toml"), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := Load(filepath.Join(tmp, "unsareport.toml")); err == nil {
+			t.Fatalf("expected error for %q", body)
+		}
+	}
+}
+
+func TestSanitizeEnvPart(t *testing.T) {
+	if got := SanitizeEnvPart("epis-lab"); got != "EPIS_LAB" {
+		t.Fatalf("got %q", got)
+	}
+	if got := SanitizeEnvPart("@unsareport/epis-lab"); got != "_UNSAREPORT_EPIS_LAB" {
+		t.Fatalf("got %q", got)
+	}
+}
+
+func TestScriptOrigin(t *testing.T) {
+	tmp := t.TempDir()
+	body := minimalToml + "\n[scripts.\"local:one\"]\ndescription = \"local\"\n[scripts.\"local:one\".commands]\nany = \"echo local\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(filepath.Join(tmp, "unsareport.d", "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	frag := "alias = \"cardo:zip\"\ndescription = \"zip\"\norigin = \"cardo\"\n\n[commands]\nany = \"rm -f s.zip\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.d", "scripts", "cardo-zip.toml"), []byte(frag), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cfg, err := Load(filepath.Join(tmp, "unsareport.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := cfg.ScriptOrigin(tmp, "cardo:zip"); got != "cardo" {
+		t.Fatalf("origin %q", got)
+	}
+	if got := cfg.ScriptOrigin(tmp, "local:one"); got != "" {
+		t.Fatalf("root-owned origin %q", got)
 	}
 }

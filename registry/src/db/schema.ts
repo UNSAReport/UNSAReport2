@@ -141,3 +141,111 @@ export const trustedUsers = pgTable('trusted_users', {
     .defaultNow()
     .notNull(),
 });
+
+export const scopes = pgTable(
+  'scopes',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    name: text('name').notNull().unique(),
+    description: text('description'),
+    ownerId: uuid('owner_id').notNull(),
+    scopeType: text('scope_type').notNull(),
+    archiveS3Key: text('archive_s3_key'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_scopes_name').on(table.name),
+    index('idx_scopes_owner').on(table.ownerId),
+  ],
+);
+
+export const scopeMembers = pgTable(
+  'scope_members',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    scopeId: uuid('scope_id')
+      .notNull()
+      .references(() => scopes.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id').notNull(),
+    role: text('role').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique('unique_scope_member').on(table.scopeId, table.userId),
+    index('idx_scope_members_user').on(table.userId),
+  ],
+);
+
+export const scopeInvitations = pgTable(
+  'scope_invitations',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    scopeId: uuid('scope_id')
+      .notNull()
+      .references(() => scopes.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    role: text('role').notNull(),
+    invitedBy: uuid('invited_by').notNull(),
+    status: text('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index('idx_scope_invitations_scope').on(table.scopeId),
+    index('idx_scope_invitations_email').on(table.email),
+  ],
+);
+
+export const scopeFiles = pgTable(
+  'scope_files',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    scopeId: uuid('scope_id')
+      .notNull()
+      .references(() => scopes.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    size: integer('size').notNull(),
+    checksum: text('checksum').notNull(),
+    s3Key: text('s3_key').notNull(),
+  },
+  (table) => [
+    unique('unique_scope_file_path').on(table.scopeId, table.path),
+    index('idx_scope_files_scope').on(table.scopeId),
+  ],
+);
+
+export const scopeRequests = pgTable(
+  'scope_requests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    scopeName: text('scope_name').notNull(),
+    requestedBy: uuid('requested_by').notNull(),
+    reason: text('reason').notNull(),
+    status: text('status').notNull().default('pending'),
+    reviewedBy: uuid('reviewed_by'),
+    rejectionReason: text('rejection_reason'),
+    createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
+      .defaultNow()
+      .notNull(),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true, mode: 'date' }),
+  },
+  (table) => [
+    index('idx_scope_requests_status').on(table.status),
+    index('idx_scope_requests_user').on(table.requestedBy),
+    index('idx_scope_requests_name').on(table.scopeName),
+  ],
+);

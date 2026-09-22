@@ -9,6 +9,7 @@ import {
   unscopedNameRoute,
 } from '@/lib/package-name';
 import { getPresignedUrl } from '@/lib/s3';
+import { normalizeArchivePath } from '@/lib/unsareport-toml';
 import { NotFoundError, ValidationError } from '@/middleware/error-handler';
 import type { DependencyResolveRequest, HonoEnv } from '@/types';
 
@@ -16,10 +17,6 @@ const downloadRouter = new Hono<HonoEnv>();
 
 type Section = 'components' | 'templates';
 
-/**
- * Parses the ?section= query parameter shared by the download endpoints.
- * Defaults to 'components'; unknown values are a hard 400.
- */
 function parseSection(c: {
   req: { query: (name: string) => string | undefined };
 }): Section {
@@ -32,9 +29,6 @@ function parseSection(c: {
   );
 }
 
-/**
- * Route handler for listing all files and their metadata within a specific package version.
- */
 downloadRouter.on(
   'GET',
   [
@@ -97,9 +91,6 @@ downloadRouter.on(
   },
 );
 
-/**
- * Route handler for fetching or downloading a specific file within a package version using a presigned S3 URL.
- */
 downloadRouter.on(
   'GET',
   [
@@ -144,7 +135,12 @@ downloadRouter.on(
       );
     }
 
-    const cleanPath = filePath.replace(/^[/\\]+/, '');
+    const cleanPath = normalizeArchivePath(filePath);
+    if (!cleanPath) {
+      throw new ValidationError(
+        `File path '${filePath}' is not a valid relative path`,
+      );
+    }
 
     const fileList = await db
       .select({
@@ -186,9 +182,6 @@ downloadRouter.on(
   },
 );
 
-/**
- * Route handler for generating a presigned download URL for a full package version zip archive.
- */
 downloadRouter.on(
   'GET',
   [
@@ -255,9 +248,6 @@ downloadRouter.on(
   },
 );
 
-/**
- * Route handler for resolving a complete tree of package dependencies given initial requirements and SemVer ranges.
- */
 downloadRouter.post('/resolve', async (c) => {
   let body: DependencyResolveRequest;
   try {

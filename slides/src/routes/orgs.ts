@@ -22,9 +22,6 @@ const memberBodySchema = z.object({
   role: OrgRoleSchema.default('member'),
 });
 
-/**
- * Returns the caller's membership in the org, if any.
- */
 async function getMembership(orgId: string, userId: string) {
   const [membership] = await db
     .select()
@@ -34,9 +31,6 @@ async function getMembership(orgId: string, userId: string) {
   return membership;
 }
 
-/**
- * Throws unless the user is an owner or admin of the org.
- */
 async function assertOrgAdmin(orgId: string, userId: string): Promise<void> {
   const membership = await getMembership(orgId, userId);
   if (
@@ -49,9 +43,6 @@ async function assertOrgAdmin(orgId: string, userId: string): Promise<void> {
   }
 }
 
-/**
- * Creates an organization; the creator becomes its owner member.
- */
 orgsRouter.post('/', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -94,9 +85,6 @@ orgsRouter.post('/', async (c) => {
   return c.json({ organization: org }, 201);
 });
 
-/**
- * Lists organizations the caller belongs to.
- */
 orgsRouter.get('/', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -124,9 +112,6 @@ orgsRouter.get('/', async (c) => {
   });
 });
 
-/**
- * Returns one organization with its members. Caller must be a member.
- */
 orgsRouter.get('/:slug', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -154,9 +139,6 @@ orgsRouter.get('/:slug', async (c) => {
   return c.json({ organization: org, members, role: membership.role });
 });
 
-/**
- * Updates organization details. Owner/admin only.
- */
 orgsRouter.patch('/:slug', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -198,9 +180,6 @@ orgsRouter.patch('/:slug', async (c) => {
   return c.json({ organization: updated });
 });
 
-/**
- * Adds a member by IdP user id. Owner/admin only.
- */
 orgsRouter.post('/:slug/members', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -249,9 +228,6 @@ orgsRouter.post('/:slug/members', async (c) => {
   return c.json({ member }, 201);
 });
 
-/**
- * Changes a member role. Owner/admin only.
- */
 orgsRouter.patch('/:slug/members/:memberUserId', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -295,9 +271,6 @@ orgsRouter.patch('/:slug/members/:memberUserId', async (c) => {
   return c.json({ member });
 });
 
-/**
- * Removes a member. Owner/admin only, or the member themselves (leave).
- */
 orgsRouter.delete('/:slug/members/:memberUserId', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';

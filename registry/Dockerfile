@@ -5,6 +5,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -18,12 +19,14 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/registry ./registry
 COPY package.json bun.lock ./
 COPY registry ./registry
+COPY packages ./packages
 COPY web/packages ./web/packages
 WORKDIR /app/registry
 RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -37,6 +40,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/registry ./registry
+COPY --from=build /app/packages ./packages
 COPY --from=build /app/registry/dist ./dist
 COPY package.json ./
 COPY registry/src/db/migrations ./src/db/migrations

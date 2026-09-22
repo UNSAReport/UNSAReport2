@@ -35,29 +35,53 @@ export type PkgTomlConfigSchemaEntry = z.infer<
   typeof PkgTomlConfigSchemaEntrySchema
 >;
 
-export const PkgTomlSchema = z.object({
-  package: z.object({
-    name: z
-      .string()
-      .min(3)
-      .max(64)
-      .regex(
-        /^(@[a-z0-9][a-z0-9._~-]*\/)?[a-z0-9][a-z0-9._~-]*$/,
-        'Invalid package name',
-      ),
-    version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
-    description: z.string().max(2048).optional(),
-    displayName: z.string().min(1).max(128).optional(),
-    tags: z.array(z.string()).optional(),
-    command_prefix: z
-      .string()
-      .regex(/^[a-z0-9][a-z0-9._~-]*$/, 'Invalid command prefix')
-      .optional(),
-  }),
-  components: z.object({
-    files: z.array(z.string().min(1)).min(1),
-    depends_on: z.array(z.string().min(1)).default([]),
-  }),
+export const ProjectSchema = z.object({
+  config_version: z.literal(1),
+  typst_entry: z.string().optional(),
+});
+export type ProjectDef = z.infer<typeof ProjectSchema>;
+
+export const ScopeSchema = z.object({
+  name: z
+    .string()
+    .regex(
+      /^@[a-z0-9][a-z0-9._~-]*$/,
+      'Invalid scope name (must match @scope)',
+    ),
+  description: z.string().optional(),
+  files: z.array(z.string().min(1)),
+});
+export type ScopeDef = z.infer<typeof ScopeSchema>;
+
+export const UnsareportTomlSchema = z.object({
+  project: ProjectSchema,
+  scope: ScopeSchema.optional(),
+  package: z
+    .object({
+      name: z
+        .string()
+        .min(3)
+        .max(64)
+        .regex(
+          /^@[a-z0-9][a-z0-9._~-]*\/[a-z0-9][a-z0-9._~-]*$/,
+          'Package name must be scoped (@scope/name)',
+        ),
+      version: z.string().regex(/^\d+\.\d+\.\d+/, 'Invalid semver'),
+      description: z.string().max(2048).optional(),
+      displayName: z.string().min(1).max(128).optional(),
+      tags: z.array(z.string()).optional(),
+      command_prefix: z
+        .string()
+        .regex(/^[a-z0-9][a-z0-9._~-]*$/, 'Invalid command prefix')
+        .optional(),
+    })
+    .optional(),
+  dependencies: z.record(z.string(), z.string()).default({}),
+  components: z
+    .object({
+      files: z.array(z.string().min(1)).min(1),
+    })
+    .optional(),
   templates: z
     .object({
       files: z.array(z.string().min(1)).default([]),
@@ -69,13 +93,16 @@ export const PkgTomlSchema = z.object({
     .record(z.string(), PkgTomlConfigSchemaEntrySchema)
     .default({}),
 });
-export type PkgToml = z.infer<typeof PkgTomlSchema>;
+export type UnsareportToml = z.infer<typeof UnsareportTomlSchema>;
+
+export const PkgTomlSchema = UnsareportTomlSchema;
+export type PkgToml = UnsareportToml;
 
 export const JWTPayloadSchema = z.object({
   sub: z.string(),
   email: z.string().email().optional(),
   name: z.string().optional(),
-  roles: z.array(z.string()).optional(),
+  roles: z.record(z.string(), z.string()).optional(),
   iss: z.string().optional(),
   aud: z.union([z.string(), z.array(z.string())]).optional(),
   exp: z.number().optional(),
@@ -86,7 +113,7 @@ export type JWTPayload = z.infer<typeof JWTPayloadSchema>;
 export const UserContextSchema = z.object({
   id: z.string(),
   email: z.string().email().optional(),
-  roles: z.array(z.string()),
+  roles: z.record(z.string(), z.string()),
 });
 export type UserContext = z.infer<typeof UserContextSchema>;
 
@@ -101,7 +128,7 @@ export type ResolvedPackage = z.infer<typeof ResolvedPackageSchema>;
 export const PackageVersionSchema = z.object({
   version: z.string(),
   pkgToml: PkgTomlSchema,
-  archiveUrl: z.string().url().nullable().optional(),
+  archive_url: z.string().url().nullable().optional(),
   files: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
 });
@@ -114,7 +141,6 @@ export const PackageSchema = z.object({
   tags: z.array(z.string()).optional(),
   latestVersion: z.string().nullable().optional(),
   versions: z.array(PackageVersionSchema).optional(),
-  // registry API may return flat list shape
   version: z.string().optional(),
   pkgToml: PkgTomlSchema.optional(),
 });
@@ -129,6 +155,7 @@ export type PackageListResponse = z.infer<typeof PackageListResponseSchema>;
 export const ApiErrorResponseSchema = z.object({
   error: z.string(),
   message: z.string(),
-  details: z.record(z.string(), z.unknown()).optional(),
+  details: z.unknown().optional(),
+  statusCode: z.number(),
 });
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;

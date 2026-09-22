@@ -22,8 +22,14 @@ type PkgEntry struct {
 	DependsOn []string    `toml:"depends_on"`
 }
 
+type ScopeEntry struct {
+	Name  string      `toml:"name"`
+	Files []FileEntry `toml:"files"`
+}
+
 type Lock struct {
-	Pkg []PkgEntry `toml:"pkg"`
+	Scopes []ScopeEntry `toml:"scopes,omitempty"`
+	Pkg    []PkgEntry   `toml:"pkg"`
 }
 
 func Path(root string) string {
@@ -98,4 +104,33 @@ func (l *Lock) Find(name string) (PkgEntry, bool) {
 		}
 	}
 	return PkgEntry{}, false
+}
+
+func (l *Lock) UpsertScope(e ScopeEntry) {
+	for i, s := range l.Scopes {
+		if s.Name == e.Name {
+			l.Scopes[i] = e
+			return
+		}
+	}
+	l.Scopes = append(l.Scopes, e)
+}
+
+func (l *Lock) RemoveScope(name string) {
+	out := l.Scopes[:0]
+	for _, s := range l.Scopes {
+		if s.Name != name {
+			out = append(out, s)
+		}
+	}
+	l.Scopes = out
+}
+
+func (l *Lock) FindScope(name string) (ScopeEntry, bool) {
+	for _, s := range l.Scopes {
+		if s.Name == name {
+			return s, true
+		}
+	}
+	return ScopeEntry{}, false
 }

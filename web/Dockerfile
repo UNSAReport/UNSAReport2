@@ -4,6 +4,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -16,12 +17,14 @@ FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/web/app/node_modules ./web/app/node_modules
 COPY package.json bun.lock web/tsconfig.json web/biome.json ./
+COPY packages ./packages
 COPY web/app ./web/app
 COPY web/packages ./web/packages
 RUN bun --filter @unsa/website build
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -35,6 +38,8 @@ ENV NODE_ENV=production
 ENV PORT=3000
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/web/app/node_modules ./web/app/node_modules
+COPY --from=build /app/packages ./packages
+COPY --from=build /app/web/packages ./web/packages
 COPY --from=build /app/web/app/dist ./dist
 COPY --from=build /app/web/app/server.ts ./server.ts
 COPY --from=build /app/web/app/package.json ./package.json

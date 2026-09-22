@@ -1,26 +1,26 @@
 import { Hono } from 'hono';
 import { config } from '@/config';
+import { stripBearer } from '@/lib/bearer';
+import { ForbiddenError, UnauthorizedError } from '@/lib/errors';
 import { rotateKeys } from '@/lib/keys';
 
 const keysRouter = new Hono();
 
-/**
- * Rotates active RSA signing keys when presented with a valid admin key.
- */
 keysRouter.post('/rotate', async (c) => {
   const authHeader = c.req.header('Authorization');
   const adminHeader = c.req.header('X-Admin-Key');
 
   let keyInput = adminHeader;
-  if (!keyInput && authHeader && authHeader.startsWith('Bearer ')) {
-    keyInput = authHeader.substring(7);
+  if (!keyInput) {
+    keyInput = stripBearer(authHeader) ?? undefined;
+  }
+
+  if (!keyInput) {
+    throw new UnauthorizedError('Missing admin API key');
   }
 
   if (keyInput !== config.adminApiKey) {
-    return c.json(
-      { error: 'Unauthorized', message: 'Invalid admin API key' },
-      401,
-    );
+    throw new ForbiddenError('Invalid admin API key');
   }
 
   const newKey = await rotateKeys();

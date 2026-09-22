@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/UNSAReport/tui/internal/config"
 )
@@ -13,10 +14,13 @@ import (
 //go:embed locales/*.json
 var localesFS embed.FS
 
+var mu sync.RWMutex
 var current = "en"
 var tables = map[string]map[string]string{}
 
 func Init() {
+	mu.Lock()
+	defer mu.Unlock()
 	for _, lang := range []string{"en", "es"} {
 		b, err := localesFS.ReadFile("locales/" + lang + ".json")
 		if err != nil {
@@ -56,6 +60,8 @@ func detectEnvLocale() string {
 }
 
 func T(key string, args ...any) string {
+	mu.RLock()
+	defer mu.RUnlock()
 	if m, ok := tables[current]; ok {
 		if v, ok := m[key]; ok {
 			if len(args) > 0 {
@@ -78,9 +84,15 @@ func T(key string, args ...any) string {
 	return key
 }
 
-func Current() string { return current }
+func Current() string {
+	mu.RLock()
+	defer mu.RUnlock()
+	return current
+}
 
 func SetLocale(l string) {
+	mu.Lock()
+	defer mu.Unlock()
 	if strings.HasPrefix(strings.ToLower(l), "es") {
 		current = "es"
 	} else {

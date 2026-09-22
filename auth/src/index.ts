@@ -1,12 +1,33 @@
+import { createLogger } from '@unsa/logger';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { config } from '@/config';
+import {
+  globalErrorHandler,
+  notFoundHandler,
+  setErrorReporter,
+} from '@/lib/errors';
 import { getOrGenerateActiveKey } from '@/lib/keys';
 import { authRouter } from '@/routes/auth';
 import { jwksRouter } from '@/routes/jwks';
 import { keysRouter } from '@/routes/keys';
 import { patRouter } from '@/routes/pat';
 import { rolesRouter } from '@/routes/roles';
+
+const logger = createLogger('auth');
+
+setErrorReporter((err, info) => {
+  const message = err instanceof Error ? err.message : 'Request error';
+  if (info.statusCode >= 500) {
+    logger.error(message, {
+      err,
+      path: info.path,
+      statusCode: info.statusCode,
+    });
+  } else {
+    logger.warn(message, { path: info.path, statusCode: info.statusCode });
+  }
+});
 
 const app = new Hono();
 
@@ -23,7 +44,7 @@ app.use(
       ) {
         return origin;
       }
-      return config.idpAllowedOrigins[0] || '*';
+      return undefined;
     },
     allowHeaders: ['Content-Type', 'Authorization', 'X-Admin-Key'],
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -32,7 +53,7 @@ app.use(
 );
 
 getOrGenerateActiveKey().catch((err) => {
-  console.error('Failed to initialize active signing key:', err);
+  logger.error('Failed to initialize active signing key', { err });
 });
 
 const v1 = new Hono();
@@ -44,10 +65,6 @@ v1.route('/keys', keysRouter);
 app.route('/v1', v1);
 app.route('/', jwksRouter);
 
-/**
- * Route handler for GET /
- * Returns status metadata and available API endpoints.
- */
 app.get('/', (c) =>
   c.json({
     name: 'UNSAReport Identity Provider (IDP)',
@@ -59,25 +76,9 @@ app.get('/', (c) =>
   }),
 );
 
-/**
- * Not-found handler for unmatched routes.
- */
-app.notFound((c) =>
-  c.json({ error: 'Not Found', message: 'Route not found' }, 404),
-);
+app.notFound(notFoundHandler);
 
-/**
- * Global error handler for unhandled application errors.
- */
-app.onError((err, c) =>
-  c.json(
-    {
-      error: 'Internal Server Error',
-      message: err.message || 'An unexpected error occurred',
-    },
-    500,
-  ),
-);
+app.onError(globalErrorHandler);
 
 export default {
   port: config.idpPort,

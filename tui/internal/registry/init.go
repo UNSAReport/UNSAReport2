@@ -15,7 +15,6 @@ import (
 var initNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
 var initPrefixRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._~-]*$`)
 
-// InitOptions describes a new standalone package scaffold.
 type InitOptions struct {
 	Dir           string
 	Name          string
@@ -24,9 +23,6 @@ type InitOptions struct {
 	CommandPrefix string
 }
 
-// InitPackage scaffolds a minimal publishable package dir: pkg.toml plus
-// placeholder components and template files. The target must not exist or
-// must be an empty directory.
 func InitPackage(opt InitOptions) error {
 	name := strings.TrimSpace(opt.Name)
 	if len(name) < 3 || len(name) > 64 || !initNameRe.MatchString(name) {
@@ -67,14 +63,18 @@ func InitPackage(opt InitOptions) error {
 		}
 	}
 	doc := pkg.PkgToml{
+		Project: pkg.ProjectDef{
+			ConfigVersion: config.ConfigVersion,
+		},
 		Package: pkg.PackageDef{
 			Name:          name,
 			Version:       version,
 			Description:   strings.TrimSpace(opt.Description),
 			CommandPrefix: prefix,
 		},
-		Components: pkg.ComponentsDef{Files: []string{"lib.typ"}, DependsOn: []string{}},
-		Templates:  pkg.TemplatesDef{Files: []string{"report.typ"}},
+		Components:   pkg.ComponentsDef{Files: []string{"lib.typ"}},
+		Dependencies: map[string]string{},
+		Templates:    pkg.TemplatesDef{Files: []string{"report.typ"}},
 	}
 	if err := pkg.Validate(doc); err != nil {
 		return err
@@ -86,7 +86,7 @@ func InitPackage(opt InitOptions) error {
 	if err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "pkg.toml"), []byte(text), config.PermFilePublic); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, config.ConfigFileName), []byte(text), config.PermFilePublic); err != nil {
 		return err
 	}
 	lib := fmt.Sprintf("// Package %s: shared components live here.\n#let note(body) = block()[#body]\n", name)

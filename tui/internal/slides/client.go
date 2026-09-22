@@ -6,13 +6,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"strings"
-	"time"
+
+	"github.com/charmbracelet/log"
 
 	"github.com/UNSAReport/tui/internal/config"
 )
 
-// DeployRequest mirrors CliDeployRequestSchema on the slides service.
 type DeployRequest struct {
 	Slug        string         `json:"slug"`
 	Title       string         `json:"title"`
@@ -23,7 +22,6 @@ type DeployRequest struct {
 	Bundle      string         `json:"bundle"`
 }
 
-// DeployResponse mirrors CliDeployResponseSchema on the slides service.
 type DeployResponse struct {
 	Success        bool   `json:"success"`
 	PresentationID string `json:"presentationId"`
@@ -33,26 +31,25 @@ type DeployResponse struct {
 	Message        string `json:"message"`
 }
 
-// ErrorResponse mirrors ApiErrorResponseSchema on the slides service.
 type ErrorResponse struct {
-	Error      string `json:"error"`
-	Message    string `json:"message"`
-	StatusCode int    `json:"statusCode"`
+	Error   string `json:"error"`
+	Message string `json:"message"`
 }
 
-// Client is a slides-service API client authenticating with the ecosystem
-// credential (IdP PAT from the shared auth store, or UNSAREP_TOKEN).
 type Client struct {
 	BaseURL    string
 	HTTPClient *http.Client
 }
 
-// NewClient builds a client against the configured slides service URL.
-func NewClient() *Client {
-	return &Client{
-		BaseURL:    strings.TrimSuffix(config.GetSlidesURL(), "/"),
-		HTTPClient: &http.Client{Timeout: 30 * time.Second},
+func NewClient() (*Client, error) {
+	base, err := config.ResolveSlidesURL()
+	if err != nil {
+		return nil, fmt.Errorf("slides configuration error: %w", err)
 	}
+	return &Client{
+		BaseURL:    base,
+		HTTPClient: &http.Client{Timeout: config.RegistryTimeout},
+	}, nil
 }
 
 func (c *Client) authToken() string {
@@ -89,10 +86,12 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	c.setAuth(req, token)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("slides service unreachable: %w", err)
+		log.Error("slides request failed", "err", err, "path", path)
+		return fmt.Errorf("slides service unreachable at %s: %w", c.BaseURL, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warn("slides request failed", "status", resp.StatusCode, "path", path)
 		var apiErr ErrorResponse
 		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {
 			return fmt.Errorf("slides service error (%d %s): %s", resp.StatusCode, apiErr.Error, apiErr.Message)
@@ -107,8 +106,6 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	return nil
 }
 
-// Deploy publishes a validated bundle to the slides service. Path is the
-// post-strip service path: the gateway removes the `/api/slides` prefix.
 func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (*DeployResponse, error) {
 	var out DeployResponse
 	if err := c.doJSON(ctx, "POST", "/presentations/deploy", token, req, &out); err != nil {
@@ -117,8 +114,6 @@ func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (
 	return &out, nil
 }
 
-// Reachable probes authenticated access to the slides service. It returns
-// nil when the credential is accepted, even if the user owns nothing yet.
 func (c *Client) Reachable(ctx context.Context, token string) error {
 	var out map[string]any
 	return c.doJSON(ctx, "GET", "/orgs", token, nil, &out)

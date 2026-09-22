@@ -28,6 +28,7 @@ func newRegistryCmd() *cobra.Command {
 		newRegistryPublishCmd(),
 		newRegistryCheckCmd(),
 		newRegistryListCmd(),
+		newRegistryScopeCmd(),
 	)
 	return cmd
 }
@@ -134,7 +135,10 @@ func newRegistryPublishCmd() *cobra.Command {
 				return err
 			}
 			ctx := context.Background()
-			client := registry.NewClient()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
 			if err := client.Publish(ctx, dir, "", ""); err != nil {
 				return err
 			}
@@ -150,7 +154,7 @@ func newRegistryCheckCmd() *cobra.Command {
 	var dirFlag string
 	cmd := &cobra.Command{
 		Use:   "check [pkg-dir]",
-		Short: "Validate a package dir (pkg.toml)",
+		Short: "Validate a package dir (unsareport.toml)",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos := ""
@@ -175,6 +179,49 @@ func newRegistryCheckCmd() *cobra.Command {
 	return cmd
 }
 
+func newRegistryScopeCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "scope",
+		Short: "Manage and push scope configurations",
+	}
+	cmd.AddCommand(newRegistryScopePushCmd())
+	return cmd
+}
+
+func newRegistryScopePushCmd() *cobra.Command {
+	var dirFlag string
+	cmd := &cobra.Command{
+		Use:   "push [dir]",
+		Short: "Push scope configuration and files to registry",
+		Args:  cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			dir, err := resolvePosOrFlag(cmd, "directory", pos, "dir", dirFlag)
+			if err != nil {
+				return err
+			}
+			if dir == "" {
+				dir = "."
+			}
+			ctx := context.Background()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
+			if err := client.PushScope(ctx, dir); err != nil {
+				return err
+			}
+			printOK("scope pushed successfully.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&dirFlag, "dir", ".", "Directory containing unsareport.toml with [scope]")
+	return cmd
+}
+
 func newRegistryListCmd() *cobra.Command {
 	var limit int
 	var jsonOut bool
@@ -187,7 +234,10 @@ func newRegistryListCmd() *cobra.Command {
 				return usagef(cmd, "--limit must not be negative")
 			}
 			ctx := context.Background()
-			client := registry.NewClient()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
 			pkgs, err := client.ListPackages(ctx)
 			if err != nil {
 				return err

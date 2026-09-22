@@ -7,14 +7,16 @@ import (
 	"testing"
 )
 
-const basePkgToml = `[package]
-name = "cardo"
+const basePkgToml = `[project]
+config_version = 1
+
+[package]
+name = "@scope/cardo"
 version = "0.1.0"
 description = "cards"
 
 [components]
 files = ["lib.typ", "assets/**/*"]
-depends_on = []
 
 [templates]
 files = ["template/**/*"]
@@ -23,7 +25,7 @@ files = ["template/**/*"]
 func setupPackageDir(t *testing.T, files map[string]string) string {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "pkg.toml"), []byte(basePkgToml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "unsareport.toml"), []byte(basePkgToml), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "lib.typ"), []byte("#let card(x) = x\n"), 0o644); err != nil {
@@ -44,9 +46,9 @@ func setupPackageDir(t *testing.T, files map[string]string) string {
 func TestCheckPackageDirBundledAssets(t *testing.T) {
 	t.Run("allows relative to package root and template dir", func(t *testing.T) {
 		dir := setupPackageDir(t, map[string]string{
-			"assets/logo.png":       "png-bytes",
-			"template/badge.png":    "badge-bytes",
-			"template/report.typ":   "#image(\"assets/logo.png\")\n#image(\"../assets/logo.png\")\n#image(\"badge.png\")\n#read(\"assets/logo.png\")\n",
+			"assets/logo.png":     "png-bytes",
+			"template/badge.png":  "badge-bytes",
+			"template/report.typ": "#image(\"assets/logo.png\")\n#image(\"../assets/logo.png\")\n#image(\"badge.png\")\n#read(\"assets/logo.png\")\n",
 		})
 		if err := CheckPackageDir(dir); err != nil {
 			t.Fatalf("expected CheckPackageDir to succeed, got %v", err)

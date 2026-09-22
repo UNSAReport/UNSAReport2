@@ -19,7 +19,6 @@ export const Route = createFileRoute('/registry/')({
   component: RegistryIndexComponent,
 });
 
-// TODO: future apps/slides will share @unsa/schemas and auth lib (see Step 5)
 function RegistryIndexComponent() {
   const { packages } = Route.useLoaderData();
   const search = Route.useSearch();

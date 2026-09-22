@@ -36,14 +36,14 @@ describe('Refresh Token & PAT Lifecycle', () => {
       expect(rotated.newRefreshToken).toBeDefined();
       expect(rotated.newRefreshToken).not.toBe(rfToken);
 
-      expect(verifyAndRotateRefreshToken(rfToken)).rejects.toThrow(
+      await expect(verifyAndRotateRefreshToken(rfToken)).rejects.toThrow(
         'Invalid or expired refresh token',
       );
 
       const revoked = await revokeRefreshToken(rotated.newRefreshToken);
       expect(revoked).toBe(true);
 
-      expect(
+      await expect(
         verifyAndRotateRefreshToken(rotated.newRefreshToken),
       ).rejects.toThrow();
     });
@@ -73,6 +73,42 @@ describe('Refresh Token & PAT Lifecycle', () => {
 
       const verifiedAfterRevoke = await verifyPAT(token);
       expect(verifiedAfterRevoke).toBeNull();
+    });
+  });
+
+  describe('Invalid behavior', () => {
+    test('verifyPAT returns null for garbage tokens', async () => {
+      expect(await verifyPAT('garbage-token')).toBeNull();
+      expect(
+        await verifyPAT(
+          'unsareport_pat_0000000000000000000000000000000000000000000000000000000000000000',
+        ),
+      ).toBeNull();
+    });
+
+    test('revokePAT rejects revoke by non-owner', async () => {
+      const { token, pat } = await createPAT(testUserId, 'Ownership PAT');
+      expect(await revokePAT(crypto.randomUUID(), pat.id)).toBe(false);
+      expect(await verifyPAT(token)).not.toBeNull();
+      expect(await revokePAT(testUserId, pat.id)).toBe(true);
+      expect(await verifyPAT(token)).toBeNull();
+    });
+
+    test('listUserPATs returns empty list for user without PATs', async () => {
+      const [fresh] = await db
+        .insert(users)
+        .values({
+          email: `empty_pats_${Date.now()}@unsareport.org`,
+          name: 'Empty Pats',
+        })
+        .returning();
+      expect(await listUserPATs(fresh.id)).toEqual([]);
+    });
+
+    test('double revoke returns false the second time', async () => {
+      const { pat } = await createPAT(testUserId, 'Double Revoke PAT');
+      expect(await revokePAT(testUserId, pat.id)).toBe(true);
+      expect(await revokePAT(testUserId, pat.id)).toBe(false);
     });
   });
 });

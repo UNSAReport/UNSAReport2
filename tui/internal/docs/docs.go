@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/BurntSushi/toml"
@@ -51,8 +52,6 @@ func resolveRoot(start string) (string, project.SpecConfig, error) {
 }
 
 func saveConfig(root string, cfg project.SpecConfig) error {
-	// Imported commands and hook bindings live in unsareport.d/ fragments;
-	// never inline them into the root file.
 	cfg = cfg.RootOnly()
 	f, err := os.Create(filepath.Join(root, config.ConfigFileName))
 	if err != nil {
@@ -90,14 +89,17 @@ func installComponentTree(ctx context.Context, root, name, version string) (pkg.
 }
 
 func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool) (pkg.PkgToml, error) {
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return pkg.PkgToml{}, err
+	}
 	files, err := client.DownloadSection(ctx, name, version, "components")
 	if err != nil {
 		return pkg.PkgToml{}, err
 	}
-	raw, ok := files["pkg.toml"]
+	raw, ok := files[config.ConfigFileName]
 	if !ok {
-		return pkg.PkgToml{}, fmt.Errorf("pkg.toml missing in %s components archive", name)
+		return pkg.PkgToml{}, fmt.Errorf("%s missing in %s components archive", config.ConfigFileName, name)
 	}
 	p, err := pkg.Parse(string(raw))
 	if err != nil {
@@ -106,11 +108,56 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 	if err := pkg.Validate(p); err != nil {
 		return pkg.PkgToml{}, err
 	}
+
+	l, err := lock.Load(root)
+	if err != nil {
+		return pkg.PkgToml{}, err
+	}
+
+	if strings.HasPrefix(name, "@") {
+		parts := strings.SplitN(name, "/", 2)
+		if len(parts) == 2 {
+			scopeName := parts[0]
+			if _, ok := l.FindScope(scopeName); !ok {
+				scopeFiles, sErr := client.DownloadScopeArchive(ctx, scopeName)
+				if sErr == nil && len(scopeFiles) > 0 {
+					scopeDest := filepath.Join(root, "components", scopeName)
+					var scopeEntries []lock.FileEntry
+					sNames := make([]string, 0, len(scopeFiles))
+					for sf := range scopeFiles {
+						if sf == config.ConfigFileName {
+							continue
+						}
+						sNames = append(sNames, sf)
+					}
+					sort.Strings(sNames)
+					for _, sf := range sNames {
+						if strings.Contains(sf, "..") || filepath.IsAbs(sf) {
+							return pkg.PkgToml{}, fmt.Errorf("illegal path %q in scope archive %s", sf, scopeName)
+						}
+						sTarget := filepath.Join(scopeDest, filepath.FromSlash(sf))
+						if !strings.HasPrefix(filepath.Clean(sTarget), filepath.Clean(scopeDest)) {
+							return pkg.PkgToml{}, fmt.Errorf("illegal path %q in scope archive %s", sf, scopeName)
+						}
+						if err := os.MkdirAll(filepath.Dir(sTarget), config.PermDirPublic); err != nil {
+							return pkg.PkgToml{}, err
+						}
+						if err := os.WriteFile(sTarget, scopeFiles[sf], config.PermFilePublic); err != nil {
+							return pkg.PkgToml{}, err
+						}
+						scopeEntries = append(scopeEntries, lock.FileEntry{Path: sf, SHA256: lock.SHA256Hex(scopeFiles[sf])})
+					}
+					l.UpsertScope(lock.ScopeEntry{Name: scopeName, Files: scopeEntries})
+				}
+			}
+		}
+	}
+
 	dest := filepath.Join(root, "components", name)
 	var entries []lock.FileEntry
 	names := make([]string, 0, len(files))
 	for n := range files {
-		if n == "pkg.toml" {
+		if n == config.ConfigFileName {
 			continue
 		}
 		names = append(names, n)
@@ -132,26 +179,22 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 		}
 		entries = append(entries, lock.FileEntry{Path: n, SHA256: lock.SHA256Hex(files[n])})
 	}
-	l, err := lock.Load(root)
-	if err != nil {
-		return pkg.PkgToml{}, err
-	}
 	var deps []string
-	for _, d := range p.Components.DependsOn {
-		deps = append(deps, strings.TrimSpace(d))
+	for depName, depRange := range p.Dependencies {
+		deps = append(deps, strings.TrimSpace(depName)+" "+strings.TrimSpace(depRange))
 	}
+	sort.Strings(deps)
 	l.Upsert(lock.PkgEntry{Name: name, Version: version, Files: entries, DependsOn: deps})
 	if err := lock.Write(root, l); err != nil {
 		return pkg.PkgToml{}, err
 	}
 
-	for _, d := range p.Components.DependsOn {
-		depName, depRange, ok := strings.Cut(strings.TrimSpace(d), " ")
-		if !ok || strings.TrimSpace(depName) == "" {
-			continue
-		}
+	for depName, depRange := range p.Dependencies {
 		depName = strings.TrimSpace(depName)
 		depRange = strings.TrimSpace(depRange)
+		if depName == "" {
+			continue
+		}
 		if visited[depName] {
 			continue
 		}
@@ -287,7 +330,10 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		existing = &cfg
 	}
 
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	version, err := client.ResolveVersion(ctx, name, rng)
 	if err != nil {
 		return err
@@ -443,7 +489,10 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err != nil {
 		return err
 	}
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	version, err := client.ResolveVersion(ctx, name, rng)
 	if err != nil {
 		return err
@@ -576,8 +625,6 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			} else {
 				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			// Suggested bindings are before entries; timing stays a
-			// local bind-time decision edited in the fragment file.
 			bound[std] = append(bound[std], alias)
 		}
 	}
@@ -592,11 +639,136 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			}
 		}
 	}
+	if len(p.ConfigSchema) > 0 && (len(selected) > 0 || len(bound) > 0) {
+		if err := collectPackageConfig(root, cfg, p, prefix, mode); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
-// mergeHookFragment unions before aliases into
-// unsareport.d/hooks/<std>-<prefix>.toml.
+func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, prefix, mode string) error {
+	origin := p.Package.Name
+	keys := make([]string, 0, len(p.ConfigSchema))
+	for k := range p.ConfigSchema {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	vals := map[string]string{}
+	if cfg.PackageConfig != nil {
+		for k, v := range cfg.PackageConfig[origin].Values {
+			vals[k] = v
+		}
+	}
+	for _, k := range keys {
+		e := p.ConfigSchema[k]
+		if v, ok := vals[k]; ok {
+			if err := checkConfigType(k, e.Type, v); err != nil {
+				return err
+			}
+			continue
+		}
+		def, hasDef := configDefault(e)
+		var val string
+		switch mode {
+		case "ask":
+			prompt := fmt.Sprintf("package %q config %q", origin, k)
+			if e.Doc != "" {
+				prompt += fmt.Sprintf(" (%s)", e.Doc)
+			}
+			if hasDef {
+				prompt += fmt.Sprintf(" [default %s]:", def)
+			} else {
+				prompt += " (required):"
+			}
+			line, err := promptLine(prompt)
+			if err != nil {
+				return err
+			}
+			val = strings.TrimSpace(line)
+			if val == "" {
+				val = def
+			}
+			if val == "" {
+				if e.Required {
+					return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+				}
+				continue
+			}
+		case "yes", "all":
+			if !hasDef {
+				if e.Required {
+					return fmt.Errorf("package %q requires config %q with no default; re-run with prompts", origin, k)
+				}
+				continue
+			}
+			val = def
+		default:
+			return fmt.Errorf("unknown command-select mode %q", mode)
+		}
+		if err := checkConfigType(k, e.Type, val); err != nil {
+			return err
+		}
+		vals[k] = val
+	}
+	if len(vals) == 0 {
+		return nil
+	}
+	envPrefix := project.SanitizeEnvPart(prefix)
+	if envPrefix == "" {
+		return fmt.Errorf("package %q yields an empty config env prefix", origin)
+	}
+	frag := project.ConfigFragment{Origin: origin, EnvPrefix: envPrefix, Values: vals}
+	dir := filepath.Join(root, config.ConfigDirName, "config")
+	if err := os.MkdirAll(dir, config.PermDirPublic); err != nil {
+		return err
+	}
+	var buf strings.Builder
+	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {
+		return fmt.Errorf("encode config fragment: %w", err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, project.ConfigFileName(origin)), []byte(buf.String()), config.PermFilePublic); err != nil {
+		return err
+	}
+	if cfg.PackageConfig == nil {
+		cfg.PackageConfig = map[string]project.PackageValues{}
+	}
+	cfg.PackageConfig[origin] = project.PackageValues{EnvPrefix: envPrefix, Values: vals}
+	return nil
+}
+
+func configDefault(e pkg.ConfigSchemaEntry) (string, bool) {
+	if e.Default == nil {
+		return "", false
+	}
+	switch v := e.Default.(type) {
+	case string:
+		return v, true
+	case bool:
+		return strconv.FormatBool(v), true
+	case int64:
+		return strconv.FormatInt(v, 10), true
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64), true
+	default:
+		return fmt.Sprintf("%v", v), true
+	}
+}
+
+func checkConfigType(key, typ, val string) error {
+	switch typ {
+	case "bool":
+		if _, err := strconv.ParseBool(val); err != nil {
+			return fmt.Errorf("config %q must be bool, got %q", key, val)
+		}
+	case "int":
+		if _, err := strconv.Atoi(val); err != nil {
+			return fmt.Errorf("config %q must be int, got %q", key, val)
+		}
+	}
+	return nil
+}
+
 func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []string, already project.HookTiming) error {
 	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
 	owned := map[string]bool{}
@@ -646,9 +818,6 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []stri
 	return nil
 }
 
-// stripHookAlias drops a leading "os:<key> " prefix for ownership and
-// reference comparisons. Anything else passes through; SplitPrefix rejects
-// the invalid at run time.
 func stripHookAlias(a string) string {
 	a = strings.TrimSpace(a)
 	if strings.HasPrefix(a, "os:") {
@@ -666,7 +835,7 @@ func relHookPath(root, path string) string {
 	return path
 }
 
-func runHooks(root, std, when string, cfg project.SpecConfig) error {
+func runHooks(root, std, when string, cfg project.SpecConfig, env []string) error {
 	timing, ok := cfg.Hooks[std]
 	if !ok {
 		return nil
@@ -695,7 +864,11 @@ func runHooks(root, std, when string, cfg project.SpecConfig) error {
 		if err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
-		if err := scripts.RunScript(root, cmd, ""); err != nil {
+		hookEnv := env
+		if origin := cfg.ScriptOrigin(root, name); origin != "" {
+			hookEnv = append(append([]string{}, env...), cfg.ConfigEnv(origin)...)
+		}
+		if err := scripts.RunScript(root, cmd, "", hookEnv); err != nil {
 			return fmt.Errorf("[hooks.%s] %w", std, err)
 		}
 	}
@@ -733,7 +906,10 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 	} else {
 		targets = l.Pkg
 	}
-	client := registry.NewClient()
+	client, err := registry.NewClient()
+	if err != nil {
+		return err
+	}
 	for _, t := range targets {
 		version, err := client.ResolveVersion(ctx, t.Name, "*")
 		if err != nil {
@@ -749,7 +925,7 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 		dest := filepath.Join(root, "components", t.Name)
 		var names []string
 		for n := range files {
-			if n == "pkg.toml" {
+			if n == config.ConfigFileName {
 				continue
 			}
 			names = append(names, n)
@@ -794,13 +970,14 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 			}
 			entries = append(entries, lock.FileEntry{Path: n, SHA256: lock.SHA256Hex(b)})
 		}
-		raw, ok := files["pkg.toml"]
+		raw, ok := files[config.ConfigFileName]
 		var deps []string
 		if ok {
 			if p, err := pkg.Parse(string(raw)); err == nil {
-				for _, d := range p.Components.DependsOn {
-					deps = append(deps, strings.TrimSpace(d))
+				for depName, depRange := range p.Dependencies {
+					deps = append(deps, strings.TrimSpace(depName)+" "+strings.TrimSpace(depRange))
 				}
+				sort.Strings(deps)
 			}
 		}
 		l.Upsert(lock.PkgEntry{Name: t.Name, Version: version, Files: entries, DependsOn: deps})
@@ -820,6 +997,25 @@ func Remove(cwd, name string) error {
 	if err != nil {
 		return err
 	}
+	if strings.HasPrefix(name, "@") && !strings.Contains(name, "/") {
+		scopeName := name
+		prefix := scopeName + "/"
+		for _, e := range l.Pkg {
+			if strings.HasPrefix(e.Name, prefix) {
+				return fmt.Errorf("cannot remove scope %q: package %q is still installed under this scope", scopeName, e.Name)
+			}
+		}
+		scopeDir := filepath.Join(root, "components", scopeName)
+		if err := os.RemoveAll(scopeDir); err != nil {
+			return err
+		}
+		l.RemoveScope(scopeName)
+		if err := lock.Write(root, l); err != nil {
+			return err
+		}
+		return runCheck(root)
+	}
+
 	for _, e := range l.Pkg {
 		for _, d := range e.DependsOn {
 			if depName, _, _ := strings.Cut(d, " "); depName == name {
@@ -872,10 +1068,27 @@ func Remove(cwd, name string) error {
 			return err
 		}
 	}
+
+	if strings.HasPrefix(name, "@") && strings.Contains(name, "/") {
+		parts := strings.SplitN(name, "/", 2)
+		scopeName := parts[0]
+		remaining := 0
+		scopePrefix := scopeName + "/"
+		for _, e := range l.Pkg {
+			if strings.HasPrefix(e.Name, scopePrefix) {
+				remaining++
+			}
+		}
+		if remaining == 0 {
+			if _, ok := l.FindScope(scopeName); ok {
+				fmt.Printf("ℹ️ No remaining packages in scope %s. To clean up the scope configuration, run: unsarep docs remove %s\n", scopeName, scopeName)
+			}
+		}
+	}
+
 	return runCheck(root)
 }
 
-// originScriptAliases lists merged script aliases contributed by package origin.
 func originScriptAliases(root, origin string) ([]string, error) {
 	dir := filepath.Join(root, config.ConfigDirName, "scripts")
 	entries, err := os.ReadDir(dir)
@@ -905,7 +1118,6 @@ func originScriptAliases(root, origin string) ([]string, error) {
 	return out, nil
 }
 
-// removeOriginFragments deletes script and hook fragments owned by origin.
 func removeOriginFragments(root, origin string) error {
 	for _, sub := range []string{"scripts", "hooks"} {
 		dir := filepath.Join(root, config.ConfigDirName, sub)
@@ -954,13 +1166,13 @@ func Check(cwd string) error {
 	if err != nil {
 		return err
 	}
-	if err := runHooks(root, "check", project.HookBefore, cfg); err != nil {
+	if err := runHooks(root, "check", project.HookBefore, cfg, nil); err != nil {
 		return err
 	}
 	if err := runCheck(root); err != nil {
 		return err
 	}
-	return runHooks(root, "check", project.HookAfter, cfg)
+	return runHooks(root, "check", project.HookAfter, cfg, nil)
 }
 
 func typstBin() (string, error) {
@@ -971,9 +1183,6 @@ func typstBin() (string, error) {
 	return p, nil
 }
 
-// resolveTypstEntry picks the file to compile/watch inside reportDir. An
-// existing configured entry wins; otherwise a lone top-level .typ file is
-// assumed, and several are offered for picking via prompt.
 func resolveTypstEntry(reportDir, configured string, prompt func(string) (string, error)) (string, error) {
 	if configured != "" {
 		if _, err := os.Stat(filepath.Join(reportDir, configured)); err == nil {
@@ -1028,7 +1237,8 @@ func Build(cwd, report string) error {
 	if err := runCheck(root); err != nil {
 		return err
 	}
-	if err := runHooks(root, "build", project.HookBefore, cfg); err != nil {
+	hookEnvBefore := []string{config.EnvReportDir + "=" + report}
+	if err := runHooks(root, "build", project.HookBefore, cfg, hookEnvBefore); err != nil {
 		return err
 	}
 	bin, err := typstBin()
@@ -1041,6 +1251,7 @@ func Build(cwd, report string) error {
 		return err
 	}
 	in := filepath.Join(reportDir, entry)
+	hookEnvAfter := []string{config.EnvReportDir + "=" + report, config.EnvTypstEntry + "=" + entry}
 	out := filepath.Join(reportDir, "report.pdf")
 	cmd := exec.Command(bin, "compile", "--root", root, in, out)
 	cmd.Dir = root
@@ -1050,7 +1261,7 @@ func Build(cwd, report string) error {
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("typst compile failed: %w", err)
 	}
-	return runHooks(root, "build", project.HookAfter, cfg)
+	return runHooks(root, "build", project.HookAfter, cfg, hookEnvAfter)
 }
 
 func Watch(cwd, report string) error {
@@ -1099,5 +1310,9 @@ func Run(cwd, alias string, args []string) error {
 	if err != nil {
 		return err
 	}
-	return scripts.RunScript(root, cmd, extra)
+	var cfgEnv []string
+	if origin := cfg.ScriptOrigin(root, alias); origin != "" {
+		cfgEnv = cfg.ConfigEnv(origin)
+	}
+	return scripts.RunScript(root, cmd, extra, cfgEnv)
 }

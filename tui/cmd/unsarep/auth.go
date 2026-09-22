@@ -40,7 +40,10 @@ func runLogin(cmd *cobra.Command, noBrowser, noBrowserChanged bool, token string
 
 func doLogin(cmd *cobra.Command, noBrowser, noBrowserChanged bool, token string) (*auth.Credentials, error) {
 	ctx := context.Background()
-	client := auth.NewClient()
+	client, err := auth.NewClient()
+	if err != nil {
+		return nil, err
+	}
 	if token != "" {
 		return client.LoginWithToken(ctx, token)
 	}
@@ -117,8 +120,10 @@ func newLogoutCmd() *cobra.Command {
 					return fmt.Errorf("logout cancelled")
 				}
 			}
-			// Piped/non-TTY proceeds directly (legacy behavior ignores args).
-			client := auth.NewClient()
+			client, err := auth.NewClient()
+			if err != nil {
+				return err
+			}
 			if err := client.Logout(); err != nil {
 				return err
 			}
@@ -156,7 +161,10 @@ func newAuthCmd() *cobra.Command {
 
 func runWhoami(jsonOut bool) error {
 	ctx := context.Background()
-	client := auth.NewClient()
+	client, err := auth.NewClient()
+	if err != nil {
+		return err
+	}
 	cred, user, err := client.Status(ctx)
 	if err != nil {
 		if cred != nil && strings.Contains(err.Error(), "offline") {

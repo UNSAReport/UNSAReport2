@@ -4,11 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/UNSAReport/tui/internal/auth"
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/slides"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -108,8 +111,8 @@ func newSlidesDevCmd() *cobra.Command {
 			} else if m, _, err := slides.LoadManifest(dir); err == nil && m.Title != "" {
 				title = m.Title
 			}
-			addr := fmt.Sprintf("127.0.0.1:%d", port)
-			fmt.Printf("Deck: %s\nLocal server: http://localhost:%d\nPress Ctrl+C to stop.\n", title, port)
+			addr := net.JoinHostPort(config.LoopbackHost, strconv.Itoa(port))
+			fmt.Printf("Deck: %s\nLocal server: %s%s:%d\nPress Ctrl+C to stop.\n", title, config.CallbackBaseURLPrefix, config.LocalhostName, port)
 			return slides.ServePreview(addr, dir, title)
 		},
 	}
@@ -289,7 +292,10 @@ func newSlidesDeployCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client := slides.NewClient()
+			client, err := slides.NewClient()
+			if err != nil {
+				return err
+			}
 			dir := slidesCwd()
 			project, err := slides.LoadProjectConfig(dir)
 			if err != nil {
@@ -352,8 +358,14 @@ func newSlidesWhoamiCmd() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
-			client := slides.NewClient()
-			authClient := auth.NewClient()
+			client, err := slides.NewClient()
+			if err != nil {
+				return err
+			}
+			authClient, err := auth.NewClient()
+			if err != nil {
+				return err
+			}
 			cred, user, err := authClient.Status(ctx)
 			if err != nil {
 				return fmt.Errorf("slides whoami: %w", err)

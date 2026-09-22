@@ -117,7 +117,6 @@ function AdminDashboardComponent() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Queue state
   const [pendingList, setPendingList] = useState<PendingVersionItem[]>(
     loaderData.pending,
   );
@@ -125,33 +124,28 @@ function AdminDashboardComponent() {
     Record<string, string>
   >({});
 
-  // Trusted state
   const [trustedList, setTrustedList] = useState<TrustedUserItem[]>(
     loaderData.trusted,
   );
   const [newTrustedUserId, setNewTrustedUserId] = useState('');
 
-  // Packages state
   const [packagesList, setPackagesList] = useState<AdminPackageItem[]>(
     loaderData.packages,
   );
   const [statusFilter, setStatusFilter] =
     useState<PackageStatusFilter>(STATUS_ALL);
 
-  // Tags state
   const [tagsList, setTagsList] = useState<TagItem[]>(loaderData.tags);
   const [newTagName, setNewTagName] = useState('');
   const [newTagDisplayName, setNewTagDisplayName] = useState('');
   const [newTagParentId, setNewTagParentId] = useState('');
 
-  // Roles state
   const [_rolesList, setRolesList] = useState<UserRoleItem[]>(loaderData.roles);
   const initialAdminSubApp = adminSubApps[0] ?? REGISTRY_SUBAPP_NAME;
   const [targetUserId, setTargetUserId] = useState('');
   const [targetSubApp, setTargetSubApp] = useState(initialAdminSubApp);
   const [targetRole, setTargetRole] = useState<'admin' | 'user'>('admin');
 
-  // Users & Ecosystem Roles directory state
   const [usersList, setUsersList] = useState<UserWithRolesItem[]>(
     loaderData.initialUsers ?? [],
   );
@@ -186,7 +180,6 @@ function AdminDashboardComponent() {
     setSuccessMessage(null);
   };
 
-  // Action: Approve Package Version
   const handleApprove = async (name: string, version: string) => {
     clearNotifications();
     try {
@@ -203,7 +196,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Reject Package Version
   const handleReject = async (name: string, version: string) => {
     clearNotifications();
     const reasonKey = `${name}@${version}`;
@@ -223,7 +215,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Add Trusted User
   const handleAddTrusted = async (e: React.FormEvent) => {
     e.preventDefault();
     clearNotifications();
@@ -246,7 +237,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Remove Trusted User
   const handleRemoveTrusted = async (userId: string) => {
     clearNotifications();
     try {
@@ -259,7 +249,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Filter Packages
   const handleFilterStatus = async (status: PackageStatusFilter) => {
     setStatusFilter(status);
     clearNotifications();
@@ -271,7 +260,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Delete Package Version (Proposal B)
   const handleDeletePackageVersion = async (name: string, version: string) => {
     if (
       !window.confirm(
@@ -296,7 +284,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Create Tag (Proposal C)
   const handleCreateTag = async (e: React.FormEvent) => {
     e.preventDefault();
     clearNotifications();
@@ -323,7 +310,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Delete Tag (Proposal C)
   const handleDeleteTag = async (id: string, name: string) => {
     if (!window.confirm(`Delete tag '${name}'?`)) return;
     clearNotifications();
@@ -337,7 +323,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Search Users
   const handleSearchUsers = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     clearNotifications();
@@ -360,7 +345,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Reset User Search
   const handleResetUserSearch = async () => {
     setUserSearchQuery('');
     clearNotifications();
@@ -375,7 +359,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Assign or update role for user
   const handleAssignRoleForUser = async (
     userId: string,
     subApp: string,
@@ -397,7 +380,6 @@ function AdminDashboardComponent() {
         },
       });
 
-      // Update rolesList
       setRolesList((prev) => [
         res.role,
         ...prev.filter(
@@ -406,7 +388,6 @@ function AdminDashboardComponent() {
         ),
       ]);
 
-      // Update usersList
       setUsersList((prev) =>
         prev.map((u) => {
           if (u.id !== cleanUserId) return u;
@@ -418,7 +399,6 @@ function AdminDashboardComponent() {
         }),
       );
 
-      // Update selectedUser if active
       setSelectedUser((prev) => {
         if (!prev || prev.id !== cleanUserId) return prev;
         const updatedRoles = [
@@ -437,7 +417,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Revoke role for user
   const handleRevokeRoleForUser = async (userId: string, subApp: string) => {
     clearNotifications();
     const cleanUserId = userId.trim();
@@ -447,14 +426,12 @@ function AdminDashboardComponent() {
         data: { userId: cleanUserId, subApp: cleanSubApp },
       });
 
-      // Update rolesList
       setRolesList((prev) =>
         prev.filter(
           (r) => !(r.userId === cleanUserId && r.subApp === cleanSubApp),
         ),
       );
 
-      // Update usersList
       setUsersList((prev) =>
         prev.map((u) => {
           if (u.id !== cleanUserId) return u;
@@ -465,7 +442,6 @@ function AdminDashboardComponent() {
         }),
       );
 
-      // Update selectedUser if active
       setSelectedUser((prev) => {
         if (!prev || prev.id !== cleanUserId) return prev;
         return {
@@ -481,7 +457,6 @@ function AdminDashboardComponent() {
     }
   };
 
-  // Action: Assign Role from manual form
   const handleAssignRole = async (e: React.FormEvent) => {
     e.preventDefault();
     await handleAssignRoleForUser(targetUserId, targetSubApp, targetRole);
@@ -532,7 +507,6 @@ function AdminDashboardComponent() {
     <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
       <h1>Administration Dashboard</h1>
 
-      {/* Tester Identity Ribbon */}
       <div
         style={{
           border: '1px solid #e5e7eb',
@@ -564,7 +538,6 @@ function AdminDashboardComponent() {
         </div>
       </div>
 
-      {/* Notifications */}
       {errorMessage && (
         <div
           style={{
@@ -594,7 +567,6 @@ function AdminDashboardComponent() {
         </div>
       )}
 
-      {/* Navigation Tabs */}
       <div
         style={{
           display: 'flex',
@@ -701,7 +673,6 @@ function AdminDashboardComponent() {
         </button>
       </div>
 
-      {/* Tab 1: Pending Moderation Queue */}
       {activeTab === TAB_QUEUE && hasRegistryAdmin && (
         <section>
           <h2>Pending Review Queue</h2>
@@ -834,7 +805,6 @@ function AdminDashboardComponent() {
         </section>
       )}
 
-      {/* Tab 2: Trusted Publishers */}
       {activeTab === TAB_TRUSTED && hasRegistryAdmin && (
         <section>
           <h2>Trusted Publishers Management</h2>
@@ -944,7 +914,6 @@ function AdminDashboardComponent() {
         </section>
       )}
 
-      {/* Tab 3: Packages Explorer & Deletion */}
       {activeTab === TAB_PACKAGES && hasRegistryAdmin && (
         <section>
           <h2>All Packages Explorer & Deletion</h2>
@@ -1099,7 +1068,6 @@ function AdminDashboardComponent() {
         </section>
       )}
 
-      {/* Tab 4: Tag Taxonomy */}
       {activeTab === TAB_TAGS && hasRegistryAdmin && (
         <section>
           <h2>Tag Taxonomy Management</h2>
@@ -1218,7 +1186,6 @@ function AdminDashboardComponent() {
         </section>
       )}
 
-      {/* Tab 5: Users & Ecosystem Roles */}
       {activeTab === TAB_ROLES && (
         <section>
           <h2>User Search & Ecosystem Roles Configuration</h2>
@@ -1228,7 +1195,6 @@ function AdminDashboardComponent() {
             <code>slides</code>).
           </p>
 
-          {/* User Search Bar */}
           <form
             onSubmit={handleSearchUsers}
             style={{
@@ -1277,7 +1243,6 @@ function AdminDashboardComponent() {
             </button>
           </form>
 
-          {/* Selected User Role Configuration Box */}
           {selectedUser ? (
             <div
               style={{
@@ -1333,7 +1298,6 @@ function AdminDashboardComponent() {
                 ) : null}
               </p>
 
-              {/* Active Roles for Selected User */}
               <h4 style={{ margin: '0.5rem 0' }}>Current Ecosystem Roles:</h4>
               {selectedUser.roles.length === 0 ? (
                 <p style={{ fontStyle: 'italic', color: '#6b7280' }}>
@@ -1426,7 +1390,6 @@ function AdminDashboardComponent() {
                 </div>
               )}
 
-              {/* Form to Assign/Update Role for Selected User */}
               <h4 style={{ margin: '0.75rem 0 0.5rem' }}>
                 Assign or Update Sub-App Role:
               </h4>
@@ -1503,7 +1466,6 @@ function AdminDashboardComponent() {
             </div>
           ) : null}
 
-          {/* User Directory Table */}
           <h3>Registered Users Directory ({usersList.length})</h3>
           {usersList.length === 0 ? (
             <p style={{ fontStyle: 'italic' }}>
@@ -1626,7 +1588,6 @@ function AdminDashboardComponent() {
             </table>
           )}
 
-          {/* Direct UUID Manual Role Assignment Fallback */}
           <details style={{ marginTop: '1rem', color: '#4b5563' }}>
             <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>
               Direct UUID Role Assignment (Manual)

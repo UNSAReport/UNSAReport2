@@ -128,7 +128,6 @@ func TestCallbackServerBrowserRace(t *testing.T) {
 			done <- fmt.Errorf("wrong pat")
 			return
 		}
-		// Close server immediately, exactly as FinishLoginFlow does!
 		cb.Close()
 		done <- nil
 	}()
@@ -159,7 +158,6 @@ func TestCallbackFaviconIgnored(t *testing.T) {
 	}
 	defer cb.Close()
 
-	// Simulate browser requesting favicon.ico first
 	favResp, err := http.Get("http://" + cb.Listener.Addr().String() + "/favicon.ico")
 	if err != nil {
 		t.Fatal(err)
@@ -169,14 +167,12 @@ func TestCallbackFaviconIgnored(t *testing.T) {
 		t.Fatalf("favicon status %d want 404", favResp.StatusCode)
 	}
 
-	// Verify Done channel is still empty and not poisoned!
 	select {
 	case bad := <-cb.Done:
 		t.Fatalf("Done channel poisoned by favicon: %+v", bad)
 	default:
 	}
 
-	// Now send legitimate callback
 	cbResp, err := http.Get(url + "?state=" + state + "&pat=unsareport_pat_legit")
 	if err != nil {
 		t.Fatal(err)

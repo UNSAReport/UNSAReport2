@@ -9,6 +9,7 @@
     "./manifest": "./src/manifest.ts",
     "./presentations": "./src/presentations.ts",
     "./orgs": "./src/orgs.ts",
+    "./constants": "./src/constants.ts",
     "./cli-api": "./src/cli-api.ts"
   },
   "scripts": {

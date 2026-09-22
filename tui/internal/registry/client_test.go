@@ -10,6 +10,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/UNSAReport/tui/internal/testutil"
 )
 
 func TestResolve(t *testing.T) {
@@ -60,7 +62,6 @@ func TestDownloadSection(t *testing.T) {
 		_, _ = w.Write(zipBytes)
 	}))
 	defer dl.Close()
-	_ = srv
 	mux := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/dl.zip" {
 			_, _ = w.Write(zipBytes)
@@ -84,8 +85,8 @@ func TestDownloadSection(t *testing.T) {
 
 func TestPublish(t *testing.T) {
 	tmpDir := t.TempDir()
-	pkgToml := "[package]\nname = \"test-pkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = []\n"
-	if err := os.WriteFile(filepath.Join(tmpDir, "pkg.toml"), []byte(pkgToml), 0o600); err != nil {
+	pkgToml := "[project]\nconfig_version = 1\n\n[package]\nname = \"@test/pkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n"
+	if err := os.WriteFile(filepath.Join(tmpDir, "unsareport.toml"), []byte(pkgToml), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(tmpDir, "lib.typ"), []byte("#let x = 1"), 0o600); err != nil {
@@ -106,6 +107,33 @@ func TestPublish(t *testing.T) {
 	}
 	empty := t.TempDir()
 	if err := c.Publish(context.Background(), empty, "", ""); err == nil {
-		t.Fatal("expected pkg.toml error")
+		t.Fatal("expected unsareport.toml error")
+	}
+}
+
+func TestSharedMockRegistry(t *testing.T) {
+	srv := testutil.MockRegistry(t)
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	v, err := c.ResolveVersion(context.Background(), "@scope/cardo", "^1.0.0")
+	if err != nil {
+		t.Fatalf("ResolveVersion failed: %v", err)
+	}
+	if v != "1.0.0" {
+		t.Fatalf("version %q", v)
+	}
+	files, err := c.DownloadSection(context.Background(), "@scope/cardo", "1.0.0", "components")
+	if err != nil {
+		t.Fatalf("DownloadSection failed: %v", err)
+	}
+	if string(files["lib.typ"]) != "#let note(body) = block()[#body]\n" {
+		t.Fatalf("content %q", files["lib.typ"])
+	}
+	tpl, err := c.DownloadSection(context.Background(), "@scope/cardo", "1.0.0", "templates")
+	if err != nil {
+		t.Fatalf("DownloadSection templates failed: %v", err)
+	}
+	if len(tpl["report.typ"]) == 0 {
+		t.Fatal("expected report.typ in templates")
 	}
 }

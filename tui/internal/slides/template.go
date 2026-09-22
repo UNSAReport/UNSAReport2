@@ -5,14 +5,11 @@ import (
 	"strings"
 )
 
-// TemplateFile is one scaffolded file of a new slide deck.
 type TemplateFile struct {
 	Path    string
 	Content string
 }
 
-// StarterTemplate returns the new-deck scaffold. Command references use the
-// merged `unsarep slides` surface, not the legacy standalone CLI.
 func StarterTemplate(projectName string) []TemplateFile {
 	slug := Slugify(projectName)
 	if slug == "" {

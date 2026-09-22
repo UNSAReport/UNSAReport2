@@ -1,7 +1,8 @@
 import { describe, expect, test } from 'bun:test';
+import { importPKCS8, SignJWT, UnsecuredJWT } from 'jose';
 import { config } from '@/config';
 import { signAccessToken, verifyAccessToken } from '@/lib/jwt';
-import { rotateKeys } from '@/lib/keys';
+import { getOrGenerateActiveKey, rotateKeys } from '@/lib/keys';
 
 describe('JWT Access Token Signing and Verification', () => {
   const dummyUser = {
@@ -41,6 +42,99 @@ describe('JWT Access Token Signing and Verification', () => {
     const parts = token.split('.');
     const tampered = `${parts[0]}.${parts[1]}.tampered_signature`;
 
-    expect(verifyAccessToken(tampered)).rejects.toThrow();
+    await expect(verifyAccessToken(tampered)).rejects.toThrow();
+  });
+
+  test('verifyAccessToken rejects expired tokens', async () => {
+    const activeKey = await getOrGenerateActiveKey();
+    const privateKey = await importPKCS8(
+      activeKey.privateKey,
+      activeKey.algorithm || 'RS256',
+    );
+    const expired = await new SignJWT({
+      sub: dummyUser.sub,
+      email: dummyUser.email,
+      name: dummyUser.name,
+      type: 'access',
+    })
+      .setProtectedHeader({
+        alg: activeKey.algorithm || 'RS256',
+        kid: activeKey.kid,
+        typ: 'JWT',
+      })
+      .setIssuer(config.idpIssuer)
+      .setIssuedAt(Math.floor(Date.now() / 1000) - 7200)
+      .setExpirationTime(Math.floor(Date.now() / 1000) - 3600)
+      .sign(privateKey);
+    await expect(verifyAccessToken(expired)).rejects.toThrow();
+  });
+
+  test('verifyAccessToken rejects wrong issuer', async () => {
+    const activeKey = await getOrGenerateActiveKey();
+    const privateKey = await importPKCS8(
+      activeKey.privateKey,
+      activeKey.algorithm || 'RS256',
+    );
+    const foreign = await new SignJWT({
+      sub: dummyUser.sub,
+      email: dummyUser.email,
+      name: dummyUser.name,
+      type: 'access',
+    })
+      .setProtectedHeader({
+        alg: activeKey.algorithm || 'RS256',
+        kid: activeKey.kid,
+        typ: 'JWT',
+      })
+      .setIssuer('https://evil.example.com')
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .sign(privateKey);
+    await expect(verifyAccessToken(foreign)).rejects.toThrow();
+  });
+
+  test('verifyAccessToken rejects non-access type claim', async () => {
+    const activeKey = await getOrGenerateActiveKey();
+    const privateKey = await importPKCS8(
+      activeKey.privateKey,
+      activeKey.algorithm || 'RS256',
+    );
+    const refresh = await new SignJWT({
+      sub: dummyUser.sub,
+      email: dummyUser.email,
+      name: dummyUser.name,
+      type: 'refresh',
+    })
+      .setProtectedHeader({
+        alg: activeKey.algorithm || 'RS256',
+        kid: activeKey.kid,
+        typ: 'JWT',
+      })
+      .setIssuer(config.idpIssuer)
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .sign(privateKey);
+    await expect(verifyAccessToken(refresh)).rejects.toThrow(
+      'Invalid token type claim',
+    );
+  });
+
+  test('verifyAccessToken rejects empty and garbage tokens', async () => {
+    await expect(verifyAccessToken('')).rejects.toThrow();
+    await expect(verifyAccessToken('not-a-jwt')).rejects.toThrow();
+    await expect(verifyAccessToken('a.b.c')).rejects.toThrow();
+  });
+
+  test('verifyAccessToken rejects alg none tokens', async () => {
+    const unsigned = new UnsecuredJWT({
+      sub: dummyUser.sub,
+      email: dummyUser.email,
+      type: 'access',
+    })
+      .setIssuer(config.idpIssuer)
+      .setIssuedAt()
+      .setExpirationTime('15m')
+      .encode();
+    await expect(verifyAccessToken(unsigned)).rejects.toThrow();
   });
 });

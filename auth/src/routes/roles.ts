@@ -4,6 +4,7 @@ import { Hono } from 'hono';
 import { config } from '@/config';
 import { db } from '@/db/index';
 import { userRoles, users } from '@/db/schema';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/errors';
 import { authMiddleware } from '@/middleware/auth';
 import type { Role } from '@/types';
 
@@ -13,15 +14,12 @@ const UUID_REGEX =
 
 const rolesRouter = new Hono();
 
-/**
- * Middleware that authenticates admin requests via X-Admin-Key header or falls back to standard auth middleware.
- *
- * @param c - Hono context object.
- * @param next - Next middleware handler function.
- */
 const rolesAuthMiddleware: MiddlewareHandler = async (c, next) => {
   const adminHeader = c.req.header('X-Admin-Key');
-  if (adminHeader && adminHeader === config.adminApiKey) {
+  if (adminHeader) {
+    if (adminHeader !== config.adminApiKey) {
+      throw new ForbiddenError('Invalid admin API key');
+    }
     c.set('isSuperAdmin', true);
     c.set('roles', {});
     await next();
@@ -30,13 +28,6 @@ const rolesAuthMiddleware: MiddlewareHandler = async (c, next) => {
   return authMiddleware(c, next);
 };
 
-/**
- * Checks if the context user is authorized as an administrator for a target sub-app.
- *
- * @param c - Hono context object.
- * @param subApp - Name of the sub-app to check admin authorization for.
- * @returns True if super admin or has admin role for sub-app, false otherwise.
- */
 function authorizeAdminForSubApp(c: Context, subApp: string): boolean {
   if (c.get('isSuperAdmin')) {
     return true;
@@ -45,12 +36,6 @@ function authorizeAdminForSubApp(c: Context, subApp: string): boolean {
   return roles[subApp] === 'admin';
 }
 
-/**
- * Checks if the context user has an admin role in any sub-app or is a super admin.
- *
- * @param c - Hono context object.
- * @returns True if user possesses any admin role, false otherwise.
- */
 function hasAnyAdminRole(c: Context): boolean {
   if (c.get('isSuperAdmin')) {
     return true;
@@ -59,19 +44,11 @@ function hasAnyAdminRole(c: Context): boolean {
   return Object.values(roles).includes('admin');
 }
 
-/**
- * Route handler for GET /me
- * Returns assigned sub-app roles for the authenticated user.
- */
 rolesRouter.get('/me', rolesAuthMiddleware, (c) => {
   const roles = c.get('roles') || {};
   return c.json({ roles });
 });
 
-/**
- * Route handler for GET /user/:userId
- * Returns assigned sub-app roles for a specified target user ID.
- */
 rolesRouter.get('/user/:userId', rolesAuthMiddleware, async (c) => {
   const targetUserId = c.req.param('userId');
   const currentUser = c.get('user');
@@ -80,7 +57,7 @@ rolesRouter.get('/user/:userId', rolesAuthMiddleware, async (c) => {
   const isAuthorized = isSelf || hasAnyAdminRole(c);
 
   if (!isAuthorized) {
-    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+    throw new ForbiddenError('Requires admin role');
   }
 
   const rows = await db
@@ -91,14 +68,9 @@ rolesRouter.get('/user/:userId', rolesAuthMiddleware, async (c) => {
   return c.json({ userId: targetUserId, roles: rows });
 });
 
-/**
- * Route handler for GET /users
- * Searches or lists registered users along with their assigned ecosystem roles.
- * Requires admin role or X-Admin-Key.
- */
 rolesRouter.get('/users', rolesAuthMiddleware, async (c) => {
   if (!hasAnyAdminRole(c)) {
-    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+    throw new ForbiddenError('Requires admin role');
   }
 
   const query = (c.req.query('q') ?? c.req.query('search'))?.trim();
@@ -165,15 +137,11 @@ rolesRouter.get('/users', rolesAuthMiddleware, async (c) => {
   });
 });
 
-/**
- * Route handler for GET /:subApp
- * Returns all user role assignments for a specified sub-app.
- */
 rolesRouter.get('/:subApp', rolesAuthMiddleware, async (c) => {
   const subApp = c.req.param('subApp');
 
   if (!authorizeAdminForSubApp(c, subApp)) {
-    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+    throw new ForbiddenError('Requires admin role');
   }
 
   const rows = await db
@@ -184,37 +152,30 @@ rolesRouter.get('/:subApp', rolesAuthMiddleware, async (c) => {
   return c.json({ subApp, roles: rows });
 });
 
-/**
- * Route handler for POST /
- * Creates or updates a role assignment for a user in a target sub-app.
- */
 rolesRouter.post('/', rolesAuthMiddleware, async (c) => {
-  const body = await c.req
-    .json<{ userId?: string; subApp?: string; role?: Role }>()
-    .catch(() => ({}) as { userId?: string; subApp?: string; role?: Role });
+  let body: { userId?: unknown; subApp?: unknown; role?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new ValidationError('Invalid JSON body');
+  }
 
   const { userId, subApp, role } = body;
 
   if (!userId || typeof userId !== 'string') {
-    return c.json({ error: 'Bad Request', message: 'userId is required' }, 400);
+    throw new ValidationError('userId is required');
   }
 
   if (!subApp || typeof subApp !== 'string' || subApp.trim() === '') {
-    return c.json(
-      { error: 'Bad Request', message: 'subApp must be a non-empty string' },
-      400,
-    );
+    throw new ValidationError('subApp must be a non-empty string');
   }
 
   if (role !== 'user' && role !== 'admin') {
-    return c.json(
-      { error: 'Bad Request', message: 'role must be "user" or "admin"' },
-      400,
-    );
+    throw new ValidationError('role must be "user" or "admin"');
   }
 
   if (!authorizeAdminForSubApp(c, subApp)) {
-    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+    throw new ForbiddenError('Requires admin role');
   }
 
   const [targetUser] = await db
@@ -223,45 +184,41 @@ rolesRouter.post('/', rolesAuthMiddleware, async (c) => {
     .where(eq(users.id, userId));
 
   if (!targetUser) {
-    return c.json({ error: 'Not Found', message: 'User non-existent' }, 404);
+    throw new NotFoundError('User non-existent');
   }
 
   const [userRole] = await db
     .insert(userRoles)
-    .values({ userId, subApp, role })
+    .values({ userId, subApp, role: role as Role })
     .onConflictDoUpdate({
       target: [userRoles.userId, userRoles.subApp],
-      set: { role, updatedAt: new Date() },
+      set: { role: role as Role, updatedAt: new Date() },
     })
     .returning();
 
   return c.json({ success: true, role: userRole });
 });
 
-/**
- * Route handler for DELETE /
- * Revokes a user role assignment for a specified sub-app.
- */
 rolesRouter.delete('/', rolesAuthMiddleware, async (c) => {
-  const body = await c.req
-    .json<{ userId?: string; subApp?: string }>()
-    .catch(() => ({}) as { userId?: string; subApp?: string });
+  let body: { userId?: unknown; subApp?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new ValidationError('Invalid JSON body');
+  }
 
   const { userId, subApp } = body;
 
   if (!userId || typeof userId !== 'string') {
-    return c.json({ error: 'Bad Request', message: 'userId is required' }, 400);
+    throw new ValidationError('userId is required');
   }
 
   if (!subApp || typeof subApp !== 'string' || subApp.trim() === '') {
-    return c.json(
-      { error: 'Bad Request', message: 'subApp must be a non-empty string' },
-      400,
-    );
+    throw new ValidationError('subApp must be a non-empty string');
   }
 
   if (!authorizeAdminForSubApp(c, subApp)) {
-    return c.json({ error: 'Forbidden', message: 'Requires admin role' }, 403);
+    throw new ForbiddenError('Requires admin role');
   }
 
   const deleted = await db
@@ -270,10 +227,7 @@ rolesRouter.delete('/', rolesAuthMiddleware, async (c) => {
     .returning();
 
   if (deleted.length === 0) {
-    return c.json(
-      { error: 'Not Found', message: 'Role assignment not found' },
-      404,
-    );
+    throw new NotFoundError('Role assignment not found');
   }
 
   return c.json({ success: true, message: 'Role revoked successfully' });

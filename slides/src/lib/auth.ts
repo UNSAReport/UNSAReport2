@@ -2,21 +2,22 @@ import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { config } from '@/config';
 import type { SlidesUser } from '@/types';
 
-let jwksClient: ReturnType<typeof createRemoteJWKSet> | null = null;
-
-/**
- * Initializes and caches the remote JSON Web Key Set (JWKS) client instance for IDP token verification.
- *
- * @returns Remote JWKS set client instance.
- */
-function getJWKS() {
-  if (!jwksClient) {
-    jwksClient = createRemoteJWKSet(new URL(config.idpJwksUrl), {
-      timeoutDuration: config.idpTimeoutMs,
-    });
+export function stripBearer(
+  authHeader: string | null | undefined,
+): string | null {
+  if (!authHeader?.startsWith('Bearer ')) {
+    return null;
   }
-  return jwksClient;
+  const token = authHeader.slice(7);
+  if (token.length === 0 || token[0] === ' ' || token[0] === '\t') {
+    return null;
+  }
+  return token;
 }
+
+const jwksClient = createRemoteJWKSet(new URL(config.idpJwksUrl), {
+  timeoutDuration: config.idpTimeoutMs,
+});
 
 interface IdPMeResponse {
   user: { id: string; email?: string; name?: string };
@@ -24,17 +25,9 @@ interface IdPMeResponse {
   roles: Record<string, string>;
 }
 
-/**
- * Verifies a JWT access token using the configured Identity Provider's JWKS and issuer.
- * Roles come from the `roles` claim record keyed by sub-app (see `user_roles` in the IdP).
- *
- * @param token - Bearer JWT string to verify.
- * @returns Slides user context with IdP identity and role map.
- * @throws Error if JWT verification fails or subject claims are missing.
- */
 export async function verifyJWT(token: string): Promise<SlidesUser> {
   try {
-    const JWKS = getJWKS();
+    const JWKS = jwksClient;
     const { payload } = await jwtVerify(token, JWKS, {
       issuer: config.idpIssuer,
     });
@@ -61,20 +54,12 @@ export async function verifyJWT(token: string): Promise<SlidesUser> {
   }
 }
 
-/**
- * Validates an IdP personal access token by forwarding it to the IdP userinfo
- * endpoint. PATs are opaque (`unsareport_pat_*`) and can only be validated by
- * the IdP, which owns the token hashes.
- *
- * @param token - Bearer PAT string to validate.
- * @returns Slides user context with IdP identity and role map.
- * @throws Error if the PAT is invalid, revoked, or the IdP is unreachable.
- */
 export async function verifyPAT(token: string): Promise<SlidesUser> {
   let res: Response;
   try {
     res = await fetch(config.idpMeUrl, {
       headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(config.idpTimeoutMs),
     });
   } catch (err: unknown) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -98,13 +83,6 @@ export async function verifyPAT(token: string): Promise<SlidesUser> {
   };
 }
 
-/**
- * Verifies either credential type the ecosystem issues: IdP JWTs via JWKS,
- * IdP PATs via the IdP userinfo endpoint.
- *
- * @param token - Raw bearer token string.
- * @returns Slides user context with IdP identity and role map.
- */
 export async function verifyCredential(token: string): Promise<SlidesUser> {
   if (token.startsWith('unsareport_pat_')) {
     return verifyPAT(token);

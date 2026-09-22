@@ -5,6 +5,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY slides/package.json ./slides/package.json
 COPY web/packages/api/package.json ./web/packages/api/package.json
 COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
@@ -17,12 +18,14 @@ COPY --from=deps /app/slides ./slides
 COPY --from=deps /app/web/packages ./web/packages
 COPY package.json bun.lock ./
 COPY slides ./slides
+COPY packages ./packages
 COPY web/packages ./web/packages
 WORKDIR /app/slides
 RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY slides/package.json ./slides/package.json
 COPY web/packages/api/package.json ./web/packages/api/package.json
 COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
@@ -34,6 +37,7 @@ ENV NODE_ENV=production
 ENV PORT=3002
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/slides ./slides
+COPY --from=build /app/packages ./packages
 COPY --from=build /app/slides/dist ./dist
 COPY package.json ./
 COPY slides/src/db/migrations ./src/db/migrations

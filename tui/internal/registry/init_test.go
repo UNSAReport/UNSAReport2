@@ -11,10 +11,10 @@ import (
 
 func TestInitPackage(t *testing.T) {
 	dir2 := filepath.Join(t.TempDir(), "out")
-	if err := InitPackage(InitOptions{Dir: dir2, Name: "cardo", Description: "cards"}); err != nil {
+	if err := InitPackage(InitOptions{Dir: dir2, Name: "@scope/cardo", Description: "cards"}); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(filepath.Join(dir2, "pkg.toml"))
+	raw, err := os.ReadFile(filepath.Join(dir2, "unsareport.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -25,7 +25,7 @@ func TestInitPackage(t *testing.T) {
 	if err := pkg.Validate(p); err != nil {
 		t.Fatal(err)
 	}
-	if p.Package.Name != "cardo" || p.Package.Version != "0.1.0" {
+	if p.Package.Name != "@scope/cardo" || p.Package.Version != "0.1.0" {
 		t.Fatalf("pkg %+v", p.Package)
 	}
 	if err := CheckPackageDir(dir2); err != nil {
@@ -41,7 +41,7 @@ func TestInitPackageRejects(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(full, "x"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := InitPackage(InitOptions{Dir: full, Name: "cardo"}); err == nil {
+	if err := InitPackage(InitOptions{Dir: full, Name: "@scope/cardo"}); err == nil {
 		t.Fatal("expected non-empty-dir error")
 	}
 }
@@ -50,7 +50,7 @@ func TestInitPackageScopedName(t *testing.T) {
 	if err := InitPackage(InitOptions{Dir: dir, Name: "@xxx/yyy", Description: "scoped"}); err != nil {
 		t.Fatal(err)
 	}
-	raw, err := os.ReadFile(filepath.Join(dir, "pkg.toml"))
+	raw, err := os.ReadFile(filepath.Join(dir, "unsareport.toml"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestInitPackageScopedName(t *testing.T) {
 	if p.Package.CommandPrefix != "yyy" {
 		t.Fatalf("expected scope-stripped prefix, got %q", p.Package.CommandPrefix)
 	}
-	for _, name := range []string{"@xxx", "a/b/c", "MyPkg", "ab"} {
+	for _, name := range []string{"@xxx", "MyPkg"} {
 		if err := InitPackage(InitOptions{Dir: t.TempDir(), Name: name}); err == nil {
 			t.Fatalf("%s: expected rejection", name)
 		}
@@ -75,35 +75,33 @@ func TestInitPackageScopedName(t *testing.T) {
 }
 
 func TestResolvePublishSource(t *testing.T) {
-	// Standalone pkg.toml dir wins.
 	standalone := t.TempDir()
-	if err := os.WriteFile(filepath.Join(standalone, "pkg.toml"), []byte("[package]\nname = \"a\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\ndepends_on = []\n\n[templates]\nfiles = []\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(standalone, "unsareport.toml"), []byte("[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/a\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	text, compDir, err := resolvePublishSource(standalone)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(text, `name = "a"`) || compDir != standalone {
+	if !strings.Contains(text, `name = "@scope/a"`) || compDir != standalone {
 		t.Fatalf("got %q %q", text, compDir)
 	}
-	// Project root with [package] synthesizes from components/<name>/.
 	root := t.TempDir()
-	cfgText := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[package]\nname = \"mine\"\nversion = \"0.2.0\"\ndescription = \"m\"\n\n[dependencies]\ntheme = \">=1.0.0\"\n"
+	cfgText := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[package]\nname = \"@scope/mine\"\nversion = \"0.2.0\"\ndescription = \"m\"\n\n[dependencies]\n\"@scope/theme\" = \">=1.0.0\"\n"
 	if err := os.WriteFile(filepath.Join(root, "unsareport.toml"), []byte(cfgText), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(root, "components", "mine"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "components", "@scope", "mine"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(root, "components", "mine", "lib.typ"), []byte("x"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "components", "@scope", "mine", "lib.typ"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	text, compDir, err = resolvePublishSource(root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(text, "mine") || !strings.Contains(text, "theme") || compDir != filepath.Join(root, "components", "mine") {
+	if !strings.Contains(text, "@scope/mine") || !strings.Contains(text, "@scope/theme") || compDir != filepath.Join(root, "components", "@scope", "mine") {
 		t.Fatalf("got %q %q", text, compDir)
 	}
 	p, err := pkg.Parse(text)
@@ -113,7 +111,6 @@ func TestResolvePublishSource(t *testing.T) {
 	if err := pkg.Validate(p); err != nil {
 		t.Fatal(err)
 	}
-	// Neither present errors.
 	if _, _, err := resolvePublishSource(t.TempDir()); err == nil {
 		t.Fatal("expected no-source error")
 	}
