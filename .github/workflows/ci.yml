@@ -35,6 +35,10 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://idp:idppassword@localhost:5432/idp_db
+      S3_ENDPOINT: http://localhost:8333
+      S3_BUCKET: unsareport-registry
+      S3_ACCESS_KEY: seaweedadmin
+      S3_SECRET_KEY: seaweedadmin
     steps:
       - uses: actions/checkout@v4
         with:
@@ -70,12 +74,16 @@ jobs:
           filters: |
             auth:
               - 'auth/**'
+              - 'packages/**'
             registry:
               - 'registry/**'
+              - 'packages/**'
             slides:
               - 'slides/**'
+              - 'packages/**'
             website:
               - 'web/**'
+              - 'packages/**'
 
   image-auth:
     name: Image auth
