@@ -134,4 +134,3 @@ func (l *Lock) FindScope(name string) (ScopeEntry, bool) {
 	}
 	return ScopeEntry{}, false
 }
-

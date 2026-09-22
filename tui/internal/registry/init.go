@@ -15,7 +15,6 @@ import (
 var initNameRe = regexp.MustCompile(`^(@[a-z0-9][a-z0-9._~-]*/)?[a-z0-9][a-z0-9._~-]*$`)
 var initPrefixRe = regexp.MustCompile(`^[a-z0-9][a-z0-9._~-]*$`)
 
-// InitOptions describes a new standalone package scaffold.
 type InitOptions struct {
 	Dir           string
 	Name          string
@@ -24,9 +23,6 @@ type InitOptions struct {
 	CommandPrefix string
 }
 
-// InitPackage scaffolds a minimal publishable package dir: unsareport.toml plus
-// placeholder components and template files. The target must not exist or
-// must be an empty directory.
 func InitPackage(opt InitOptions) error {
 	name := strings.TrimSpace(opt.Name)
 	if len(name) < 3 || len(name) > 64 || !initNameRe.MatchString(name) {

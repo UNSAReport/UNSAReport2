@@ -52,8 +52,6 @@ func resolveRoot(start string) (string, project.SpecConfig, error) {
 }
 
 func saveConfig(root string, cfg project.SpecConfig) error {
-	// Imported commands and hook bindings live in unsareport.d/ fragments;
-	// never inline them into the root file.
 	cfg = cfg.RootOnly()
 	f, err := os.Create(filepath.Join(root, config.ConfigFileName))
 	if err != nil {
@@ -116,7 +114,6 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 		return pkg.PkgToml{}, err
 	}
 
-	// If package is scoped (@scope/pkg), check if scope files need to be fetched.
 	if strings.HasPrefix(name, "@") {
 		parts := strings.SplitN(name, "/", 2)
 		if len(parts) == 2 {
@@ -628,8 +625,6 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			} else {
 				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			// Suggested bindings are before entries; timing stays a
-			// local bind-time decision edited in the fragment file.
 			bound[std] = append(bound[std], alias)
 		}
 	}
@@ -652,12 +647,6 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 	return nil
 }
 
-// collectPackageConfig gathers a package's [config-schema] values at install
-// time and persists them to unsareport.d/config/<origin>.toml. Existing
-// values survive reinstalls; only missing keys are collected. In ask mode
-// each missing key prompts (empty accepts the default); in yes/all modes
-// defaults apply silently and a required key without default is a hard
-// error (fail fast headless).
 func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, prefix, mode string) error {
 	origin := p.Package.Name
 	keys := make([]string, 0, len(p.ConfigSchema))
@@ -748,7 +737,6 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 	return nil
 }
 
-// configDefault renders a schema default to its env string form.
 func configDefault(e pkg.ConfigSchemaEntry) (string, bool) {
 	if e.Default == nil {
 		return "", false
@@ -767,8 +755,6 @@ func configDefault(e pkg.ConfigSchemaEntry) (string, bool) {
 	}
 }
 
-// checkConfigType validates a config value against its schema type. Paths
-// stay unchecked: values like filename formats are not filesystem paths.
 func checkConfigType(key, typ, val string) error {
 	switch typ {
 	case "bool":
@@ -783,8 +769,6 @@ func checkConfigType(key, typ, val string) error {
 	return nil
 }
 
-// mergeHookFragment unions before aliases into
-// unsareport.d/hooks/<std>-<prefix>.toml.
 func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []string, already project.HookTiming) error {
 	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
 	owned := map[string]bool{}
@@ -834,9 +818,6 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []stri
 	return nil
 }
 
-// stripHookAlias drops a leading "os:<key> " prefix for ownership and
-// reference comparisons. Anything else passes through; SplitPrefix rejects
-// the invalid at run time.
 func stripHookAlias(a string) string {
 	a = strings.TrimSpace(a)
 	if strings.HasPrefix(a, "os:") {
@@ -1016,10 +997,8 @@ func Remove(cwd, name string) error {
 	if err != nil {
 		return err
 	}
-	// Check if target is a scope (@scope)
 	if strings.HasPrefix(name, "@") && !strings.Contains(name, "/") {
 		scopeName := name
-		// Verify no packages under this scope exist in lock
 		prefix := scopeName + "/"
 		for _, e := range l.Pkg {
 			if strings.HasPrefix(e.Name, prefix) {
@@ -1090,7 +1069,6 @@ func Remove(cwd, name string) error {
 		}
 	}
 
-	// Check if this was the last package under a scope
 	if strings.HasPrefix(name, "@") && strings.Contains(name, "/") {
 		parts := strings.SplitN(name, "/", 2)
 		scopeName := parts[0]
@@ -1111,7 +1089,6 @@ func Remove(cwd, name string) error {
 	return runCheck(root)
 }
 
-// originScriptAliases lists merged script aliases contributed by package origin.
 func originScriptAliases(root, origin string) ([]string, error) {
 	dir := filepath.Join(root, config.ConfigDirName, "scripts")
 	entries, err := os.ReadDir(dir)
@@ -1141,7 +1118,6 @@ func originScriptAliases(root, origin string) ([]string, error) {
 	return out, nil
 }
 
-// removeOriginFragments deletes script and hook fragments owned by origin.
 func removeOriginFragments(root, origin string) error {
 	for _, sub := range []string{"scripts", "hooks"} {
 		dir := filepath.Join(root, config.ConfigDirName, sub)
@@ -1207,9 +1183,6 @@ func typstBin() (string, error) {
 	return p, nil
 }
 
-// resolveTypstEntry picks the file to compile/watch inside reportDir. An
-// existing configured entry wins; otherwise a lone top-level .typ file is
-// assumed, and several are offered for picking via prompt.
 func resolveTypstEntry(reportDir, configured string, prompt func(string) (string, error)) (string, error) {
 	if configured != "" {
 		if _, err := os.Stat(filepath.Join(reportDir, configured)); err == nil {

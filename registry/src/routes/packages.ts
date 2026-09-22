@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { DEFAULT_PACKAGES_LIMIT } from '@unsa/schemas/constants';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import JSZip from 'jszip';
@@ -22,15 +23,16 @@ import {
   unscopedNameRoute,
 } from '@/lib/package-name';
 import {
-  expandGlobs,
-  parseUnsareportToml,
-  validateUnsareportToml,
-} from '@/lib/unsareport-toml';
-import {
   buildAndUploadZipArchive,
   deleteS3Object,
   uploadS3Object,
 } from '@/lib/s3';
+import {
+  expandGlobs,
+  normalizeArchivePath,
+  parseUnsareportToml,
+  validateUnsareportToml,
+} from '@/lib/unsareport-toml';
 import { optionalAuth, requireAuth } from '@/middleware/auth';
 import {
   ConflictError,
@@ -44,25 +46,22 @@ import type { HonoEnv } from '@/types';
 
 const packagesRouter = new Hono<HonoEnv>();
 
-/**
- * Route handler for searching and listing packages with optional search query, tag filtering, and pagination.
- */
 packagesRouter.get('/', optionalAuth, async (c) => {
   const q = (c.req.query('q') ?? c.req.query('search'))?.trim();
   const tagFilter = c.req.query('tag')?.trim();
   const statusFilter = c.req.query('status')?.trim() || 'approved';
   const limit = Math.min(
     Number.parseInt(c.req.query('limit') || '20', 10),
-    100,
+    DEFAULT_PACKAGES_LIMIT,
   );
   const offset = Math.max(Number.parseInt(c.req.query('offset') || '0', 10), 0);
 
   const user = c.get('user');
-  const isAdmin = user?.roles.includes('admin');
+  const isAdmin = user?.roles.registry === 'admin';
 
   const conditions = [];
 
-  if (statusFilter === 'approved') {
+  if (statusFilter === 'approved' || (statusFilter === 'all' && !isAdmin)) {
     conditions.push(eq(packages.status, 'approved'));
   } else if (!isAdmin) {
     if (user) {
@@ -72,7 +71,7 @@ packagesRouter.get('/', optionalAuth, async (c) => {
     } else {
       conditions.push(eq(packages.status, 'approved'));
     }
-  } else {
+  } else if (statusFilter !== 'all') {
     conditions.push(eq(packages.status, statusFilter));
   }
 
@@ -145,9 +144,6 @@ packagesRouter.get('/', optionalAuth, async (c) => {
   });
 });
 
-/**
- * Route handler for fetching package metadata, associated tags, and available version strings.
- */
 packagesRouter.on(
   'GET',
   [unscopedNameRoute(''), scopedNameRoute('')],
@@ -190,9 +186,6 @@ packagesRouter.on(
   },
 );
 
-/**
- * Route handler for listing all registered version entries for a given package name.
- */
 packagesRouter.on(
   'GET',
   [unscopedNameRoute('', '/versions'), scopedNameRoute('', '/versions')],
@@ -229,9 +222,6 @@ packagesRouter.on(
   },
 );
 
-/**
- * Route handler for fetching detailed metadata, file list, and declared dependencies for a specific package version.
- */
 packagesRouter.on(
   'GET',
   [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
@@ -308,10 +298,6 @@ packagesRouter.on(
   },
 );
 
-/**
- * Route handler for publishing a new package version from an unsareport.toml
- * document plus a components/templates .zip payload (split archives).
- */
 packagesRouter.post('/', requireAuth, async (c) => {
   const user = c.get('user');
   if (!user) {
@@ -322,9 +308,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
 
   let pkgText: string | null = null;
   const manifestField =
-    formData.manifest ??
-    formData['unsareport.toml'] ??
-    formData.pkg;
+    formData.manifest ?? formData['unsareport.toml'] ?? formData.pkg;
   if (typeof manifestField === 'string') {
     pkgText = manifestField;
   } else if (manifestField instanceof File) {
@@ -376,14 +360,8 @@ packagesRouter.post('/', requireAuth, async (c) => {
   const zipPaths: string[] = [];
   for (const [entryName, entry] of Object.entries(zip.files)) {
     if (entry.dir) continue;
-    const normalized = entryName.replace(/^\.\//, '');
-    if (
-      normalized.length === 0 ||
-      normalized.startsWith('/') ||
-      normalized.includes('\\') ||
-      normalized.split('/').some((seg) => seg === '..' || seg.length === 0) ||
-      normalized.startsWith('__MACOSX/')
-    ) {
+    const normalized = normalizeArchivePath(entryName);
+    if (normalized === null || normalized.startsWith('__MACOSX/')) {
       throw new ValidationError(
         `ZIP entry "${entryName}" escapes the package root or is not a relative path`,
         { field: 'components' },
@@ -411,7 +389,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
     );
   }
 
-  // Ensure package is scoped
   if (!pkg.name.startsWith('@')) {
     throw new ValidationError(
       'Unscoped packages are not allowed. Please publish under your personal scope (@<slug>) or request a custom scope.',
@@ -420,9 +397,9 @@ packagesRouter.post('/', requireAuth, async (c) => {
   }
 
   const slashIndex = pkg.name.indexOf('/');
-  const scopeName = slashIndex === -1 ? pkg.name : pkg.name.slice(0, slashIndex);
+  const scopeName =
+    slashIndex === -1 ? pkg.name : pkg.name.slice(0, slashIndex);
 
-  // Verify scope exists in database
   const scopeRows = await db
     .select()
     .from(scopes)
@@ -436,8 +413,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
   }
   const scope = scopeRows[0];
 
-  // Verify user authorization: system admin, scope owner, or scope member (admin or contributor)
-  const isSysAdmin = user.roles.includes('admin');
+  const isSysAdmin = user.roles.registry === 'admin';
   const isOwner = scope.ownerId === user.id;
   let isAuthorized = isSysAdmin || isOwner;
 
@@ -564,7 +540,7 @@ packagesRouter.post('/', requireAuth, async (c) => {
     }
   }
 
-  const isAdmin = user.roles.includes('admin');
+  const isAdmin = user.roles.registry === 'admin';
   const isTrusted = await db
     .select({ userId: trustedUsers.userId })
     .from(trustedUsers)
@@ -740,9 +716,6 @@ packagesRouter.post('/', requireAuth, async (c) => {
   );
 });
 
-/**
- * Route handler for updating details of a pending package version owned by the user.
- */
 packagesRouter.on(
   'PUT',
   [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
@@ -767,7 +740,7 @@ packagesRouter.on(
 
     const pkg = pkgList[0];
 
-    if (pkg.authorId !== user.id && !user.roles.includes('admin')) {
+    if (pkg.authorId !== user.id && user.roles.registry !== 'admin') {
       throw new ForbiddenError(`You are not the owner of package '${name}'`);
     }
 
@@ -790,19 +763,68 @@ packagesRouter.on(
 
     const ver = verList[0];
 
-    if (ver.status !== 'pending' && !user.roles.includes('admin')) {
+    if (ver.status !== 'pending' && user.roles.registry !== 'admin') {
       throw new ForbiddenError(
         `Cannot modify package version '${version}' with status '${ver.status}'`,
       );
     }
 
-    return c.json({ message: 'Version updated successfully' });
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      throw new ValidationError('Invalid JSON body');
+    }
+
+    const hasDisplayName = body.displayName !== undefined;
+    const hasDescription = body.description !== undefined;
+
+    if (
+      (!hasDisplayName && !hasDescription) ||
+      (hasDisplayName && typeof body.displayName !== 'string') ||
+      (hasDescription && typeof body.description !== 'string')
+    ) {
+      throw new ValidationError(
+        'At least one of "displayName" or "description" (string) is required',
+        { fields: ['displayName', 'description'] },
+      );
+    }
+
+    const displayName =
+      typeof body.displayName === 'string' ? body.displayName.trim() : null;
+    const description =
+      typeof body.description === 'string' ? body.description.trim() : null;
+
+    if (hasDisplayName && displayName !== null && displayName.length === 0) {
+      throw new ValidationError('"displayName" must be a non-empty string', {
+        field: 'displayName',
+      });
+    }
+
+    const updates: { displayName?: string; description?: string | null } = {};
+    if (hasDisplayName && displayName !== null) {
+      updates.displayName = displayName;
+    }
+    if (hasDescription) {
+      updates.description = description === '' ? null : description;
+    }
+
+    await db
+      .update(packages)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(packages.id, pkg.id));
+
+    return c.json({
+      message: 'Version updated successfully',
+      displayName: updates.displayName ?? pkg.displayName,
+      description:
+        updates.description !== undefined
+          ? updates.description
+          : pkg.description,
+    });
   },
 );
 
-/**
- * Route handler for deleting a package version and its associated S3 files (requires admin authentication).
- */
 packagesRouter.on(
   'DELETE',
   [unscopedNameRoute('', '/:version'), scopedNameRoute('', '/:version')],
@@ -815,7 +837,7 @@ packagesRouter.on(
       throw new UnauthorizedError();
     }
 
-    if (!user.roles.includes('admin')) {
+    if (user.roles.registry !== 'admin') {
       throw new ForbiddenError(
         'Admin role required to delete a package version',
       );

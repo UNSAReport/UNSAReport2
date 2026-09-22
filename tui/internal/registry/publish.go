@@ -11,10 +11,6 @@ import (
 	"github.com/UNSAReport/tui/internal/project"
 )
 
-// resolvePublishSource returns the unsareport.toml document and the components dir to
-// zip. Standalone package dirs (unsareport.toml with [package] and [components]) publish as-is.
-// Project roots with a [package] declaration in unsareport.toml publish the authored subtree
-// components/<name>/ with an explicit file list and [dependencies].
 func resolvePublishSource(dir string) (pkgText, compDir string, err error) {
 	configPath := filepath.Join(dir, config.ConfigFileName)
 	raw, rerr := os.ReadFile(configPath)
@@ -22,7 +18,6 @@ func resolvePublishSource(dir string) (pkgText, compDir string, err error) {
 		return "", "", fmt.Errorf("%s not found in %s: %w", config.ConfigFileName, dir, rerr)
 	}
 
-	// Try standalone package check first
 	if p, perr := pkg.Parse(string(raw)); perr == nil && p.Package.Name != "" && len(p.Components.Files) > 0 {
 		return string(raw), dir, nil
 	}

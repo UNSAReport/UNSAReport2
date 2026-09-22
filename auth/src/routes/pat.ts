@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { NotFoundError, ValidationError } from '@/lib/errors';
 import { createPAT, listUserPATs, revokePAT } from '@/lib/tokens';
 import { authMiddleware } from '@/middleware/auth';
 
@@ -6,36 +7,39 @@ const patRouter = new Hono();
 
 patRouter.use('*', authMiddleware);
 
-/**
- * Creates a new personal access token for the authenticated user.
- */
 patRouter.post('/', async (c) => {
   const user = c.get('user');
-  const body = await c.req.json().catch(() => ({}));
+  let body: { name?: unknown; scopes?: unknown; expires_at?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    throw new ValidationError('Invalid JSON body');
+  }
   const { name, scopes, expires_at } = body;
 
   if (!name || typeof name !== 'string') {
-    return c.json(
-      { error: 'Bad Request', message: 'Field "name" is required' },
-      400,
-    );
+    throw new ValidationError('Field "name" is required');
+  }
+
+  if (
+    scopes !== undefined &&
+    (!Array.isArray(scopes) || scopes.some((s) => typeof s !== 'string'))
+  ) {
+    throw new ValidationError('Field "scopes" must be an array of strings');
   }
 
   let expiresAtDate: Date | undefined;
   if (expires_at) {
-    expiresAtDate = new Date(expires_at);
+    expiresAtDate = new Date(expires_at as string);
     if (Number.isNaN(expiresAtDate.getTime())) {
-      return c.json(
-        { error: 'Bad Request', message: 'Invalid "expires_at" date format' },
-        400,
-      );
+      throw new ValidationError('Invalid "expires_at" date format');
     }
   }
 
   const { token, pat } = await createPAT(
     user.id,
     name,
-    Array.isArray(scopes) ? scopes : [],
+    Array.isArray(scopes) ? (scopes as string[]) : [],
     expiresAtDate,
   );
 
@@ -54,28 +58,19 @@ patRouter.post('/', async (c) => {
   );
 });
 
-/**
- * Lists all active personal access tokens for the authenticated user.
- */
 patRouter.get('/', async (c) => {
   const user = c.get('user');
   const pats = await listUserPATs(user.id);
   return c.json({ pats });
 });
 
-/**
- * Revokes a personal access token by ID for the authenticated user.
- */
 patRouter.delete('/:id', async (c) => {
   const user = c.get('user');
   const patId = c.req.param('id');
 
   const success = await revokePAT(user.id, patId);
   if (!success) {
-    return c.json(
-      { error: 'Not Found', message: 'PAT not found or already revoked' },
-      404,
-    );
+    throw new NotFoundError('PAT not found or already revoked');
   }
 
   return c.json({ success: true, message: 'PAT revoked successfully' });

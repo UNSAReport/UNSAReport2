@@ -19,15 +19,18 @@ function VersionComponent() {
   const { data, name, version } = Route.useLoaderData();
   type VersionData = {
     archive_url?: string;
-    archiveUrl?: string;
-    files?: string[];
-    manifest?: Record<string, string | string[]>;
+    files?: Array<{
+      path: string;
+      section: string;
+      size: number;
+      checksum: string;
+    }>;
+    dependencies?: Record<string, string>;
   };
   const v = data as VersionData;
-  const archiveUrl = v.archive_url ?? v.archiveUrl;
+  const archive_url = v.archive_url;
   const files = v.files ?? [];
-  // manifest may be nested or top-level
-  const manifest = v.manifest ?? v;
+  const manifest = v.dependencies ?? v;
 
   return (
     <div>
@@ -40,9 +43,9 @@ function VersionComponent() {
           unsarep install {name}@{version}
         </code>
       </p>
-      {archiveUrl && (
+      {archive_url && (
         <p>
-          <a href={archiveUrl}>Download archive</a>
+          <a href={archive_url}>Download archive</a>
         </p>
       )}
       <h2>Manifest</h2>
@@ -53,7 +56,7 @@ function VersionComponent() {
       ) : (
         <ul>
           {files.map((f) => (
-            <li key={f}>{f}</li>
+            <li key={f.path}>{f.path}</li>
           ))}
         </ul>
       )}

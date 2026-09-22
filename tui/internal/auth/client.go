@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/charmbracelet/log"
 )
 
 type UserInfo struct {
@@ -104,15 +106,13 @@ func (c *Client) whoamiWithToken(ctx context.Context, token string) (UserInfo, m
 	req.Header.Set("User-Agent", "unsarep-tui")
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("auth request failed", "err", err, "path", "/v1/me")
 		return UserInfo{}, nil, fmt.Errorf("auth service unreachable at %s: %w", c.BaseURL, err)
 	}
 	body, _ := readAll(resp)
 	if resp.StatusCode != 200 {
+		log.Warn("auth request failed", "status", resp.StatusCode, "path", "/v1/me")
 		return UserInfo{}, nil, fmt.Errorf("whoami failed: %d body %s", resp.StatusCode, string(body))
-	}
-	var u UserInfo
-	if err := json.Unmarshal(body, &u); err == nil && u.ID != "" {
-		return u, u.Roles, nil
 	}
 	var env struct {
 		User  *UserInfo         `json:"user"`
@@ -124,30 +124,15 @@ func (c *Client) whoamiWithToken(ctx context.Context, token string) (UserInfo, m
 			if env.Roles != nil {
 				env.User.Roles = env.Roles
 			}
-			return *env.User, env.Roles, nil
+			return *env.User, env.User.Roles, nil
 		}
 		if env.Data != nil && env.Data.ID != "" {
 			return *env.Data, env.Data.Roles, nil
 		}
 	}
-	var m map[string]any
-	if err := json.Unmarshal(body, &m); err == nil {
-		if um, ok := m["user"].(map[string]any); ok {
-			b2, _ := json.Marshal(um)
-			var u2 UserInfo
-			if err := json.Unmarshal(b2, &u2); err == nil && u2.ID != "" {
-				if r, ok := m["roles"].(map[string]any); ok {
-					roles := map[string]string{}
-					for k, v := range r {
-						if s, ok := v.(string); ok {
-							roles[k] = s
-						}
-					}
-					u2.Roles = roles
-				}
-				return u2, u2.Roles, nil
-			}
-		}
+	var u UserInfo
+	if err := json.Unmarshal(body, &u); err == nil && u.ID != "" {
+		return u, u.Roles, nil
 	}
 	return UserInfo{}, nil, fmt.Errorf("unexpected whoami shape: %s", string(body))
 }
@@ -316,30 +301,48 @@ func (c *Client) IsLoggedIn() bool { return c.GetToken() != "" }
 
 func (c *Client) Logout() error {
 	tok := c.resolveToken()
+	var errs []error
 	if tok != "" {
-		_ = c.revokePat(tok)
-	}
-	_ = os.Unsetenv(config.EnvToken)
-	if c.Store != nil {
-		if err := c.Store.Clear(); err != nil {
-			return err
+		if err := c.revokePat(tok); err != nil {
+			errs = append(errs, err)
 		}
 	}
-	return config.ClearToken()
+	if err := os.Unsetenv(config.EnvToken); err != nil {
+		errs = append(errs, err)
+	}
+	if c.Store != nil {
+		if err := c.Store.Clear(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	if err := config.ClearToken(); err != nil {
+		errs = append(errs, err)
+	}
+	return errors.Join(errs...)
 }
 
 func (c *Client) revokePat(tok string) error {
 	body, _ := json.Marshal(map[string]string{"pat": tok})
 	req, err := http.NewRequest("POST", c.BaseURL+"/v1/logout", bytes.NewReader(body))
 	if err != nil {
-		return nil
+		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("User-Agent", "unsarep-tui")
 	resp, err := c.HTTPClient.Do(req)
-	if err == nil {
-		_ = resp.Body.Close()
+	if err != nil {
+		log.Error("auth request failed", "err", err, "path", "/v1/logout")
+		return err
+	}
+	defer func() {
+		if cerr := resp.Body.Close(); cerr != nil {
+			log.Error("auth response close failed", "err", cerr, "path", "/v1/logout")
+		}
+	}()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warn("auth request failed", "status", resp.StatusCode, "path", "/v1/logout")
+		return fmt.Errorf("logout failed with status %d", resp.StatusCode)
 	}
 	return nil
 }

@@ -149,7 +149,7 @@ export const scopes = pgTable(
     name: text('name').notNull().unique(),
     description: text('description'),
     ownerId: uuid('owner_id').notNull(),
-    scopeType: text('scope_type').notNull(), // 'email' | 'custom'
+    scopeType: text('scope_type').notNull(),
     archiveS3Key: text('archive_s3_key'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .defaultNow()
@@ -172,7 +172,7 @@ export const scopeMembers = pgTable(
       .notNull()
       .references(() => scopes.id, { onDelete: 'cascade' }),
     userId: uuid('user_id').notNull(),
-    role: text('role').notNull(), // 'admin' | 'contributor'
+    role: text('role').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .defaultNow()
       .notNull(),
@@ -194,9 +194,9 @@ export const scopeInvitations = pgTable(
       .notNull()
       .references(() => scopes.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
-    role: text('role').notNull(), // 'admin' | 'contributor'
+    role: text('role').notNull(),
     invitedBy: uuid('invited_by').notNull(),
-    status: text('status').notNull().default('pending'), // 'pending' | 'accepted' | 'declined' | 'revoked'
+    status: text('status').notNull().default('pending'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
       .defaultNow()
       .notNull(),
@@ -235,7 +235,7 @@ export const scopeRequests = pgTable(
     scopeName: text('scope_name').notNull(),
     requestedBy: uuid('requested_by').notNull(),
     reason: text('reason').notNull(),
-    status: text('status').notNull().default('pending'), // 'pending' | 'approved' | 'rejected'
+    status: text('status').notNull().default('pending'),
     reviewedBy: uuid('reviewed_by'),
     rejectionReason: text('rejection_reason'),
     createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' })
@@ -249,4 +249,3 @@ export const scopeRequests = pgTable(
     index('idx_scope_requests_name').on(table.scopeName),
   ],
 );
-

@@ -26,7 +26,6 @@ func init() {
 	}
 }
 
-// usageError marks failures that print command help and exit 2.
 type usageError struct {
 	cmd *cobra.Command
 	err error
@@ -39,7 +38,6 @@ func usagef(cmd *cobra.Command, format string, args ...any) error {
 	return &usageError{cmd: cmd, err: fmt.Errorf(format, args...)}
 }
 
-// isTerm reports whether stdin is a terminal (exact legacy check).
 func isTerm() bool {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
@@ -48,7 +46,6 @@ func isTerm() bool {
 	return fi.Mode()&os.ModeCharDevice != 0
 }
 
-// canPrompt reports whether an interactive huh form may be launched.
 func canPrompt() bool { return isTerm() && !noInput }
 
 func runForm(f *huh.Form) error {
@@ -73,8 +70,6 @@ func printOK(format string, args ...any) {
 	fmt.Println(styleOK.Render(fmt.Sprintf(format, args...)))
 }
 
-// renderError prints err; markdown-looking payloads go through glamour,
-// everything else through the error style.
 func renderError(err error) {
 	msg := err.Error()
 	if looksMarkdown(msg) {
@@ -93,7 +88,6 @@ func looksMarkdown(s string) bool {
 	return strings.Contains(s, "\n# ")
 }
 
-// selectFlags maps mode bools to the domain wire format ([]string{"--yes",...}).
 func selectFlags(yes, all, none bool) []string {
 	var out []string
 	if yes {
@@ -108,7 +102,6 @@ func selectFlags(yes, all, none bool) []string {
 	return out
 }
 
-// exclusiveMode validates that at most one of --yes/--all/--none is set.
 func exclusiveMode(cmd *cobra.Command, yes, all, none bool) error {
 	n := 0
 	for _, b := range []bool{yes, all, none} {
@@ -122,8 +115,6 @@ func exclusiveMode(cmd *cobra.Command, yes, all, none bool) error {
 	return nil
 }
 
-// resolvePosOrFlag merges a positional arg with its flag twin: positional wins
-// when the flag is untouched; both set with different values is a usage error.
 func resolvePosOrFlag(cmd *cobra.Command, what, pos, flagName, flagVal string) (string, error) {
 	if pos == "" {
 		return flagVal, nil

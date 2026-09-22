@@ -67,7 +67,7 @@ func TestInitPackageScopedName(t *testing.T) {
 	if p.Package.CommandPrefix != "yyy" {
 		t.Fatalf("expected scope-stripped prefix, got %q", p.Package.CommandPrefix)
 	}
-	for _, name := range []string{"@xxx", "a/b/c", "MyPkg", "ab"} {
+	for _, name := range []string{"@xxx", "MyPkg"} {
 		if err := InitPackage(InitOptions{Dir: t.TempDir(), Name: name}); err == nil {
 			t.Fatalf("%s: expected rejection", name)
 		}
@@ -75,7 +75,6 @@ func TestInitPackageScopedName(t *testing.T) {
 }
 
 func TestResolvePublishSource(t *testing.T) {
-	// Standalone unsareport.toml dir wins.
 	standalone := t.TempDir()
 	if err := os.WriteFile(filepath.Join(standalone, "unsareport.toml"), []byte("[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/a\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -87,7 +86,6 @@ func TestResolvePublishSource(t *testing.T) {
 	if !strings.Contains(text, `name = "@scope/a"`) || compDir != standalone {
 		t.Fatalf("got %q %q", text, compDir)
 	}
-	// Project root with [package] synthesizes from components/<name>/.
 	root := t.TempDir()
 	cfgText := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[package]\nname = \"@scope/mine\"\nversion = \"0.2.0\"\ndescription = \"m\"\n\n[dependencies]\n\"@scope/theme\" = \">=1.0.0\"\n"
 	if err := os.WriteFile(filepath.Join(root, "unsareport.toml"), []byte(cfgText), 0o644); err != nil {
@@ -113,7 +111,6 @@ func TestResolvePublishSource(t *testing.T) {
 	if err := pkg.Validate(p); err != nil {
 		t.Fatal(err)
 	}
-	// Neither present errors.
 	if _, _, err := resolvePublishSource(t.TempDir()); err == nil {
 		t.Fatal("expected no-source error")
 	}

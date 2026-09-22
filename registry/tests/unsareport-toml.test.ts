@@ -67,7 +67,10 @@ function filesCtx(
 }
 
 function parseValid(extraCtx?: ValidateFilesContext) {
-  return validateUnsareportToml(parseUnsareportToml(BASE_TOML), extraCtx ?? filesCtx());
+  return validateUnsareportToml(
+    parseUnsareportToml(BASE_TOML),
+    extraCtx ?? filesCtx(),
+  );
 }
 
 describe('unsareport.toml validation', () => {
@@ -121,9 +124,9 @@ version = "1.0.0"
 [components]
 files = ["lib.typ"]
 `;
-    expect(() => validateUnsareportToml(parseUnsareportToml(missingProject))).toThrow(
-      'requires a [project] table',
-    );
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(missingProject)),
+    ).toThrow('requires a [project] table');
 
     const wrongVersion = `
 [project]
@@ -136,14 +139,19 @@ version = "1.0.0"
 [components]
 files = ["lib.typ"]
 `;
-    expect(() => validateUnsareportToml(parseUnsareportToml(wrongVersion))).toThrow(
-      'Unsupported config_version',
-    );
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(wrongVersion)),
+    ).toThrow('Unsupported config_version');
   });
 
   it('rejects unscoped package names and instructs user', () => {
-    const unscopedToml = BASE_TOML.replace('name = "@testscope/cardo"', 'name = "cardo"');
-    expect(() => validateUnsareportToml(parseUnsareportToml(unscopedToml))).toThrow(
+    const unscopedToml = BASE_TOML.replace(
+      'name = "@testscope/cardo"',
+      'name = "cardo"',
+    );
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(unscopedToml)),
+    ).toThrow(
       'Unscoped packages are not allowed. Please publish under your personal scope (@<slug>) or request a custom scope.',
     );
   });
@@ -178,9 +186,9 @@ files = ["lib.typ"]
 
   it('rejects legacy allow_read/allow_write keys', () => {
     const tomlWithLegacy = `${BASE_TOML}\nallow_read = ["/etc"]\n`;
-    expect(() => validateUnsareportToml(parseUnsareportToml(tomlWithLegacy))).toThrow(
-      ValidationError,
-    );
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(tomlWithLegacy)),
+    ).toThrow(ValidationError);
   });
 
   it('rejects unknown top-level keys', () => {
@@ -192,7 +200,10 @@ files = ["lib.typ"]
 
   it('requires each glob to match at least one uploaded file', () => {
     const missingFile = parseUnsareportToml(
-      BASE_TOML.replace('files = ["*.typ", "assets/**/*"]', 'files = ["*.typ", "missing/**/*"]'),
+      BASE_TOML.replace(
+        'files = ["*.typ", "assets/**/*"]',
+        'files = ["*.typ", "missing/**/*"]',
+      ),
     );
     expect(() => validateUnsareportToml(missingFile, filesCtx())).toThrow(
       'matches no uploaded files',
@@ -218,5 +229,62 @@ describe('glob expansion', () => {
     ]);
     expect(expandGlobs(['img/*.png'], files)).toEqual(['img/a.png']);
     expect(expandGlobs(['doc?.md'], files)).toEqual(['doc1.md']);
+  });
+});
+
+describe('unsareport.toml invalid documents', () => {
+  it('rejects unknown [package] keys', () => {
+    for (const key of ['entrypoint = "lib.typ"', 'default_select = true']) {
+      const raw = parseUnsareportToml(
+        BASE_TOML.replace('version = "1.2.0"', `version = "1.2.0"\n${key}`),
+      );
+      expect(() => validateUnsareportToml(raw)).toThrow(ValidationError);
+    }
+  });
+
+  it('rejects unknown command os keys', () => {
+    const raw = parseUnsareportToml(
+      BASE_TOML.replace(
+        'linux = ["echo hi-linux"]',
+        'plan9 = ["echo hi-plan9"]',
+      ),
+    );
+    expect(() => validateUnsareportToml(raw)).toThrow(/unknown/);
+  });
+
+  it('rejects empty command maps', () => {
+    const raw = parseUnsareportToml(
+      BASE_TOML.replace(
+        'commands = { any = ["echo hi"], linux = ["echo hi-linux"] }',
+        'commands = {}',
+      ),
+    );
+    expect(() => validateUnsareportToml(raw)).toThrow(
+      /at least one shell line/,
+    );
+  });
+
+  it('rejects init hook suggestions', () => {
+    const raw = parseUnsareportToml(
+      BASE_TOML.replace('build = ["cardo:greet"]', 'init = ["cardo:greet"]'),
+    );
+    expect(() => validateUnsareportToml(raw)).toThrow(/init hook/);
+  });
+
+  it('rejects absolute globs', () => {
+    const raw = parseUnsareportToml(
+      BASE_TOML.replace(
+        'files = ["*.typ", "assets/**/*"]',
+        'files = ["/lib.typ"]',
+      ),
+    );
+    expect(() => validateUnsareportToml(raw)).toThrow(/relative path/);
+  });
+
+  it('rejects empty component globs', () => {
+    const raw = parseUnsareportToml(
+      BASE_TOML.replace('files = ["*.typ", "assets/**/*"]', 'files = []'),
+    );
+    expect(() => validateUnsareportToml(raw)).toThrow(/non-empty array/);
   });
 });

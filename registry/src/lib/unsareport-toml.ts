@@ -190,9 +190,12 @@ function validateGlobList(
 function parseDependencies(value: unknown): Record<string, string> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
-    throw new ValidationError('unsareport.toml [dependencies] must be a table', {
-      field: 'dependencies',
-    });
+    throw new ValidationError(
+      'unsareport.toml [dependencies] must be a table',
+      {
+        field: 'dependencies',
+      },
+    );
   }
   const out: Record<string, string> = {};
   for (const [name, range] of Object.entries(value)) {
@@ -312,9 +315,12 @@ function validateCommandOsMap(
 function validateHooksSuggest(value: unknown): Record<string, string[]> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
-    throw new ValidationError('unsareport.toml [hooks-suggest] must be a table', {
-      field: 'hooks-suggest',
-    });
+    throw new ValidationError(
+      'unsareport.toml [hooks-suggest] must be a table',
+      {
+        field: 'hooks-suggest',
+      },
+    );
   }
   const out: Record<string, string[]> = {};
   for (const [standard, rawList] of Object.entries(value)) {
@@ -363,9 +369,12 @@ function validateConfigSchema(
 ): Record<string, PkgConfigSchemaEntry> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
-    throw new ValidationError('unsareport.toml [config-schema] must be a table', {
-      field: 'config-schema',
-    });
+    throw new ValidationError(
+      'unsareport.toml [config-schema] must be a table',
+      {
+        field: 'config-schema',
+      },
+    );
   }
   const allowedTypes: readonly string[] = CONFIG_SCHEMA_TYPES;
   const out: Record<string, PkgConfigSchemaEntry> = {};
@@ -467,7 +476,6 @@ export function validateUnsareportToml(
     }
   }
 
-  // Enforce [project] table and config_version = 1
   if (!isRecord(raw.project)) {
     throw new ValidationError('unsareport.toml requires a [project] table', {
       field: 'project',
@@ -498,7 +506,6 @@ export function validateUnsareportToml(
     );
   }
 
-  // Parse [scope] if present
   let scope: ScopeDef | undefined;
   if (raw.scope !== undefined) {
     if (!isRecord(raw.scope)) {
@@ -589,7 +596,6 @@ export function validateUnsareportToml(
       );
     }
 
-    // Zero-fallback / strict scope enforcement for packages:
     if (!pkgName.startsWith('@')) {
       throw new ValidationError(
         'Unscoped packages are not allowed. Please publish under your personal scope (@<slug>) or request a custom scope.',
@@ -718,9 +724,12 @@ export function validateUnsareportToml(
 
     if (raw.templates !== undefined) {
       if (!isRecord(raw.templates)) {
-        throw new ValidationError('unsareport.toml [templates] must be a table', {
-          field: 'templates',
-        });
+        throw new ValidationError(
+          'unsareport.toml [templates] must be a table',
+          {
+            field: 'templates',
+          },
+        );
       }
       rejectLegacyKeys(raw.templates, '[templates]');
       const allowedTemplates: Record<string, true> = { files: true };
@@ -899,6 +908,33 @@ export function normalizeRelativePosixPath(rawPath: string): string | null {
   }
   return stack.join('/');
 }
+export function normalizeArchivePath(entryName: string): string | null {
+  const stripped = entryName.replace(/^[/\\]+/, '');
+  if (stripped.length === 0 || stripped.includes('\\')) {
+    return null;
+  }
+  const parts = stripped.split('/');
+  const stack: string[] = [];
+  for (const part of parts) {
+    if (part === '.') {
+      continue;
+    }
+    if (part === '..') {
+      if (stack.length === 0) {
+        return null;
+      }
+      stack.pop();
+    } else if (part.length === 0) {
+      return null;
+    } else {
+      stack.push(part);
+    }
+  }
+  if (stack.length === 0) {
+    return null;
+  }
+  return stack.join('/');
+}
 
 export function resolveBundledAssetPath(
   templatePath: string,
@@ -1018,7 +1054,10 @@ export function scanTemplateContent(
   return findings;
 }
 
-function validatePublishFiles(pkg: UnsareportToml, ctx: ValidateFilesContext): void {
+function validatePublishFiles(
+  pkg: UnsareportToml,
+  ctx: ValidateFilesContext,
+): void {
   for (const file of ctx.presentFiles) {
     if (
       file.startsWith('/') ||

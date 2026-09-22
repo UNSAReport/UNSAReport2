@@ -12,10 +12,6 @@ import (
 
 var HookStandards = project.HookStandards
 
-// SplitPrefix splits an optional "os:<key>" prefix from a hook alias
-// reference (e.g. "os:linux zip:make"). Bare entries return an empty key.
-// Entries starting with "[" are the retired bracket syntax and are rejected.
-// An "os:" prefix with an unknown key is an error.
 func SplitPrefix(entry string) (osKey, rest string, err error) {
 	trimmed := strings.TrimSpace(entry)
 	if strings.HasPrefix(trimmed, "[") {
@@ -50,8 +46,6 @@ func osKey(goos string) (string, error) {
 	}
 }
 
-// HookApplies reports whether a hook alias entry with the given os key
-// ("" for bare entries) runs on the current OS.
 func HookApplies(key string) (bool, error) {
 	if key == "" || key == "any" {
 		return true, nil
@@ -66,9 +60,6 @@ func HookApplies(key string) (bool, error) {
 	return key == cur, nil
 }
 
-// Select returns the runnable command for an alias: the any command first,
-// then the matching-OS command, joined with a newline. Unknown os keys are
-// hard errors; no command for this OS is a hard error naming alias+OS.
 func Select(cmds project.ScriptCommands, alias, goos string) (string, error) {
 	for k := range cmds {
 		if !project.OSKeys[k] {
@@ -99,10 +90,6 @@ func shellForOS() (string, string) {
 	return "bash", "-c"
 }
 
-// RunScript executes a selected command with <root> cwd, fail-fast per
-// line. Blank lines are skipped; a command with no runnable lines is an
-// error. extraArgs is appended to every line, as before. extraEnv entries
-// ("KEY=value") are appended to the child environment.
 func RunScript(root, script, extraArgs string, extraEnv []string) error {
 	var lines []string
 	for _, body := range strings.Split(script, "\n") {

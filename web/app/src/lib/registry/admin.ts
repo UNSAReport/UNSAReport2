@@ -1,5 +1,6 @@
 import { createServerFn } from '@tanstack/react-start';
 import { getCookie } from '@tanstack/react-start/server';
+import { DEFAULT_PACKAGES_LIMIT } from '@unsa/schemas/constants';
 import { COOKIE_ACCESS_TOKEN } from '@/lib/auth/server';
 import { serverEnv } from '@/lib/env';
 
@@ -10,7 +11,7 @@ export const PACKAGES_ENDPOINT = '/v1/packages';
 export const TAGS_ENDPOINT = '/v1/tags';
 export const IDP_ROLES_ENDPOINT = '/v1/roles';
 export const REGISTRY_SUBAPP_NAME = 'registry';
-export const DEFAULT_PACKAGES_LIMIT = 100;
+export { DEFAULT_PACKAGES_LIMIT };
 export const DEFAULT_PACKAGES_OFFSET = 0;
 
 export interface PendingVersionItem {
@@ -99,7 +100,7 @@ async function registryAdminFetch(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const base = serverEnv.REGISTRY_URL.replace(/\/$/, '');
+  const base = serverEnv.REGISTRY_URL.replace(/\/+$/, '');
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);
   if (init.body && !headers.has('Content-Type')) {
@@ -127,7 +128,7 @@ async function authAdminFetch(
     throw new Error('Unauthorized: Authentication required');
   }
 
-  const base = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+  const base = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);
   if (init.body && !headers.has('Content-Type')) {
@@ -142,7 +143,6 @@ async function authAdminFetch(
   return res;
 }
 
-// 1. Pending Moderation Queue
 export const listPendingPackagesServerFn = createServerFn({
   method: 'GET',
 }).handler(async (): Promise<PendingVersionItem[]> => {
@@ -174,7 +174,6 @@ export const rejectPackageVersionServerFn = createServerFn({
     return (await res.json()) as { message: string; reason: string };
   });
 
-// 2. Trusted Publishers Management
 export const listTrustedUsersServerFn = createServerFn({
   method: 'GET',
 }).handler(async (): Promise<TrustedUserItem[]> => {
@@ -205,7 +204,6 @@ export const removeTrustedUserServerFn = createServerFn({
     return (await res.json()) as { message: string };
   });
 
-// 3. Package Audit & Version Deletion
 export const listAdminPackagesServerFn = createServerFn({
   method: 'GET',
 })
@@ -228,7 +226,6 @@ export const deletePackageVersionServerFn = createServerFn({
     return (await res.json()) as { message: string };
   });
 
-// 4. Tag Taxonomy Management
 export const listTagsServerFn = createServerFn({
   method: 'GET',
 }).handler(async (): Promise<TagItem[]> => {
@@ -266,7 +263,6 @@ export const deleteTagServerFn = createServerFn({
     return (await res.json()) as { message: string };
   });
 
-// 5. Auth IdP Role Management (Tester Impersonation)
 export const listSubAppRolesServerFn = createServerFn({
   method: 'GET',
 })

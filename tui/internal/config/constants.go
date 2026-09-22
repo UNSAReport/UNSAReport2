@@ -5,7 +5,6 @@ import (
 	"time"
 )
 
-// Default URLs and endpoints
 const (
 	DefaultBaseURL        = "https://unsareport.ynoacamino.tech"
 	DefaultRegistryURL    = "https://unsareport.ynoacamino.tech/api/registry"
@@ -13,15 +12,15 @@ const (
 	DefaultSlidesURL      = "https://unsareport.ynoacamino.tech/api/slides"
 	DefaultWebsiteURL     = "https://unsareport.ynoacamino.tech"
 	SchemaBaseURL         = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
-	DefaultCallbackHost   = "127.0.0.1:0"
+	LoopbackHost          = "127.0.0.1"
+	LocalhostName         = "localhost"
+	DefaultCallbackHost   = LoopbackHost + ":0"
 	CallbackBaseURLPrefix = "http://"
 	CallbackPath          = "/callback"
 )
 
-// Version — set via ldflag -X github.com/UNSAReport/tui/internal/config.Version=...
 var Version = "dev"
 
-// Defaults for project config
 const (
 	DefaultPrompt        = "❯ "
 	DefaultColumns       = 120
@@ -34,19 +33,14 @@ const (
 	DefaultFileTemplate  = "{output_type}_{lab_number}"
 )
 
-// Credentials / keyring
 const (
 	PATPrefix      = "unsareport_pat_"
 	KeyringService = "unsareport"
 	KeyringUser    = "pat"
 )
 
-// Limits and timeouts
 const (
-	DefaultRegistryLimit = 100
-)
-
-var (
+	DefaultRegistryLimit      = 100
 	AuthTimeout               = 10 * time.Second
 	RegistryTimeout           = 30 * time.Second
 	CallbackTimeout           = 5 * time.Minute
@@ -54,7 +48,6 @@ var (
 	CallbackShutdownTimeout   = 2 * time.Second
 )
 
-// File permissions
 const (
 	PermDirPrivate  = 0o700
 	PermFilePrivate = 0o600
@@ -62,7 +55,6 @@ const (
 	PermFilePublic  = 0o644
 )
 
-// Env var names — canonical
 const (
 	EnvRegistryURL     = "UNSAREP_REGISTRY_URL"
 	EnvIDPIssuer       = "UNSAREP_IDP_ISSUER"
@@ -89,7 +81,6 @@ const (
 	EnvLCMessages      = "LC_MESSAGES"
 )
 
-// Project file layout (Typst restructure: TOML project, TOML lock)
 const (
 	AppDirName          = "unsareport"
 	ConfigFileName      = "unsareport.toml"
@@ -101,21 +92,16 @@ const (
 	LockFileName        = "unsareport.lock"
 )
 
-// Project marker values. ConfigVersion is the newest unsareport.toml schema
-// this binary understands: older files load with defaults filled in, newer
-// files fail with an upgrade prompt instead of a cryptic field error.
 const (
 	ConfigVersion     = 1
 	DefaultTypstEntry = "main.typ"
 )
 
-// Regexes (compiled)
 var (
 	ReVar     = regexp.MustCompile(`\{(\w+)\}`)
 	ReIllegal = regexp.MustCompile(`[<>:"/\\|?*]`)
 )
 
-// TUI keys
 const (
 	Key1     = "1"
 	Key2     = "2"
@@ -129,7 +115,6 @@ const (
 	KeyEnter = "enter"
 )
 
-// Colors defaults
 const (
 	ColorPrompt  = "32"
 	ColorCommand = "36"
@@ -137,10 +122,8 @@ const (
 	ColorReset   = "0"
 )
 
-// Registry pagination
 const RegistryPackagesPath = "/v1/packages"
 
-// EnvNames exposes canonical env vars for docs/tests
 var EnvNames = []string{
 	EnvRegistryURL,
 	EnvIDPIssuer,

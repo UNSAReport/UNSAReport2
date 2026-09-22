@@ -22,7 +22,7 @@ app.use(
       ) {
         return origin;
       }
-      return config.allowedOrigins[0] || '*';
+      return undefined;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
@@ -41,9 +41,6 @@ v1.route('/', downloadRouter);
 
 app.route('/v1', v1);
 
-/**
- * Health check endpoint handler returning service operational status, current timestamp, and available API endpoints.
- */
 app.get('/health', (c) => {
   return c.json({
     status: 'ok',

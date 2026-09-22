@@ -5,10 +5,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +16,7 @@ import (
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/pkg"
 	"github.com/UNSAReport/tui/internal/project"
+	"github.com/UNSAReport/tui/internal/testutil"
 )
 
 func TestParseNameRangeScoped(t *testing.T) {
@@ -69,7 +68,7 @@ func TestRunHooksBeforeAfterOrder(t *testing.T) {
 	}
 }
 
-func TestRunHooksAfterSkippedOnBeforeFailure(t *testing.T) {
+func TestAfterHooksRunEvenWhenBeforeFails(t *testing.T) {
 	root := t.TempDir()
 	cfg := hookTestConfig()
 	cfg.Scripts["a:pre"] = project.ScriptDef{
@@ -85,8 +84,6 @@ func TestRunHooksAfterSkippedOnBeforeFailure(t *testing.T) {
 	if string(raw) != "pre\n" {
 		t.Fatalf("got %q", raw)
 	}
-	// Fail-fast lives with the caller (Check/Build stop on error): the after
-	// filter alone would still run post, so callers must not invoke it.
 	if err := runHooks(root, "build", project.HookAfter, cfg, nil); err != nil {
 		t.Fatal(err)
 	}
@@ -195,140 +192,12 @@ func TestSaveConfigKeepsImportsInFragments(t *testing.T) {
 	}
 }
 
-func createZip(files map[string]string) []byte {
-	var buf bytes.Buffer
-	zw := zip.NewWriter(&buf)
-	for name, content := range files {
-		w, _ := zw.Create(name)
-		_, _ = w.Write([]byte(content))
-	}
-	_ = zw.Close()
-	return buf.Bytes()
-}
-
-func setupMockRegistry(t *testing.T) *httptest.Server {
-	t.Helper()
-	var srv *httptest.Server
-
-	cardoComp := createZip(map[string]string{
-		"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/cardo\"\nversion = \"1.0.0\"\n\n[dependencies]\n\"@scope/theme\" = \"^1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = [\"report.typ\"]\n",
-		"lib.typ":         "#let note(body) = block()[#body]\n",
-	})
-	cardoTpl := createZip(map[string]string{
-		"report.typ": "#import \"/components/@scope/cardo/lib.typ\" as cardo\n#import \"/components/@scope/theme/lib.typ\" as theme\n= Report\n",
-	})
-	themeComp := createZip(map[string]string{
-		"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/theme\"\nversion = \"1.0.0\"\n\n[dependencies]\n\"@scope/utils\" = \"^1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n",
-		"lib.typ":         "#let theme(x) = x\n",
-	})
-	utilsComp := createZip(map[string]string{
-		"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/utils\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n",
-		"lib.typ":         "#let util(x) = x\n",
-	})
-	tplpkgComp := createZip(map[string]string{
-		"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/tplpkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = [\"template/**/*\"]\n",
-		"lib.typ":         "#let note(body) = block()[#body]\n",
-	})
-	tplpkgTpl := createZip(map[string]string{
-		"template/report.typ":      "= Templated Report\n",
-		"template/assets/logo.png": "png-bytes",
-	})
-	siblingComp := createZip(map[string]string{
-		"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@scope/siblingpkg\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = [\"**/*\"]\n",
-		"lib.typ":         "#let note(body) = block()[#body]\n",
-	})
-	siblingTpl := createZip(map[string]string{
-		"template/report.typ": "= Report\n",
-		"README.md":           "# Readme\n",
-	})
-
-	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
-			var body struct {
-				Packages map[string]string `json:"packages"`
-			}
-			_ = json.NewDecoder(r.Body).Decode(&body)
-			var resolved []map[string]any
-			for pkgName := range body.Packages {
-				resolved = append(resolved, map[string]any{
-					"name":        pkgName,
-					"version":     "1.0.0",
-					"archive_url": srv.URL + "/dl/" + url.PathEscape(pkgName) + "/components.zip",
-					"files":       []string{"lib.typ"},
-				})
-			}
-			_ = json.NewEncoder(w).Encode(map[string]any{"resolved": resolved})
-			return
-		}
-
-		if strings.HasSuffix(r.URL.Path, "/archive") {
-			sec := r.URL.Query().Get("section")
-			trimmed := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, "/archive"), "/v1/")
-			parts := strings.Split(trimmed, "/")
-			if len(parts) >= 2 {
-				pkgName := strings.Join(parts[:len(parts)-1], "/")
-				_ = json.NewEncoder(w).Encode(map[string]any{
-					"archive_url": fmt.Sprintf("%s/dl/%s/%s.zip", srv.URL, url.PathEscape(pkgName), sec),
-				})
-				return
-			}
-		}
-
-		if strings.HasPrefix(r.URL.Path, "/dl/") {
-			rest := strings.TrimPrefix(r.URL.Path, "/dl/")
-			lastSlash := strings.LastIndex(rest, "/")
-			if lastSlash > 0 {
-				rawPkg := rest[:lastSlash]
-				file := rest[lastSlash+1:]
-				pkgName, _ := url.PathUnescape(rawPkg)
-				if pkgName == "@scope/cardo" && file == "templates.zip" {
-					_, _ = w.Write(cardoTpl)
-					return
-				}
-				if pkgName == "@scope/cardo" && file == "components.zip" {
-					_, _ = w.Write(cardoComp)
-					return
-				}
-				if pkgName == "@scope/theme" && file == "components.zip" {
-					_, _ = w.Write(themeComp)
-					return
-				}
-				if pkgName == "@scope/utils" && file == "components.zip" {
-					_, _ = w.Write(utilsComp)
-					return
-				}
-				if pkgName == "@scope/tplpkg" && file == "templates.zip" {
-					_, _ = w.Write(tplpkgTpl)
-					return
-				}
-				if pkgName == "@scope/tplpkg" && file == "components.zip" {
-					_, _ = w.Write(tplpkgComp)
-					return
-				}
-				if pkgName == "@scope/siblingpkg" && file == "templates.zip" {
-					_, _ = w.Write(siblingTpl)
-					return
-				}
-				if pkgName == "@scope/siblingpkg" && file == "components.zip" {
-					_, _ = w.Write(siblingComp)
-					return
-				}
-			}
-		}
-
-		w.WriteHeader(404)
-	}))
-
-	t.Setenv(config.EnvRegistryURL, srv.URL)
-	return srv
-}
 
 func TestInitNonEmptyDirNoConflicts(t *testing.T) {
-	srv := setupMockRegistry(t)
+	srv := testutil.MockRegistry(t)
 	defer srv.Close()
 
 	tmp := t.TempDir()
-	// Pre-populate directory with non-conflicting files
 	if err := os.WriteFile(filepath.Join(tmp, "README.md"), []byte("# My Doc\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -355,7 +224,6 @@ func TestInitNonEmptyDirNoConflicts(t *testing.T) {
 		t.Fatalf("unsareport.toml must contain config_version: %s", string(rawToml))
 	}
 
-	// Verify recursive dependency installation
 	if _, err := os.Stat(filepath.Join(tmp, "components", "@scope", "cardo", "lib.typ")); err != nil {
 		t.Fatalf("expected cardo component to exist: %v", err)
 	}
@@ -382,7 +250,7 @@ func TestInitNonEmptyDirNoConflicts(t *testing.T) {
 }
 
 func TestInitNonEmptyDirWithConflicts(t *testing.T) {
-	srv := setupMockRegistry(t)
+	srv := testutil.MockRegistry(t)
 	defer srv.Close()
 
 	t.Run("aborts when confirmation is rejected", func(t *testing.T) {
@@ -450,7 +318,7 @@ func TestInitNonEmptyDirWithConflicts(t *testing.T) {
 }
 
 func TestAddRecursiveDependencies(t *testing.T) {
-	srv := setupMockRegistry(t)
+	srv := testutil.MockRegistry(t)
 	defer srv.Close()
 
 	tmp := t.TempDir()
@@ -581,7 +449,7 @@ func TestNormalizeTemplateFiles(t *testing.T) {
 }
 
 func TestInitTemplateStripsTemplateSubdir(t *testing.T) {
-	srv := setupMockRegistry(t)
+	srv := testutil.MockRegistry(t)
 	defer srv.Close()
 
 	tmp := t.TempDir()
@@ -594,19 +462,16 @@ func TestInitTemplateStripsTemplateSubdir(t *testing.T) {
 		t.Fatalf("expected Init to succeed, got %v", err)
 	}
 
-	// Verify report.typ is at destination/dir/report.typ
 	reportTypPath := filepath.Join(tmp, reportDir, "report.typ")
 	if _, err := os.Stat(reportTypPath); err != nil {
 		t.Fatalf("expected report.typ at %s: %v", reportTypPath, err)
 	}
 
-	// Verify asset is at destination/dir/assets/logo.png
 	assetPath := filepath.Join(tmp, reportDir, "assets", "logo.png")
 	if _, err := os.Stat(assetPath); err != nil {
 		t.Fatalf("expected logo.png at %s: %v", assetPath, err)
 	}
 
-	// Verify destination/dir/template does NOT exist
 	nestedTemplateDir := filepath.Join(tmp, reportDir, "template")
 	if _, err := os.Stat(nestedTemplateDir); !os.IsNotExist(err) {
 		t.Fatalf("expected %s to NOT exist, but it does", nestedTemplateDir)
@@ -614,7 +479,7 @@ func TestInitTemplateStripsTemplateSubdir(t *testing.T) {
 }
 
 func TestInitTemplateKeepsSiblings(t *testing.T) {
-	srv := setupMockRegistry(t)
+	srv := testutil.MockRegistry(t)
 	defer srv.Close()
 
 	tmp := t.TempDir()
@@ -627,7 +492,6 @@ func TestInitTemplateKeepsSiblings(t *testing.T) {
 		t.Fatalf("expected Init to succeed, got %v", err)
 	}
 
-	// Siblings exist (template/ and README.md), so nothing should be stripped
 	if _, err := os.Stat(filepath.Join(tmp, reportDir, "template", "report.typ")); err != nil {
 		t.Fatalf("expected template/report.typ to exist because sibling README.md exists: %v", err)
 	}
@@ -758,7 +622,7 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 			return
 		}
 		if strings.HasPrefix(r.URL.Path, "/dl/") {
-			pkgArchive := createZip(map[string]string{
+			pkgArchive := testutil.CreateZip(map[string]string{
 				"unsareport.toml": "[project]\nconfig_version = 1\n\n[package]\nname = \"@myscope/pkg1\"\nversion = \"1.0.0\"\n\n[components]\nfiles = [\"lib.typ\"]\n\n[templates]\nfiles = []\n",
 				"lib.typ":         "#let p1 = 1\n",
 			})
@@ -780,13 +644,11 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 		t.Fatalf("Add failed: %v", err)
 	}
 
-	// Verify scope file tsconfig.json downloaded to components/@myscope/tsconfig.json
 	tsPath := filepath.Join(tmp, "components", "@myscope", "tsconfig.json")
 	if _, err := os.Stat(tsPath); err != nil {
 		t.Fatalf("expected scope file tsconfig.json to exist at %s: %v", tsPath, err)
 	}
 
-	// Verify lock has scope entry
 	l, err := lock.Load(tmp)
 	if err != nil {
 		t.Fatal(err)
@@ -799,32 +661,26 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 		t.Fatalf("unexpected scope files in lock: %+v", sEntry.Files)
 	}
 
-	// Attempting to remove scope while package is still installed should fail
 	if err := Remove(tmp, "@myscope"); err == nil {
 		t.Fatal("expected error removing scope with remaining installed package")
 	}
 
-	// Remove package
 	if err := Remove(tmp, "@myscope/pkg1"); err != nil {
 		t.Fatalf("Remove package failed: %v", err)
 	}
 
-	// Scope files should still remain
 	if _, err := os.Stat(tsPath); err != nil {
 		t.Fatalf("scope file should still exist after package remove: %v", err)
 	}
 
-	// Now remove scope
 	if err := Remove(tmp, "@myscope"); err != nil {
 		t.Fatalf("Remove scope failed: %v", err)
 	}
 
-	// Scope directory should be gone
 	if _, err := os.Stat(filepath.Join(tmp, "components", "@myscope")); !os.IsNotExist(err) {
 		t.Fatal("expected components/@myscope to be deleted")
 	}
 
-	// Scope should be gone from lock
 	lAfter, err := lock.Load(tmp)
 	if err != nil {
 		t.Fatal(err)
@@ -833,4 +689,3 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 		t.Fatal("expected @myscope to be removed from lock scopes")
 	}
 }
-

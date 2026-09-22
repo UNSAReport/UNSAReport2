@@ -4,12 +4,19 @@ import {
   getCookie,
   setCookie,
 } from '@tanstack/react-start/server';
+import { createLogger } from '@unsa/logger';
+import {
+  ACCESS_TOKEN_TTL_S,
+  REFRESH_TOKEN_TTL_S,
+} from '@unsa/schemas/constants';
 import { serverEnv } from '@/lib/env';
+
+const logger = createLogger('web');
 
 export const COOKIE_ACCESS_TOKEN = 'access_token';
 export const COOKIE_REFRESH_TOKEN = 'refresh_token';
-export const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = 900;
-export const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = 2592000;
+export const DEFAULT_ACCESS_TOKEN_TTL_SECONDS = ACCESS_TOKEN_TTL_S;
+export const DEFAULT_REFRESH_TOKEN_TTL_SECONDS = REFRESH_TOKEN_TTL_S;
 
 export interface AuthUser {
   id: string;
@@ -30,7 +37,7 @@ export interface PatItem {
 async function fetchUserFromIDP(token: string): Promise<AuthUser | null> {
   const issuer = serverEnv.IDP_ISSUER;
   try {
-    const res = await fetch(`${issuer.replace(/\/$/, '')}/v1/me`, {
+    const res = await fetch(`${issuer.replace(/\/+$/, '')}/v1/me`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) return null;
@@ -43,8 +50,9 @@ async function fetchUserFromIDP(token: string): Promise<AuthUser | null> {
       ...data.user,
       roles: data.roles ?? data.user.roles,
     };
-  } catch {
-    return null;
+  } catch (err) {
+    logger.warn('IDP user fetch failed', { err });
+    throw err;
   }
 }
 
@@ -63,7 +71,7 @@ export const fetchCurrentUser = createServerFn({ method: 'GET' }).handler(
       return null;
     }
 
-    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
     try {
       const res = await fetch(`${issuer}/v1/refresh`, {
         method: 'POST',
@@ -99,8 +107,9 @@ export const fetchCurrentUser = createServerFn({ method: 'GET' }).handler(
       });
 
       return fetchUserFromIDP(data.access_token);
-    } catch {
-      return null;
+    } catch (err) {
+      logger.warn('IDP token refresh failed', { err });
+      throw err;
     }
   },
 );
@@ -132,17 +141,16 @@ export const logoutFn = createServerFn({ method: 'POST' }).handler(async () => {
   const token = getCookie(COOKIE_ACCESS_TOKEN);
   const refreshToken = getCookie(COOKIE_REFRESH_TOKEN);
   const issuer = serverEnv.IDP_ISSUER;
-  try {
-    await fetch(`${issuer.replace(/\/$/, '')}/v1/logout`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    });
-  } catch {
-    // ignore network errors on logout
+  const res = await fetch(`${issuer.replace(/\/+$/, '')}/v1/logout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ refresh_token: refreshToken }),
+  });
+  if (!res.ok) {
+    throw new Error('Logout failed');
   }
   deleteCookie(COOKIE_ACCESS_TOKEN);
   deleteCookie(COOKIE_REFRESH_TOKEN);
@@ -153,14 +161,14 @@ export const getGoogleLoginUrlServerFn = createServerFn({
   method: 'GET',
 }).handler(async () => {
   const issuer = serverEnv.IDP_ISSUER;
-  return `${issuer.replace(/\/$/, '')}/v1/google`;
+  return `${issuer.replace(/\/+$/, '')}/v1/google`;
 });
 
 export const getGithubLoginUrlServerFn = createServerFn({
   method: 'GET',
 }).handler(async () => {
   const issuer = serverEnv.IDP_ISSUER;
-  return `${issuer.replace(/\/$/, '')}/v1/github`;
+  return `${issuer.replace(/\/+$/, '')}/v1/github`;
 });
 
 export const getAuthUserServerFn = createServerFn({ method: 'GET' }).handler(
@@ -175,7 +183,7 @@ export const listPatsServerFn = createServerFn({ method: 'GET' }).handler(
   async (): Promise<PatItem[]> => {
     const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
-    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
     const res = await fetch(`${issuer}/v1/pat`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -190,7 +198,7 @@ export const createPatServerFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
-    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
     const res = await fetch(`${issuer}/v1/pat`, {
       method: 'POST',
       headers: {
@@ -211,7 +219,7 @@ export const deletePatServerFn = createServerFn({ method: 'POST' })
   .handler(async ({ data }) => {
     const token = getCookie(COOKIE_ACCESS_TOKEN);
     if (!token) throw new Error('Unauthorized');
-    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
     const res = await fetch(`${issuer}/v1/pat/${data.id}`, {
       method: 'DELETE',
       headers: { Authorization: `Bearer ${token}` },
@@ -257,7 +265,7 @@ export const authorizeCliServerFn = createServerFn({ method: 'POST' })
       expiresAtDate = d.toISOString();
     }
 
-    const issuer = serverEnv.IDP_ISSUER.replace(/\/$/, '');
+    const issuer = serverEnv.IDP_ISSUER.replace(/\/+$/, '');
     const res = await fetch(`${issuer}/v1/pat`, {
       method: 'POST',
       headers: {

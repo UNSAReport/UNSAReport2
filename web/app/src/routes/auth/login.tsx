@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
+import { createLogger } from '@unsa/logger';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
 import {
@@ -7,6 +8,8 @@ import {
   getGithubLoginUrlServerFn,
   getGoogleLoginUrlServerFn,
 } from '@/lib/auth/server';
+
+const logger = createLogger('web');
 
 const loginSearchSchema = z.object({
   tui_callback: z.string().optional(),
@@ -30,7 +33,8 @@ function isLoopback(callbackUrl?: string): boolean {
       u.protocol === 'http:' &&
       (u.hostname === '127.0.0.1' || u.hostname === 'localhost')
     );
-  } catch {
+  } catch (err) {
+    logger.warn('Invalid callback URL', { err });
     return false;
   }
 }

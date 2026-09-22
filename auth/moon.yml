@@ -23,8 +23,6 @@ tasks:
       - src/index.ts
       - src/db/migrate.ts
 
-  # E2E/roles suites fail identically in the source repos (need live OAuth);
-  # keep runnable locally via `moon run auth:test`, out of the CI gate.
   test:
     command: bash
     args:

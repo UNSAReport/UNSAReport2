@@ -103,5 +103,4 @@ func TestLoginWithToken(t *testing.T) {
 	if cred.UserID != "u2" {
 		t.Fatalf("cred %+v", cred)
 	}
-	_ = time.Now()
 }

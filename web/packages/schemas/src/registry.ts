@@ -44,7 +44,10 @@ export type ProjectDef = z.infer<typeof ProjectSchema>;
 export const ScopeSchema = z.object({
   name: z
     .string()
-    .regex(/^@[a-z0-9][a-z0-9._~-]*$/, 'Invalid scope name (must match @scope)'),
+    .regex(
+      /^@[a-z0-9][a-z0-9._~-]*$/,
+      'Invalid scope name (must match @scope)',
+    ),
   description: z.string().optional(),
   files: z.array(z.string().min(1)),
 });
@@ -99,7 +102,7 @@ export const JWTPayloadSchema = z.object({
   sub: z.string(),
   email: z.string().email().optional(),
   name: z.string().optional(),
-  roles: z.array(z.string()).optional(),
+  roles: z.record(z.string(), z.string()).optional(),
   iss: z.string().optional(),
   aud: z.union([z.string(), z.array(z.string())]).optional(),
   exp: z.number().optional(),
@@ -110,7 +113,7 @@ export type JWTPayload = z.infer<typeof JWTPayloadSchema>;
 export const UserContextSchema = z.object({
   id: z.string(),
   email: z.string().email().optional(),
-  roles: z.array(z.string()),
+  roles: z.record(z.string(), z.string()),
 });
 export type UserContext = z.infer<typeof UserContextSchema>;
 
@@ -125,7 +128,7 @@ export type ResolvedPackage = z.infer<typeof ResolvedPackageSchema>;
 export const PackageVersionSchema = z.object({
   version: z.string(),
   pkgToml: PkgTomlSchema,
-  archiveUrl: z.string().url().nullable().optional(),
+  archive_url: z.string().url().nullable().optional(),
   files: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
 });
@@ -138,7 +141,6 @@ export const PackageSchema = z.object({
   tags: z.array(z.string()).optional(),
   latestVersion: z.string().nullable().optional(),
   versions: z.array(PackageVersionSchema).optional(),
-  // registry API may return flat list shape
   version: z.string().optional(),
   pkgToml: PkgTomlSchema.optional(),
 });
@@ -153,6 +155,7 @@ export type PackageListResponse = z.infer<typeof PackageListResponseSchema>;
 export const ApiErrorResponseSchema = z.object({
   error: z.string(),
   message: z.string(),
-  details: z.record(z.string(), z.unknown()).optional(),
+  details: z.unknown().optional(),
+  statusCode: z.number(),
 });
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;

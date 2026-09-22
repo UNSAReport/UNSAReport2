@@ -19,4 +19,26 @@ describe('Hash Utilities', () => {
     expect(hash1).toHaveLength(64);
     expect(hash1).not.toBe(input);
   });
+
+  test('generateRandomHex produces unique values across calls', () => {
+    const first = generateRandomHex(32);
+    const second = generateRandomHex(32);
+    expect(first).not.toBe(second);
+  });
+
+  test('generateRandomHex output contains only hex characters', () => {
+    const hex = generateRandomHex(32);
+    expect(hex).toHaveLength(64);
+    expect(hex).toMatch(/^[0-9a-f]+$/);
+  });
+
+  test('hashToken produces distinct hashes for distinct inputs', () => {
+    const hashA = hashToken('unsareport_pat_alpha');
+    const hashB = hashToken('unsareport_pat_beta');
+    expect(hashA).not.toBe(hashB);
+    expect(hashA).toHaveLength(64);
+    expect(hashB).toHaveLength(64);
+    expect(hashA).toMatch(/^[0-9a-f]+$/);
+    expect(hashB).toMatch(/^[0-9a-f]+$/);
+  });
 });

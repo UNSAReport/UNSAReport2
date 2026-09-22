@@ -24,11 +24,11 @@ func TestXDGStore(t *testing.T) {
 	if loaded.RegistryURL != cfg.RegistryURL {
 		t.Fatalf("registry %q", loaded.RegistryURL)
 	}
-	if GetRegistryURL() != cfg.RegistryURL {
-		t.Fatalf("GetRegistryURL %q", GetRegistryURL())
+	if got, err := GetRegistryURL(); err != nil || got != cfg.RegistryURL {
+		t.Fatalf("GetRegistryURL %q %v", got, err)
 	}
 	t.Setenv("UNSAREP_REGISTRY_URL", "https://override.com")
-	if GetRegistryURL() != "https://override.com" {
+	if got, err := GetRegistryURL(); err != nil || got != "https://override.com" {
 		t.Fatal("env override failed")
 	}
 	t.Setenv("UNSAREP_REGISTRY_URL", "")
@@ -98,52 +98,41 @@ func TestURLResolutionDefaultsAndOverrides(t *testing.T) {
 	t.Setenv(EnvSlidesURL, "")
 	t.Setenv(EnvWebsiteURL, "")
 
-	// Defaults check
-	if got := GetRegistryURL(); got != DefaultRegistryURL {
-		t.Fatalf("GetRegistryURL() default = %q, want %q", got, DefaultRegistryURL)
+	if got, err := GetRegistryURL(); err != nil || got != DefaultRegistryURL {
+		t.Fatalf("GetRegistryURL() default = %q %v, want %q", got, err, DefaultRegistryURL)
 	}
-	if got := GetAuthURL(); got != DefaultAuthURL {
-		t.Fatalf("GetAuthURL() default = %q, want %q", got, DefaultAuthURL)
+	if got, err := GetAuthURL(); err != nil || got != DefaultAuthURL {
+		t.Fatalf("GetAuthURL() default = %q %v, want %q", got, err, DefaultAuthURL)
 	}
-	if got := GetSlidesURL(); got != DefaultSlidesURL {
-		t.Fatalf("GetSlidesURL() default = %q, want %q", got, DefaultSlidesURL)
+	if got, err := GetSlidesURL(); err != nil || got != DefaultSlidesURL {
+		t.Fatalf("GetSlidesURL() default = %q %v, want %q", got, err, DefaultSlidesURL)
 	}
-	if got := GetWebsiteURL(); got != DefaultWebsiteURL {
-		t.Fatalf("GetWebsiteURL() default = %q, want %q", got, DefaultWebsiteURL)
+	if got, err := GetWebsiteURL(); err != nil || got != DefaultWebsiteURL {
+		t.Fatalf("GetWebsiteURL() default = %q %v, want %q", got, err, DefaultWebsiteURL)
 	}
-
-	// Environment variable overrides
 	t.Setenv(EnvRegistryURL, "http://localhost:9876/api/registry")
 	t.Setenv(EnvIDPIssuer, "http://localhost:9876/api/auth")
 	t.Setenv(EnvSlidesURL, "http://localhost:9876/api/slides")
 	t.Setenv(EnvWebsiteURL, "http://localhost:9876")
 
-	if got := GetRegistryURL(); got != "http://localhost:9876/api/registry" {
-		t.Fatalf("GetRegistryURL() override = %q", got)
+	if got, err := GetRegistryURL(); err != nil || got != "http://localhost:9876/api/registry" {
+		t.Fatalf("GetRegistryURL() override = %q %v", got, err)
 	}
-	if got := GetAuthURL(); got != "http://localhost:9876/api/auth" {
-		t.Fatalf("GetAuthURL() override = %q", got)
+	if got, err := GetAuthURL(); err != nil || got != "http://localhost:9876/api/auth" {
+		t.Fatalf("GetAuthURL() override = %q %v", got, err)
 	}
-	if got := GetSlidesURL(); got != "http://localhost:9876/api/slides" {
-		t.Fatalf("GetSlidesURL() override = %q", got)
+	if got, err := GetSlidesURL(); err != nil || got != "http://localhost:9876/api/slides" {
+		t.Fatalf("GetSlidesURL() override = %q %v", got, err)
 	}
-	if got := GetWebsiteURL(); got != "http://localhost:9876" {
-		t.Fatalf("GetWebsiteURL() override = %q", got)
+	if got, err := GetWebsiteURL(); err != nil || got != "http://localhost:9876" {
+		t.Fatalf("GetWebsiteURL() override = %q %v", got, err)
 	}
 
-	// Invalid URL override fails fast
 	t.Setenv(EnvRegistryURL, "bad-url")
 	if _, err := ResolveRegistryURL(); err == nil {
 		t.Fatal("ResolveRegistryURL() should return error for invalid URL")
 	}
-
-	// Panic check on invalid URL for GetRegistryURL
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("GetRegistryURL() should panic on invalid URL")
-		}
-	}()
-	_ = GetRegistryURL()
+	if _, err := GetRegistryURL(); err == nil {
+		t.Fatal("GetRegistryURL() should return error for invalid URL")
+	}
 }
-

@@ -43,7 +43,6 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		// Windows: Rename fails if target exists
 		_ = os.Remove(path)
 		if err2 := os.Rename(tmp, path); err2 != nil {
 			return err2
@@ -84,8 +83,6 @@ func SaveXDGConfig(cfg *XDGConfig) error {
 	return nil
 }
 
-// ValidateURL ensures raw is a valid http or https URL with non-empty host,
-// returning the URL without trailing slash.
 func ValidateURL(raw, name string) (string, error) {
 	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
 	if trimmed == "" {
@@ -142,36 +139,20 @@ func ResolveWebsiteURL() (string, error) {
 	return ValidateURL(DefaultWebsiteURL, "DefaultWebsiteURL")
 }
 
-func GetRegistryURL() string {
-	u, err := ResolveRegistryURL()
-	if err != nil {
-		panic(err)
-	}
-	return u
+func GetRegistryURL() (string, error) {
+	return ResolveRegistryURL()
 }
 
-func GetSlidesURL() string {
-	u, err := ResolveSlidesURL()
-	if err != nil {
-		panic(err)
-	}
-	return u
+func GetSlidesURL() (string, error) {
+	return ResolveSlidesURL()
 }
 
-func GetAuthURL() string {
-	u, err := ResolveAuthURL()
-	if err != nil {
-		panic(err)
-	}
-	return u
+func GetAuthURL() (string, error) {
+	return ResolveAuthURL()
 }
 
-func GetWebsiteURL() string {
-	u, err := ResolveWebsiteURL()
-	if err != nil {
-		panic(err)
-	}
-	return u
+func GetWebsiteURL() (string, error) {
+	return ResolveWebsiteURL()
 }
 
 func GetToken() string {

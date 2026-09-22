@@ -83,7 +83,6 @@ func resolveBundledAssetPath(templatePath, rawPath string, presentFiles map[stri
 		return "", false
 	}
 
-	// 1. Relative to template directory:
 	templateDir := path.Dir(templatePath)
 	fromTemplateDir := rawPath
 	if templateDir != "" && templateDir != "." {
@@ -93,7 +92,6 @@ func resolveBundledAssetPath(templatePath, rawPath string, presentFiles map[stri
 		return norm, true
 	}
 
-	// 2. Relative to package root:
 	if norm, ok := normalizeRelativePosixPath(rawPath); ok && presentFiles[norm] {
 		return norm, true
 	}

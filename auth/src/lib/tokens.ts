@@ -4,12 +4,6 @@ import { db } from '@/db/index';
 import { personalAccessTokens, refreshTokens, users } from '@/db/schema';
 import { generateRandomHex, hashToken } from '@/lib/hash';
 
-/**
- * Generates and stores a new refresh token for a user.
- *
- * @param userId - The ID of the user.
- * @returns A promise resolving to the generated plaintext refresh token string.
- */
 export async function createRefreshToken(userId: string): Promise<string> {
   const token = `unsareport_rf_${generateRandomHex(32)}`;
   const tokenHash = hashToken(token);
@@ -24,13 +18,6 @@ export async function createRefreshToken(userId: string): Promise<string> {
   return token;
 }
 
-/**
- * Verifies a refresh token, revokes it, and issues a new refresh token (token rotation).
- *
- * @param token - The plaintext refresh token to verify and rotate.
- * @returns A promise resolving to an object containing the associated user ID and new refresh token.
- * @throws Error if the token is invalid, expired, or revoked.
- */
 export async function verifyAndRotateRefreshToken(
   token: string,
 ): Promise<{ userId: string; newRefreshToken: string }> {
@@ -62,12 +49,6 @@ export async function verifyAndRotateRefreshToken(
   return { userId: record.userId, newRefreshToken };
 }
 
-/**
- * Revokes an existing refresh token.
- *
- * @param token - The plaintext refresh token to revoke.
- * @returns A promise resolving to true if the token was revoked, false otherwise.
- */
 export async function revokeRefreshToken(token: string): Promise<boolean> {
   const tokenHash = hashToken(token);
   const res = await db
@@ -84,15 +65,6 @@ export async function revokeRefreshToken(token: string): Promise<boolean> {
   return res.length > 0;
 }
 
-/**
- * Creates a new personal access token (PAT) for a user.
- *
- * @param userId - The ID of the user creating the PAT.
- * @param name - A descriptive name for the PAT.
- * @param scopes - Optional list of permission scopes.
- * @param expiresAt - Optional expiration date.
- * @returns A promise resolving to the generated plaintext token and created database record.
- */
 export async function createPAT(
   userId: string,
   name: string,
@@ -116,12 +88,6 @@ export async function createPAT(
   return { token, pat };
 }
 
-/**
- * Verifies a personal access token (PAT) and updates its last used timestamp.
- *
- * @param token - The raw PAT string to verify.
- * @returns A promise resolving to an object with the PAT record and user, or null if invalid or expired.
- */
 export async function verifyPAT(token: string) {
   if (!token.startsWith('unsareport_pat_')) {
     return null;
@@ -161,12 +127,6 @@ export async function verifyPAT(token: string) {
   return { pat, user };
 }
 
-/**
- * Lists all active (non-revoked) personal access tokens for a user.
- *
- * @param userId - The ID of the user whose PATs are listed.
- * @returns A promise resolving to an array of active PAT records.
- */
 export async function listUserPATs(userId: string) {
   return await db
     .select({
@@ -187,13 +147,6 @@ export async function listUserPATs(userId: string) {
     );
 }
 
-/**
- * Revokes a user's personal access token by ID.
- *
- * @param userId - The ID of the owning user.
- * @param patId - The ID of the PAT to revoke.
- * @returns A promise resolving to true if the PAT was successfully revoked, false otherwise.
- */
 export async function revokePAT(
   userId: string,
   patId: string,

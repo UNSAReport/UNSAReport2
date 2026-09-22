@@ -170,8 +170,6 @@ func newDocsAddCmd() *cobra.Command {
 					return err
 				}
 			}
-			// Package came from the form above and no mode flag was given:
-			// ask for the mode too. Otherwise the domain ask-mode handles TTYs.
 			if fromForm && !yes && !all && !none {
 				yes, all, none, err = promptMode(cmd)
 				if err != nil {

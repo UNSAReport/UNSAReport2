@@ -62,7 +62,7 @@ func TestValidateScopedNames(t *testing.T) {
 	for _, name := range reject {
 		p, err := Parse(strings.Replace(validToml, `name = "@test/cardo"`, `name = "`+name+`"`, 1))
 		if err != nil {
-			continue
+			t.Fatalf("%s: unexpected parse error: %v", name, err)
 		}
 		if err := Validate(p); err == nil {
 			t.Fatalf("%s: expected rejection", name)
@@ -90,27 +90,34 @@ func TestValidateScopedDependsOn(t *testing.T) {
 func TestValidateRejects(t *testing.T) {
 	cases := []struct {
 		name   string
+		layer  string
 		mutate func(string) string
 	}{
-		{"bad name", func(s string) string { return strings.Replace(s, `name = "@test/cardo"`, `name = "Bad Name!"`, 1) }},
-		{"bad version", func(s string) string { return strings.Replace(s, `version = "1.2.0"`, `version = "1.2"`, 1) }},
-		{"abs glob", func(s string) string { return strings.Replace(s, `"lib.typ"`, `"/lib.typ"`, 1) }},
-		{"bad range", func(s string) string { return strings.Replace(s, `">=1.0.0, <2.0.0"`, `"not-a-range"`, 1) }},
-		{"entrypoint dropped", func(s string) string { return s + "\n[package]\nentrypoint = \"lib.typ\"\n" }},
-		{"default_select dropped", func(s string) string {
+		{"bad name", "validate", func(s string) string { return strings.Replace(s, `name = "@test/cardo"`, `name = "Bad Name!"`, 1) }},
+		{"bad version", "validate", func(s string) string { return strings.Replace(s, `version = "1.2.0"`, `version = "1.2"`, 1) }},
+		{"abs glob", "validate", func(s string) string { return strings.Replace(s, `"lib.typ"`, `"/lib.typ"`, 1) }},
+		{"bad range", "validate", func(s string) string { return strings.Replace(s, `">=1.0.0, <2.0.0"`, `"not-a-range"`, 1) }},
+		{"entrypoint dropped", "parse", func(s string) string { return s + "\n[package]\nentrypoint = \"lib.typ\"\n" }},
+		{"default_select dropped", "parse", func(s string) string {
 			return strings.Replace(s, `commands = { any`, `default_select = true`+"\ncommands = { any", 1)
 		}},
-		{"bad os key", func(s string) string {
+		{"bad os key", "validate", func(s string) string {
 			return strings.Replace(s, `linux = ["bash zip.sh"]`, `plan9 = ["bash zip.sh"]`, 1)
 		}},
-		{"empty commands", func(s string) string {
+		{"empty commands", "validate", func(s string) string {
 			return strings.Replace(s, `commands = { any = ["rm -f s.zip"], linux = ["bash zip.sh"] }`, `commands = {}`, 1)
 		}},
 	}
 	for _, c := range cases {
 		p, err := Parse(c.mutate(validToml))
-		if err != nil {
+		if c.layer == "parse" {
+			if err == nil {
+				t.Fatalf("%s: expected parse error", c.name)
+			}
 			continue
+		}
+		if err != nil {
+			t.Fatalf("%s: unexpected parse error: %v", c.name, err)
 		}
 		if err := Validate(p); err == nil {
 			t.Fatalf("%s: expected validation error", c.name)

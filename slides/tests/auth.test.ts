@@ -1,22 +1,26 @@
-import { describe, expect, it } from 'bun:test';
-import app from '@/index';
+import { describe, expect, it, mock } from 'bun:test';
+
+mock.module('@/lib/auth', () => ({
+  stripBearer: (authHeader: string | null | undefined) => {
+    if (authHeader?.startsWith('Bearer ') !== true) {
+      return null;
+    }
+    const token = authHeader.slice(7);
+    if (token.length === 0 || token[0] === ' ' || token[0] === '\t') {
+      return null;
+    }
+    return token;
+  },
+  verifyCredential: async (token: string) => {
+    if (token === 'valid-no-roles-token') {
+      return { id: '11111111-1111-4111-8111-111111111111', roles: {} };
+    }
+    throw new Error('Token verification failed: invalid token');
+  },
+}));
+const { default: app } = await import('@/index');
 
 describe('Slides service auth guards', () => {
-  it('GET /health is public and lists slides endpoints', async () => {
-    const res = await app.fetch(new Request('http://localhost/health'));
-    expect(res.status).toBe(200);
-    const data = (await res.json()) as {
-      status: string;
-      service: string;
-      endpoints: string[];
-    };
-    expect(data.status).toBe('ok');
-    expect(data.service).toBe('unsareport-slides');
-    expect(
-      data.endpoints.some((e) => e.includes('/presentations/deploy')),
-    ).toBe(true);
-  });
-
   it('POST /presentations/deploy without credentials returns 401', async () => {
     const res = await app.fetch(
       new Request('http://localhost/presentations/deploy', {
@@ -52,18 +56,14 @@ describe('Slides service auth guards', () => {
     expect(res.status).toBe(401);
   });
 
-  it('JWT without slides role is rejected with 403', async () => {
-    // A structurally valid JWT signed by an unknown key fails verification
-    // before role checks; use a syntactically parseable token so the guard
-    // path (verify -> 401 vs role -> 403) is exercised deterministically.
-    // Here the signature is unknown, so verification must fail closed.
+  it('valid JWT without slides role is rejected with 403', async () => {
     const res = await app.fetch(
       new Request('http://localhost/orgs', {
         headers: {
-          Authorization: 'Bearer eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ4In0.c2ln',
+          Authorization: 'Bearer valid-no-roles-token',
         },
       }),
     );
-    expect([401, 403].includes(res.status)).toBe(true);
+    expect(res.status).toBe(403);
   });
 });

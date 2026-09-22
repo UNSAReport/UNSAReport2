@@ -25,11 +25,8 @@ import type { HonoEnv } from '@/types';
 
 const adminRouter = new Hono<HonoEnv>();
 
-adminRouter.use('*', requireAuth, requireRole('admin'));
+adminRouter.use('*', requireAuth, requireRole('registry', 'admin'));
 
-/**
- * Route handler for listing all package versions with a status of pending.
- */
 adminRouter.get('/pending', async (c) => {
   const pendingRows = await db
     .select({
@@ -50,9 +47,6 @@ adminRouter.get('/pending', async (c) => {
   return c.json({ pending: pendingRows });
 });
 
-/**
- * Route handler for approving a pending package version and making it active in the registry.
- */
 adminRouter.on(
   'POST',
   [
@@ -119,9 +113,6 @@ adminRouter.on(
   },
 );
 
-/**
- * Route handler for rejecting a pending package version with an optional rejection reason.
- */
 adminRouter.on(
   'POST',
   [
@@ -133,9 +124,13 @@ adminRouter.on(
     const version = c.req.param('version') ?? '';
 
     let body: Record<string, unknown> = {};
-    try {
-      body = (await c.req.json()) as Record<string, unknown>;
-    } catch {}
+    if ((c.req.header('content-type') || '').includes('application/json')) {
+      try {
+        body = (await c.req.json()) as Record<string, unknown>;
+      } catch {
+        throw new ValidationError('Malformed JSON body');
+      }
+    }
 
     const reason = (body.reason as string) || 'No reason provided';
 
@@ -207,17 +202,11 @@ adminRouter.on(
   },
 );
 
-/**
- * Route handler for listing all user IDs granted trusted publisher status.
- */
 adminRouter.get('/trusted', async (c) => {
   const users = await db.select().from(trustedUsers);
   return c.json({ trustedUsers: users });
 });
 
-/**
- * Route handler for granting trusted publisher status to a target user.
- */
 adminRouter.post('/trusted', async (c) => {
   const user = c.get('user');
   if (!user) {
@@ -267,9 +256,6 @@ adminRouter.post('/trusted', async (c) => {
   );
 });
 
-/**
- * Route handler for revoking trusted publisher status from a target user by ID.
- */
 adminRouter.delete('/trusted/:userId', async (c) => {
   const targetUserId = c.req.param('userId');
 
@@ -290,9 +276,6 @@ adminRouter.delete('/trusted/:userId', async (c) => {
   });
 });
 
-/**
- * List all pending scope requests.
- */
 adminRouter.get('/scopes/requests', async (c) => {
   const requests = await db
     .select()
@@ -302,19 +285,17 @@ adminRouter.get('/scopes/requests', async (c) => {
   return c.json({ requests });
 });
 
-/**
- * Approve a pending scope request.
- */
 adminRouter.post('/scopes/requests/:id/approve', async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const id = c.req.param('id');
 
   const reqRows = await db
     .select()
     .from(scopeRequests)
-    .where(
-      and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')),
-    )
+    .where(and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')))
     .limit(1);
 
   if (reqRows.length === 0) {
@@ -367,28 +348,35 @@ adminRouter.post('/scopes/requests/:id/approve', async (c) => {
 
   return c.json({
     message: `Scope request for "${request.scopeName}" approved`,
-    scope: { id: scopeId, name: request.scopeName, ownerId: request.requestedBy },
+    scope: {
+      id: scopeId,
+      name: request.scopeName,
+      ownerId: request.requestedBy,
+    },
   });
 });
 
-/**
- * Reject a pending scope request.
- */
 adminRouter.post('/scopes/requests/:id/reject', async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const id = c.req.param('id');
 
-  const body = (await c.req.json().catch(() => ({}))) as {
-    reason?: string;
-  };
+  let body: { reason?: string } = {};
+  if ((c.req.header('content-type') || '').includes('application/json')) {
+    try {
+      body = (await c.req.json()) as { reason?: string };
+    } catch {
+      throw new ValidationError('Malformed JSON body');
+    }
+  }
   const rejectionReason = body.reason?.trim() ?? 'Rejected by admin';
 
   const reqRows = await db
     .select()
     .from(scopeRequests)
-    .where(
-      and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')),
-    )
+    .where(and(eq(scopeRequests.id, id), eq(scopeRequests.status, 'pending')))
     .limit(1);
 
   if (reqRows.length === 0) {
@@ -412,19 +400,24 @@ adminRouter.post('/scopes/requests/:id/reject', async (c) => {
   });
 });
 
-/**
- * Direct admin scope creation or assignment (e.g. bootstrap @unsareport).
- */
 adminRouter.post('/scopes', async (c) => {
-  const user = c.get('user')!;
-  const body = (await c.req.json().catch(() => ({}))) as {
-    name?: string;
-    description?: string;
-    ownerId?: string;
-  };
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
+  let body: { name?: string; description?: string; ownerId?: string };
+  try {
+    body = (await c.req.json()) as {
+      name?: string;
+      description?: string;
+      ownerId?: string;
+    };
+  } catch {
+    throw new ValidationError('Malformed JSON body');
+  }
 
   const name = body.name?.trim();
-  if (!name || !name.startsWith('@')) {
+  if (name?.startsWith('@') !== true) {
     throw new ValidationError(
       'Field "name" is required and must start with "@"',
       { field: 'name' },

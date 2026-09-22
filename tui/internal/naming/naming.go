@@ -12,9 +12,7 @@ var reIllegal = config.ReIllegal
 
 func SanitizeFilename(s string) string {
 	s = reIllegal.ReplaceAllString(s, "-")
-	// Trim trailing dots and spaces (Windows)
 	s = strings.TrimRight(s, ". ")
-	// Handle reserved names (Windows)
 	upper := strings.ToUpper(s)
 	reserved := map[string]bool{
 		"CON": true, "PRN": true, "AUX": true, "NUL": true,
@@ -24,7 +22,6 @@ func SanitizeFilename(s string) string {
 	if reserved[upper] {
 		s = s + "_"
 	}
-	// Enforce max 255 length
 	if len(s) > 255 {
 		s = s[:255]
 	}

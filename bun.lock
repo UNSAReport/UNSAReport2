@@ -21,6 +21,7 @@
     "auth": {
       "name": "@unsa/auth",
       "dependencies": {
+        "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.13.4",
@@ -35,11 +36,19 @@
         "typescript": "^5.7.3",
       },
     },
+    "packages/logger": {
+      "name": "@unsa/logger",
+      "version": "0.1.0",
+      "devDependencies": {
+        "typescript": "^5.7.3",
+      },
+    },
     "registry": {
       "name": "@unsa/registry",
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1118.0",
         "@aws-sdk/s3-request-presigner": "^3.1118.0",
+        "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.13.4",
@@ -62,6 +71,7 @@
     "slides": {
       "name": "@unsa/slides",
       "dependencies": {
+        "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.13.4",
@@ -85,6 +95,7 @@
         "@tanstack/react-router": "^1.170.32",
         "@tanstack/react-start": "^1.168.49",
         "@unsa/api": "workspace:*",
+        "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
         "hono": "^4.13.4",
         "react": "^19.2.8",
@@ -470,6 +481,8 @@
 
     "@unsa/config": ["@unsa/config@workspace:web/packages/config"],
 
+    "@unsa/logger": ["@unsa/logger@workspace:packages/logger"],
+
     "@unsa/registry": ["@unsa/registry@workspace:registry"],
 
     "@unsa/schemas": ["@unsa/schemas@workspace:web/packages/schemas"],
@@ -717,6 +730,8 @@
     "@tanstack/start-plugin-core/@babel/code-frame": ["@babel/code-frame@7.27.1", "", { "dependencies": { "@babel/helper-validator-identifier": "^7.27.1", "js-tokens": "^4.0.0", "picocolors": "^1.1.1" } }, "sha512-cjQ7ZlQ0Mv3b47hABuTevyTuYN4i+loJKGeV9flcCgIK37cCXRh+L1bd3iBHlynerhQ7BhCkn2BPbQUL+rGqFg=="],
 
     "@unsa/auth/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "@unsa/logger/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
     "@unsa/registry/typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 

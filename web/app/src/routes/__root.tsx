@@ -5,7 +5,9 @@ import {
   Scripts,
   useRouter,
 } from '@tanstack/react-router';
+import { createLogger } from '@unsa/logger';
 import { useEffect } from 'react';
+import { z } from 'zod';
 import {
   DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
   fetchCurrentUser,
@@ -13,6 +15,13 @@ import {
   setSessionTokenServerFn,
 } from '@/lib/auth/server';
 import '@/index.css';
+
+const TuiAuthPendingSchema = z.object({
+  tui_callback: z.string().min(1).optional(),
+  state: z.string().optional(),
+});
+
+const logger = createLogger('web');
 
 export const Route = createRootRoute({
   beforeLoad: async () => {
@@ -63,23 +72,30 @@ function AuthHashConsumer() {
 
         const pending = sessionStorage.getItem('tui_auth_pending');
         if (pending) {
+          let raw: unknown;
           try {
-            const { tui_callback, state } = JSON.parse(pending) as {
-              tui_callback?: string;
-              state?: string;
-            };
-            sessionStorage.removeItem('tui_auth_pending');
-            if (tui_callback) {
-              window.location.href = `/auth/login?tui_callback=${encodeURIComponent(tui_callback)}&state=${encodeURIComponent(state ?? '')}`;
-              return;
-            }
+            raw = JSON.parse(pending);
           } catch {
             sessionStorage.removeItem('tui_auth_pending');
+            throw new Error('Invalid tui_auth_pending: malformed JSON');
+          }
+          const parsed = TuiAuthPendingSchema.safeParse(raw);
+          if (!parsed.success) {
+            sessionStorage.removeItem('tui_auth_pending');
+            throw new Error(
+              `Invalid tui_auth_pending: ${parsed.error.message}`,
+            );
+          }
+          const { tui_callback, state } = parsed.data;
+          sessionStorage.removeItem('tui_auth_pending');
+          if (tui_callback) {
+            window.location.href = `/auth/login?tui_callback=${encodeURIComponent(tui_callback)}&state=${encodeURIComponent(state ?? '')}`;
+            return;
           }
         }
       })
       .catch((err: unknown) => {
-        console.error('Failed to consume auth token from URL hash:', err);
+        logger.error('Failed to consume auth token from URL hash', { err });
       });
   }, [router]);
 

@@ -17,6 +17,7 @@ import (
 	"github.com/UNSAReport/tui/internal/auth"
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/pkg"
+	"github.com/charmbracelet/log"
 )
 
 type PackageInfo struct {
@@ -97,10 +98,12 @@ func (c *Client) ListPackages(ctx context.Context) ([]PackageInfo, error) {
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry error at %s: status %d", base, resp.StatusCode)
 	}
 	var out struct {
@@ -142,10 +145,12 @@ func (c *Client) Resolve(ctx context.Context, reqs map[string]string) ([]Resolve
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry error at %s: status %d", base, resp.StatusCode)
 	}
 	var out struct {
@@ -193,10 +198,12 @@ func (c *Client) DownloadSection(ctx context.Context, name, version, section str
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		return nil, fmt.Errorf("registry archive metadata request at %s failed: status %d", base, resp.StatusCode)
 	}
 	var archiveResp struct {
@@ -214,10 +221,12 @@ func (c *Client) DownloadSection(ctx context.Context, name, version, section str
 	}
 	downResp, err := c.HTTPClient.Do(downReq)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", downReq.URL.Path)
 		return nil, fmt.Errorf("download archive: %w", err)
 	}
 	defer func() { _ = downResp.Body.Close() }()
 	if downResp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", downResp.StatusCode, "path", downReq.URL.Path)
 		return nil, fmt.Errorf("download archive failed: status %d", downResp.StatusCode)
 	}
 	archiveBytes, err := io.ReadAll(downResp.Body)
@@ -346,10 +355,12 @@ func (c *Client) Publish(ctx context.Context, pkgDir, componentsGlob, templatesG
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		var errObj struct {
 			Error   string `json:"error"`
 			Message string `json:"message"`
@@ -445,10 +456,12 @@ func (c *Client) PushScope(ctx context.Context, dir string) error {
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return fmt.Errorf("registry unreachable at %s: %w", base, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		var errObj struct {
 			Error   string `json:"error"`
 			Message string `json:"message"`
@@ -469,19 +482,23 @@ func (c *Client) DownloadScopeArchive(ctx context.Context, scopeName string) (ma
 	u := fmt.Sprintf("%s/v1/scopes/%s/archive", base, url.PathEscape(scopeName))
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", u)
 		return nil, err
 	}
 	req.Header.Set("User-Agent", "unsarep-tui")
 	c.setAuth(req)
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
 		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode == http.StatusNotFound {
+		log.Debug("scope archive not found", "status", resp.StatusCode, "path", req.URL.Path)
 		return nil, nil
 	}
 	if resp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
 		return nil, fmt.Errorf("scope archive failed: status %d", resp.StatusCode)
 	}
 	var resObj struct {
@@ -500,10 +517,12 @@ func (c *Client) DownloadScopeArchive(ctx context.Context, scopeName string) (ma
 	}
 	downResp, err := c.HTTPClient.Do(downReq)
 	if err != nil {
+		log.Error("registry request failed", "err", err, "path", downReq.URL.Path)
 		return nil, err
 	}
 	defer func() { _ = downResp.Body.Close() }()
 	if downResp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", downResp.StatusCode, "path", downReq.URL.Path)
 		return nil, fmt.Errorf("download scope payload failed: status %d", downResp.StatusCode)
 	}
 	rawZip, err := io.ReadAll(downResp.Body)

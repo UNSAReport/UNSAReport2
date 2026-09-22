@@ -89,7 +89,6 @@ func Parse(text string) (PkgToml, error) {
 	return p, nil
 }
 
-// Encode renders doc as TOML, omitting empty optional strings.
 func Encode(doc PkgToml) (string, error) {
 	if doc.Project.ConfigVersion == 0 {
 		doc.Project.ConfigVersion = config.ConfigVersion

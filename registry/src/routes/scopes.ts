@@ -1,8 +1,7 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import JSZip from 'jszip';
-import { config } from '@/config';
 import { db } from '@/db';
 import {
   scopeFiles,
@@ -11,7 +10,7 @@ import {
   scopeRequests,
   scopes,
 } from '@/db/schema';
-import { PACKAGE_SCOPE_PART } from '@/lib/package-name';
+import { decodeScopeParam, PACKAGE_SCOPE_PART } from '@/lib/package-name';
 import {
   buildAndUploadZipArchive,
   getPresignedUrl,
@@ -20,6 +19,7 @@ import {
 import { emailToScopeSlug } from '@/lib/slug';
 import {
   expandGlobs,
+  normalizeArchivePath,
   parseUnsareportToml,
   SCOPE_NAME_REGEX,
   validateUnsareportToml,
@@ -36,10 +36,6 @@ import type { HonoEnv } from '@/types';
 
 export const scopesRouter = new Hono<HonoEnv>();
 
-/**
- * Automatically ensures that an authenticated user has their personal
- * email-slugged scope provisioned and registered in `scopes` and `scope_members`.
- */
 export async function ensureUserPersonalScope(user: {
   id: string;
   email?: string;
@@ -89,7 +85,6 @@ export async function ensureUserPersonalScope(user: {
   };
 }
 
-// Auto-provision user's personal scope on any authenticated scope request
 scopesRouter.use('*', optionalAuth, async (c, next) => {
   const user = c.get('user');
   if (user) {
@@ -98,11 +93,11 @@ scopesRouter.use('*', optionalAuth, async (c, next) => {
   await next();
 });
 
-/**
- * List all scopes that the authenticated user owns or participates in.
- */
 scopesRouter.get('/', requireAuth, async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const userScopes = await db
     .select({
       id: scopes.id,
@@ -121,11 +116,11 @@ scopesRouter.get('/', requireAuth, async (c) => {
   return c.json({ scopes: userScopes });
 });
 
-/**
- * Submit a request to register a custom scope.
- */
 scopesRouter.post('/requests', requireAuth, async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const body = (await c.req.json().catch(() => ({}))) as {
     scopeName?: string;
     reason?: string;
@@ -192,11 +187,8 @@ scopesRouter.post('/requests', requireAuth, async (c) => {
   );
 });
 
-/**
- * Get details, members, and file summary for a scope.
- */
 scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}`, async (c) => {
-  const scopeName = c.req.param('scope');
+  const scopeName = decodeScopeParam(c.req.param('scope'));
   const scopeRows = await db
     .select()
     .from(scopes)
@@ -242,16 +234,15 @@ scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}`, async (c) => {
   });
 });
 
-/**
- * Upload and push scope-level contents (unsareport.toml + zip payload).
- * Requires scope admin or system admin.
- */
 scopesRouter.post(
   `/:scope{${PACKAGE_SCOPE_PART}}/contents`,
   requireAuth,
   async (c) => {
-    const user = c.get('user')!;
-    const scopeName = c.req.param('scope');
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
 
     const scopeRows = await db
       .select()
@@ -263,8 +254,7 @@ scopesRouter.post(
     }
     const scope = scopeRows[0];
 
-    // Check authorization: must be system admin, scope owner, or scope admin
-    const isAdmin = user.roles.includes('admin');
+    const isAdmin = user.roles.registry === 'admin';
     const isOwner = scope.ownerId === user.id;
     let isScopeAdmin = isOwner || isAdmin;
 
@@ -347,13 +337,8 @@ scopesRouter.post(
     const zipPaths: string[] = [];
     for (const [entryName, entry] of Object.entries(zip.files)) {
       if (entry.dir) continue;
-      const normalized = entryName.replace(/^\.\//, '');
-      if (
-        normalized.length === 0 ||
-        normalized.startsWith('/') ||
-        normalized.includes('\\') ||
-        normalized.split('/').some((seg) => seg === '..' || seg.length === 0)
-      ) {
+      const normalized = normalizeArchivePath(entryName);
+      if (normalized === null) {
         throw new ValidationError(
           `ZIP entry "${entryName}" escapes the scope root or is not a relative path`,
           { field: 'files' },
@@ -390,12 +375,19 @@ scopesRouter.post(
     const s3Prefix = `scopes/${scopeName.replace('@', '')}/`;
     const archiveS3Key = `${s3Prefix}scope.zip`;
 
-    // Upload individual files
     await db.delete(scopeFiles).where(eq(scopeFiles.scopeId, scope.id));
 
     const archiveEntries: { path: string; content: Buffer }[] = [];
     for (const fPath of matchedFiles) {
-      const buf = zipBuffers.get(fPath)!;
+      const buf = zipBuffers.get(fPath);
+      if (!buf) {
+        throw new ValidationError(
+          `Declared file "${fPath}" not found in archive`,
+          {
+            field: 'scope.files',
+          },
+        );
+      }
       const fileS3Key = `${s3Prefix}${fPath}`;
       const checksum = createHash('sha256').update(buf).digest('hex');
 
@@ -412,7 +404,6 @@ scopesRouter.post(
       });
     }
 
-    // Include unsareport.toml in the scope archive
     archiveEntries.push({
       path: 'unsareport.toml',
       content: Buffer.from(manifestText, 'utf8'),
@@ -442,11 +433,8 @@ scopesRouter.post(
   },
 );
 
-/**
- * Get presigned URL to download scope archive bundle.
- */
 scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}/archive`, async (c) => {
-  const scopeName = c.req.param('scope');
+  const scopeName = decodeScopeParam(c.req.param('scope'));
   const scopeRows = await db
     .select({ archiveS3Key: scopes.archiveS3Key })
     .from(scopes)
@@ -467,11 +455,8 @@ scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}/archive`, async (c) => {
   return c.json({ downloadUrl, archiveS3Key: archiveKey });
 });
 
-/**
- * List files in scope.
- */
 scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}/files`, async (c) => {
-  const scopeName = c.req.param('scope');
+  const scopeName = decodeScopeParam(c.req.param('scope'));
   const scopeRows = await db
     .select({ id: scopes.id })
     .from(scopes)
@@ -494,15 +479,15 @@ scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}/files`, async (c) => {
   return c.json({ files });
 });
 
-/**
- * Invite a user to a scope as admin or contributor.
- */
 scopesRouter.post(
   `/:scope{${PACKAGE_SCOPE_PART}}/invitations`,
   requireAuth,
   async (c) => {
-    const user = c.get('user')!;
-    const scopeName = c.req.param('scope');
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
 
     const scopeRows = await db
       .select()
@@ -514,7 +499,7 @@ scopesRouter.post(
     }
     const scope = scopeRows[0];
 
-    const isAdmin = user.roles.includes('admin');
+    const isAdmin = user.roles.registry === 'admin';
     const isOwner = scope.ownerId === user.id;
     let isScopeAdmin = isOwner || isAdmin;
 
@@ -547,7 +532,7 @@ scopesRouter.post(
     const targetEmail = body.email?.trim().toLowerCase();
     const role = body.role === 'admin' ? 'admin' : 'contributor';
 
-    if (!targetEmail || !targetEmail.includes('@')) {
+    if (!targetEmail?.includes('@')) {
       throw new ValidationError('A valid target email address is required', {
         field: 'email',
       });
@@ -576,11 +561,11 @@ scopesRouter.post(
   },
 );
 
-/**
- * Accept a scope invitation.
- */
 scopesRouter.post('/invitations/:id/accept', requireAuth, async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const invitationId = c.req.param('id');
 
   const invRows = await db
@@ -632,11 +617,11 @@ scopesRouter.post('/invitations/:id/accept', requireAuth, async (c) => {
   });
 });
 
-/**
- * Decline a scope invitation.
- */
 scopesRouter.post('/invitations/:id/decline', requireAuth, async (c) => {
-  const user = c.get('user')!;
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
   const invitationId = c.req.param('id');
 
   const invRows = await db
@@ -669,15 +654,15 @@ scopesRouter.post('/invitations/:id/decline', requireAuth, async (c) => {
   return c.json({ message: 'Invitation declined' });
 });
 
-/**
- * Remove a member from a scope.
- */
 scopesRouter.delete(
   `/:scope{${PACKAGE_SCOPE_PART}}/members/:userId`,
   requireAuth,
   async (c) => {
-    const user = c.get('user')!;
-    const scopeName = c.req.param('scope');
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
     const targetUserId = c.req.param('userId');
 
     const scopeRows = await db
@@ -696,7 +681,7 @@ scopesRouter.delete(
       });
     }
 
-    const isAdmin = user.roles.includes('admin');
+    const isAdmin = user.roles.registry === 'admin';
     const isOwner = scope.ownerId === user.id;
     let isScopeAdmin = isOwner || isAdmin;
 
@@ -735,15 +720,15 @@ scopesRouter.delete(
   },
 );
 
-/**
- * Update a scope member's role (admin <-> contributor).
- */
 scopesRouter.patch(
   `/:scope{${PACKAGE_SCOPE_PART}}/members/:userId`,
   requireAuth,
   async (c) => {
-    const user = c.get('user')!;
-    const scopeName = c.req.param('scope');
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
     const targetUserId = c.req.param('userId');
 
     const scopeRows = await db
@@ -756,7 +741,7 @@ scopesRouter.patch(
     }
     const scope = scopeRows[0];
 
-    const isAdmin = user.roles.includes('admin');
+    const isAdmin = user.roles.registry === 'admin';
     const isOwner = scope.ownerId === user.id;
     let isScopeAdmin = isOwner || isAdmin;
 

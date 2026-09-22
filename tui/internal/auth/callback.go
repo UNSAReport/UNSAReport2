@@ -8,11 +8,11 @@ import (
 	"net"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/charmbracelet/log"
 )
 
 const callbackHTMLSuccess = `<!doctype html>
@@ -135,6 +135,7 @@ func NewCallbackServer(state string) *CallbackServer {
 func (s *CallbackServer) Start() (string, error) {
 	ln, err := net.Listen("tcp", config.DefaultCallbackHost)
 	if err != nil {
+		log.Error("callback server listen failed", "err", err)
 		return "", err
 	}
 	s.Listener = ln
@@ -148,13 +149,19 @@ func (s *CallbackServer) Start() (string, error) {
 		http.NotFound(w, r)
 	})
 	s.server = &http.Server{Handler: mux, ReadHeaderTimeout: config.CallbackReadHeaderTimeout}
-	go func() { _ = s.server.Serve(ln) }()
+	go func() {
+		if err := s.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			log.Error("callback server failed", "err", err)
+		}
+	}()
 	addr := ln.Addr().String()
 	u := config.CallbackBaseURLPrefix + addr + config.CallbackPath
+	log.Debug("callback server started", "addr", addr)
 	return u, nil
 }
 
 func (s *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request) {
+	log.Debug("callback received", "method", r.Method, "path", r.URL.Path)
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "*")
@@ -173,28 +180,32 @@ func (s *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request) 
 	q := r.URL.Query()
 	state := q.Get("state")
 	if s.State != "" && state != s.State {
+		log.Warn("callback invalid state")
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		select {
 		case s.Done <- CallbackResult{Err: fmt.Errorf("invalid state: got %q want %q", state, s.State)}:
 		default:
-			fmt.Fprintf(os.Stderr, "callback channel full\n")
+			log.Warn("callback channel full")
 		}
 		return
 	}
 	if errStr := q.Get("error"); errStr != "" {
+		log.Info("callback login cancelled")
 		body := []byte(callbackHTMLCancelled)
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 		w.Header().Set("Connection", "close")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
+		if _, err := w.Write(body); err != nil {
+			log.Error("callback write failed", "err", err)
+		}
 		if f, ok := w.(http.Flusher); ok {
 			f.Flush()
 		}
 		select {
 		case s.Done <- CallbackResult{Err: fmt.Errorf("login cancelled: %s", errStr), State: state}:
 		default:
-			fmt.Fprintf(os.Stderr, "callback channel full\n")
+			log.Warn("callback channel full")
 		}
 		return
 	}
@@ -202,30 +213,38 @@ func (s *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request) 
 		PAT:   q.Get("pat"),
 		State: state,
 	}
+	log.Info("callback login received")
 	body := []byte(callbackHTMLSuccess)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
 	w.Header().Set("Connection", "close")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(body)
+	if _, err := w.Write(body); err != nil {
+		log.Error("callback write failed", "err", err)
+	}
 	if f, ok := w.(http.Flusher); ok {
 		f.Flush()
 	}
 	select {
 	case s.Done <- res:
 	default:
-		fmt.Fprintf(os.Stderr, "callback channel full\n")
+		log.Warn("callback channel full")
 	}
 }
 
 func (s *CallbackServer) Close() {
+	log.Debug("callback server stopping")
 	if s.server != nil {
 		ctx, cancel := context.WithTimeout(context.Background(), config.CallbackShutdownTimeout)
 		defer cancel()
-		_ = s.server.Shutdown(ctx)
+		if err := s.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
+			log.Error("callback shutdown failed", "err", err)
+		}
 	}
 	if s.Listener != nil {
-		_ = s.Listener.Close()
+		if err := s.Listener.Close(); err != nil {
+			log.Debug("callback listener close", "err", err)
+		}
 	}
 }
 

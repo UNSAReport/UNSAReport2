@@ -10,12 +10,33 @@ export interface RegistryPackage {
   latestVersion?: string | null;
 }
 
-export interface RegistryVersion {
+export interface RegistryVersionRow {
+  id: string;
   version: string;
-  archive_url?: string;
-  archiveUrl?: string;
-  files?: string[];
-  manifest?: Record<string, string | string[]>;
+  status: string;
+  fileCount: number;
+  createdAt: string;
+  approvedAt?: string | null;
+}
+
+export interface RegistryVersionDetail {
+  package: string;
+  displayName?: string | null;
+  description?: string | null;
+  authorId?: string;
+  version: string;
+  status: string;
+  rejectionReason?: string | null;
+  fileCount: number;
+  createdAt: string;
+  approvedAt?: string | null;
+  files: Array<{
+    path: string;
+    section: string;
+    size: number;
+    checksum: string;
+  }>;
+  dependencies: Record<string, string>;
 }
 
 async function registryFetch(
@@ -57,22 +78,24 @@ async function fetchPackagesInternal(opts?: {
 }
 async function fetchPackageInternal(
   name: string,
-): Promise<RegistryPackage & { versions?: RegistryVersion[] }> {
+): Promise<RegistryPackage & { versions?: string[] }> {
   const res = await registryFetch(`/v1/packages/${encodePackageName(name)}`);
   if (!res.ok) throw new Error(`Package not found: ${name}`);
   return (await res.json()) as RegistryPackage & {
-    versions?: RegistryVersion[];
+    versions?: string[];
   };
 }
 
-async function fetchVersionsInternal(name: string): Promise<RegistryVersion[]> {
+async function fetchVersionsInternal(
+  name: string,
+): Promise<RegistryVersionRow[]> {
   const res = await registryFetch(
     `/v1/packages/${encodePackageName(name)}/versions`,
   );
   if (!res.ok) return [];
   const data = (await res.json()) as
-    | { versions: RegistryVersion[] }
-    | RegistryVersion[];
+    | { versions: RegistryVersionRow[] }
+    | RegistryVersionRow[];
   if (Array.isArray(data)) return data;
   return data.versions ?? [];
 }
@@ -80,15 +103,14 @@ async function fetchVersionsInternal(name: string): Promise<RegistryVersion[]> {
 async function fetchVersionInternal(
   name: string,
   version: string,
-): Promise<RegistryVersion> {
+): Promise<RegistryVersionDetail> {
   const res = await registryFetch(
     `/v1/packages/${encodePackageName(name)}/${encodeURIComponent(version)}`,
   );
   if (!res.ok) throw new Error(`Version not found: ${name}@${version}`);
-  return (await res.json()) as RegistryVersion;
+  return (await res.json()) as RegistryVersionDetail;
 }
 
-// ServerFn wrappers for client usage
 export const fetchPackagesServerFn = createServerFn({ method: 'GET' })
   .validator((data: { search?: string; tag?: string } = {}) => data)
   .handler(async ({ data }) => fetchPackagesInternal(data));

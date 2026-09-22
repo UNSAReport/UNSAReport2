@@ -46,9 +46,9 @@ func setupPackageDir(t *testing.T, files map[string]string) string {
 func TestCheckPackageDirBundledAssets(t *testing.T) {
 	t.Run("allows relative to package root and template dir", func(t *testing.T) {
 		dir := setupPackageDir(t, map[string]string{
-			"assets/logo.png":       "png-bytes",
-			"template/badge.png":    "badge-bytes",
-			"template/report.typ":   "#image(\"assets/logo.png\")\n#image(\"../assets/logo.png\")\n#image(\"badge.png\")\n#read(\"assets/logo.png\")\n",
+			"assets/logo.png":     "png-bytes",
+			"template/badge.png":  "badge-bytes",
+			"template/report.typ": "#image(\"assets/logo.png\")\n#image(\"../assets/logo.png\")\n#image(\"badge.png\")\n#read(\"assets/logo.png\")\n",
 		})
 		if err := CheckPackageDir(dir); err != nil {
 			t.Fatalf("expected CheckPackageDir to succeed, got %v", err)

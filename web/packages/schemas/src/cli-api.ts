@@ -29,10 +29,7 @@ export const CliDeployResponseSchema = z.object({
 
 export type CliDeployResponse = z.infer<typeof CliDeployResponseSchema>;
 
-export const ApiErrorResponseSchema = z.object({
-  error: z.string(),
-  message: z.string(),
-  statusCode: z.number(),
-});
-
-export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
+export {
+  type ApiErrorResponse,
+  ApiErrorResponseSchema,
+} from '@unsa/schemas/registry';

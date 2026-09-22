@@ -120,7 +120,6 @@ func newLogoutCmd() *cobra.Command {
 					return fmt.Errorf("logout cancelled")
 				}
 			}
-			// Piped/non-TTY proceeds directly (legacy behavior ignores args).
 			client, err := auth.NewClient()
 			if err != nil {
 				return err

@@ -12,9 +12,6 @@ import type { HonoEnv } from '@/types';
 
 const tagsRouter = new Hono<HonoEnv>();
 
-/**
- * Route handler for listing all tags grouped by parent tag ID.
- */
 tagsRouter.get('/', async (c) => {
   const allTags = await db.select().from(tags);
 
@@ -37,94 +34,101 @@ tagsRouter.get('/', async (c) => {
   return c.json({ tags: result });
 });
 
-/**
- * Route handler for creating a new tag (requires admin authentication).
- */
-tagsRouter.post('/', requireAuth, requireRole('admin'), async (c) => {
-  let body: Record<string, unknown>;
-  try {
-    body = (await c.req.json()) as Record<string, unknown>;
-  } catch {
-    throw new ValidationError('Invalid JSON body');
-  }
+tagsRouter.post(
+  '/',
+  requireAuth,
+  requireRole('registry', 'admin'),
+  async (c) => {
+    let body: Record<string, unknown>;
+    try {
+      body = (await c.req.json()) as Record<string, unknown>;
+    } catch {
+      throw new ValidationError('Invalid JSON body');
+    }
 
-  if (!body.name || typeof body.name !== 'string') {
-    throw new ValidationError('Tag "name" is required', { field: 'name' });
-  }
-  if (!body.displayName || typeof body.displayName !== 'string') {
-    throw new ValidationError('Tag "displayName" is required', {
-      field: 'displayName',
-    });
-  }
+    if (!body.name || typeof body.name !== 'string') {
+      throw new ValidationError('Tag "name" is required', { field: 'name' });
+    }
+    if (!body.displayName || typeof body.displayName !== 'string') {
+      throw new ValidationError('Tag "displayName" is required', {
+        field: 'displayName',
+      });
+    }
 
-  const tagName = body.name.trim().toLowerCase();
-  const displayName = body.displayName.trim();
-  const parentId = (body.parentId as string) || null;
+    const tagName = body.name.trim().toLowerCase();
+    const displayName = body.displayName.trim();
+    const parentId = (body.parentId as string) || null;
 
-  const existingTag = await db
-    .select({ id: tags.id })
-    .from(tags)
-    .where(eq(tags.name, tagName))
-    .limit(1);
-
-  if (existingTag.length > 0) {
-    throw new ConflictError(`Tag '${tagName}' already exists`);
-  }
-
-  if (parentId) {
-    const parentRow = await db
+    const existingTag = await db
       .select({ id: tags.id })
       .from(tags)
-      .where(eq(tags.id, parentId))
+      .where(eq(tags.name, tagName))
       .limit(1);
 
-    if (parentRow.length === 0) {
-      throw new NotFoundError(`Parent tag ID '${parentId}' not found`);
+    if (existingTag.length > 0) {
+      throw new ConflictError(`Tag '${tagName}' already exists`);
     }
-  }
 
-  const tagId = crypto.randomUUID();
-  const now = new Date();
+    if (parentId) {
+      const parentRow = await db
+        .select({ id: tags.id })
+        .from(tags)
+        .where(eq(tags.id, parentId))
+        .limit(1);
 
-  await db.insert(tags).values({
-    id: tagId,
-    name: tagName,
-    displayName,
-    parentId,
-    createdAt: now,
-  });
+      if (parentRow.length === 0) {
+        throw new NotFoundError(`Parent tag ID '${parentId}' not found`);
+      }
+    }
 
-  return c.json(
-    {
+    const tagId = crypto.randomUUID();
+    const now = new Date();
+
+    await db.insert(tags).values({
       id: tagId,
       name: tagName,
       displayName,
       parentId,
       createdAt: now,
-    },
-    201,
-  );
-});
+    });
 
-/**
- * Route handler for deleting an existing tag by ID (requires admin authentication).
- */
-tagsRouter.delete('/:id', requireAuth, requireRole('admin'), async (c) => {
-  const id = c.req.param('id');
+    return c.json(
+      {
+        id: tagId,
+        name: tagName,
+        displayName,
+        parentId,
+        createdAt: now,
+      },
+      201,
+    );
+  },
+);
 
-  const existingTag = await db
-    .select()
-    .from(tags)
-    .where(eq(tags.id, id))
-    .limit(1);
+tagsRouter.delete(
+  '/:id',
+  requireAuth,
+  requireRole('registry', 'admin'),
+  async (c) => {
+    const id = c.req.param('id');
 
-  if (existingTag.length === 0) {
-    throw new NotFoundError(`Tag ID '${id}' not found`);
-  }
+    const existingTag = await db
+      .select()
+      .from(tags)
+      .where(eq(tags.id, id))
+      .limit(1);
 
-  await db.delete(tags).where(eq(tags.id, id));
+    if (existingTag.length === 0) {
+      throw new NotFoundError(`Tag ID '${id}' not found`);
+    }
 
-  return c.json({ message: `Tag '${existingTag[0].name}' deleted` });
-});
+    await db.delete(tags).where(eq(tags.id, id));
+
+    return c.json({
+      success: true,
+      message: `Tag '${existingTag[0].name}' deleted`,
+    });
+  },
+);
 
 export default tagsRouter;
