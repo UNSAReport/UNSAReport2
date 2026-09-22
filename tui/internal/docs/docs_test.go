@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/BurntSushi/toml"
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/pkg"
@@ -545,6 +546,44 @@ func TestCollectPackageConfigRequiredFailsHeadless(t *testing.T) {
 	})
 	if err := copyCommands(root, cfg, p, "all"); err == nil {
 		t.Fatal("expected required-without-default error")
+	}
+}
+
+func TestCopyCommandsBindsHooksBeforeAndAfter(t *testing.T) {
+	root := t.TempDir()
+	cfg := &project.SpecConfig{}
+	p := pkg.PkgToml{
+		Package: pkg.PackageDef{Name: "@unsareport/epis-lab", Version: "0.1.0", CommandPrefix: "epis-lab"},
+		Commands: map[string]pkg.CommandDef{
+			"pre-check":   {Description: "pre check", Commands: project.OSCommands{"any": {"echo pre"}}},
+			"copy-report": {Description: "copy", Commands: project.OSCommands{"any": {"echo copy"}}},
+		},
+		Hooks: map[string]project.HookTiming{
+			"build": {
+				Before: []string{"pre-check"},
+				After:  []string{"copy-report"},
+			},
+		},
+	}
+	if err := copyCommands(root, cfg, p, "all"); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "unsareport.d", "hooks", "build-epis-lab.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var frag project.HookFragment
+	if _, err := toml.Decode(string(raw), &frag); err != nil {
+		t.Fatal(err)
+	}
+	if frag.Standard != "build" || frag.Origin != "@unsareport/epis-lab" {
+		t.Fatalf("unexpected standard/origin: %+v", frag)
+	}
+	if len(frag.Before) != 1 || frag.Before[0] != "epis-lab:pre-check" {
+		t.Fatalf("unexpected frag.Before: %+v", frag.Before)
+	}
+	if len(frag.After) != 1 || frag.After[0] != "epis-lab:copy-report" {
+		t.Fatalf("unexpected frag.After: %+v", frag.After)
 	}
 }
 

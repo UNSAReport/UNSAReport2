@@ -126,12 +126,28 @@ func TestValidateRejects(t *testing.T) {
 }
 
 func TestRejectsInitHook(t *testing.T) {
-	p, err := Parse(validToml + "\n[hooks-suggest]\ninit = [\"foo\"]\n")
+	p, err := Parse(validToml + "\n[hooks.init]\nbefore = [\"foo\"]\n")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := Validate(p); err == nil {
 		t.Fatal("expected init hook rejection")
+	}
+}
+
+func TestHooksTiming(t *testing.T) {
+	p, err := Parse(validToml + "\n[hooks.build]\nbefore = [\"foo\"]\nafter = [\"bar\"]\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Validate(p); err != nil {
+		t.Fatal(err)
+	}
+	if len(p.Hooks["build"].Before) != 1 || p.Hooks["build"].Before[0] != "foo" {
+		t.Fatalf("expected before = [\"foo\"], got %+v", p.Hooks["build"].Before)
+	}
+	if len(p.Hooks["build"].After) != 1 || p.Hooks["build"].After[0] != "bar" {
+		t.Fatalf("expected after = [\"bar\"], got %+v", p.Hooks["build"].After)
 	}
 }
 

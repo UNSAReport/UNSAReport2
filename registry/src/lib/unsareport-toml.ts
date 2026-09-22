@@ -67,8 +67,13 @@ export interface UnsareportToml {
   dependencies: Record<string, string>;
   templateGlobs: string[];
   commands: Record<string, PkgCommandDef>;
-  hooksSuggest: Record<string, string[]>;
+  hooks: Record<string, HookTiming>;
   configSchema: Record<string, PkgConfigSchemaEntry>;
+}
+
+export interface HookTiming {
+  before: string[];
+  after: string[];
 }
 
 export type PkgToml = UnsareportToml;
@@ -312,54 +317,72 @@ function validateCommandOsMap(
   return commands;
 }
 
-function validateHooksSuggest(value: unknown): Record<string, string[]> {
+function validateHooks(value: unknown): Record<string, HookTiming> {
   if (value === undefined) return {};
   if (!isRecord(value)) {
-    throw new ValidationError(
-      'unsareport.toml [hooks-suggest] must be a table',
-      {
-        field: 'hooks-suggest',
-      },
-    );
+    throw new ValidationError('unsareport.toml [hooks] must be a table', {
+      field: 'hooks',
+    });
   }
-  const out: Record<string, string[]> = {};
-  for (const [standard, rawList] of Object.entries(value)) {
-    const field = `hooks-suggest.${standard}`;
+  const out: Record<string, HookTiming> = {};
+  for (const [standard, rawTiming] of Object.entries(value)) {
+    const field = `hooks.${standard}`;
     if (standard === 'init') {
       throw new ValidationError(
-        'unsareport.toml [hooks-suggest.init] is forbidden: packages cannot bind to the init hook',
+        'unsareport.toml [hooks.init] is forbidden: packages cannot bind to the init hook',
         { field },
       );
     }
     if (standard === 'prepare') {
       throw new ValidationError(
-        'unsareport.toml [hooks-suggest.prepare] was renamed: use [hooks-suggest.build] instead',
+        'unsareport.toml [hooks.prepare] was renamed: use [hooks.build] instead',
         { field },
       );
     }
-    if (!Array.isArray(rawList)) {
+    if (!isRecord(rawTiming)) {
       throw new ValidationError(
-        `unsareport.toml [${field}] must be an array of command aliases`,
-        {
-          field,
-        },
+        `unsareport.toml [${field}] must be a table with "before" and/or "after" arrays`,
+        { field },
       );
     }
-    out[standard] = rawList.map((alias) => {
-      if (typeof alias !== 'string' || alias.trim().length === 0) {
+    const timingAllowed: Record<string, true> = { before: true, after: true };
+    for (const k of Object.keys(rawTiming)) {
+      if (!timingAllowed[k]) {
         throw new ValidationError(
-          `unsareport.toml [${field}] entries must be non-empty command aliases`,
-          { field },
+          `unsareport.toml [${field}] has unknown key "${k}" (allowed: before, after)`,
+          { field: `${field}.${k}` },
         );
       }
-      if (alias.trim() === 'init') {
+    }
+    const parseList = (when: 'before' | 'after'): string[] => {
+      const list = rawTiming[when];
+      if (list === undefined) return [];
+      if (!Array.isArray(list)) {
         throw new ValidationError(
-          `unsareport.toml [${field}] cannot suggest binding to the init hook`,
-          { field },
+          `unsareport.toml [${field}.${when}] must be an array of command aliases`,
+          { field: `${field}.${when}` },
         );
       }
-      return alias.trim();
-    });
+      return list.map((alias) => {
+        if (typeof alias !== 'string' || alias.trim().length === 0) {
+          throw new ValidationError(
+            `unsareport.toml [${field}.${when}] entries must be non-empty command aliases`,
+            { field: `${field}.${when}` },
+          );
+        }
+        if (alias.trim() === 'init') {
+          throw new ValidationError(
+            `unsareport.toml [${field}.${when}] cannot suggest binding to the init hook`,
+            { field: `${field}.${when}` },
+          );
+        }
+        return alias.trim();
+      });
+    };
+    out[standard] = {
+      before: parseList('before'),
+      after: parseList('after'),
+    };
   }
   return out;
 }
@@ -461,7 +484,7 @@ export function validateUnsareportToml(
     components: true,
     templates: true,
     commands: true,
-    'hooks-suggest': true,
+    hooks: true,
     'config-schema': true,
     dependencies: true,
   };
@@ -553,7 +576,7 @@ export function validateUnsareportToml(
   let dependencies: Record<string, string> = {};
   let templateGlobs: string[] = [];
   let commands: Record<string, PkgCommandDef> = {};
-  let hooksSuggest: Record<string, string[]> = {};
+  let hooks: Record<string, HookTiming> = {};
   let configSchema: Record<string, PkgConfigSchemaEntry> = {};
 
   if (packageRaw !== undefined) {
@@ -751,7 +774,7 @@ export function validateUnsareportToml(
     }
 
     commands = validateCommands(raw.commands);
-    hooksSuggest = validateHooksSuggest(raw['hooks-suggest']);
+    hooks = validateHooks(raw.hooks);
     configSchema = validateConfigSchema(raw['config-schema']);
   }
 
@@ -765,7 +788,7 @@ export function validateUnsareportToml(
     dependencies,
     templateGlobs,
     commands,
-    hooksSuggest,
+    hooks,
     configSchema,
   };
   if (scope !== undefined) doc.scope = scope;

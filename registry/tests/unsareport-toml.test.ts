@@ -33,8 +33,8 @@ files = ["template/**/*"]
 description = "Say hi"
 commands = { any = ["echo hi"], linux = ["echo hi-linux"] }
 
-[hooks-suggest]
-build = ["cardo:greet"]
+[hooks.build]
+before = ["cardo:greet"]
 
 [config-schema.accent]
 type = "string"
@@ -95,7 +95,9 @@ describe('unsareport.toml validation', () => {
       windows: [],
       macos: [],
     });
-    expect(pkg.hooksSuggest).toEqual({ build: ['cardo:greet'] });
+    expect(pkg.hooks).toEqual({
+      build: { before: ['cardo:greet'], after: [] },
+    });
     expect(pkg.configSchema.accent.type).toBe('string');
   });
 
@@ -266,7 +268,7 @@ describe('unsareport.toml invalid documents', () => {
 
   it('rejects init hook suggestions', () => {
     const raw = parseUnsareportToml(
-      BASE_TOML.replace('build = ["cardo:greet"]', 'init = ["cardo:greet"]'),
+      BASE_TOML.replace('[hooks.build]', '[hooks.init]'),
     );
     expect(() => validateUnsareportToml(raw)).toThrow(/init hook/);
   });
@@ -286,5 +288,22 @@ describe('unsareport.toml invalid documents', () => {
       BASE_TOML.replace('files = ["*.typ", "assets/**/*"]', 'files = []'),
     );
     expect(() => validateUnsareportToml(raw)).toThrow(/non-empty array/);
+  });
+
+  it('supports after timing and rejects invalid timing keys', () => {
+    const rawAfter = parseUnsareportToml(
+      BASE_TOML.replace('before = ["cardo:greet"]', 'after = ["cardo:greet"]'),
+    );
+    const pkg = validateUnsareportToml(rawAfter, filesCtx());
+    expect(pkg.hooks).toEqual({
+      build: { before: [], after: ['cardo:greet'] },
+    });
+
+    const rawInvalidKey = parseUnsareportToml(
+      BASE_TOML.replace('before = ["cardo:greet"]', 'during = ["cardo:greet"]'),
+    );
+    expect(() => validateUnsareportToml(rawInvalidKey, filesCtx())).toThrow(
+      /unknown key "during"/,
+    );
   });
 });
