@@ -30,6 +30,7 @@ export interface RegistryVersionDetail {
   fileCount: number;
   createdAt: string;
   approvedAt?: string | null;
+  archive_url?: string;
   files: Array<{
     path: string;
     section: string;
@@ -104,11 +105,26 @@ async function fetchVersionInternal(
   name: string,
   version: string,
 ): Promise<RegistryVersionDetail> {
-  const res = await registryFetch(
-    `/v1/packages/${encodePackageName(name)}/${encodeURIComponent(version)}`,
-  );
-  if (!res.ok) throw new Error(`Version not found: ${name}@${version}`);
-  return (await res.json()) as RegistryVersionDetail;
+  const [res, archiveRes] = await Promise.all([
+    registryFetch(
+      `/v1/packages/${encodePackageName(name)}/${encodeURIComponent(version)}`,
+    ),
+    registryFetch(
+      `/v1/${encodePackageName(name)}/${encodeURIComponent(version)}/archive`,
+    ),
+  ]);
+  if (!res.ok) {
+    throw new Error(`Version not found: ${name}@${version}`);
+  }
+  const data = (await res.json()) as RegistryVersionDetail;
+  let archiveUrl: string | undefined;
+  if (archiveRes.ok) {
+    const archiveData = (await archiveRes.json()) as { archive_url?: string };
+    archiveUrl = archiveData.archive_url;
+  } else {
+    archiveUrl = undefined;
+  }
+  return { ...data, archive_url: archiveUrl };
 }
 
 export const fetchPackagesServerFn = createServerFn({ method: 'GET' })
