@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from '@tanstack/react-router';
+import { createFileRoute, Link, redirect } from '@tanstack/react-router';
 import { useState } from 'react';
 import { requireAuthServerFn } from '@/lib/auth/server';
 
@@ -17,7 +17,7 @@ function UploadComponent() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError(null);
     setSuccess(null);
@@ -78,7 +78,13 @@ function UploadComponent() {
         <input type="file" name="file" accept=".zip,.tgz,.tar.gz" required />
         <button type="submit">Upload</button>
       </form>
-      <p>Requires authentication. File must contain manifest.json.</p>
+      <p>
+        Requires authentication. Packages must be scoped (e.g.{' '}
+        <code>@scope/package-name</code>) and declare an{' '}
+        <code>unsareport.toml</code> document. You must be an owner or
+        contributor of the target scope.{' '}
+        <Link to="/scopes">Manage your scopes and invitations here</Link>.
+      </p>
     </div>
   );
 }

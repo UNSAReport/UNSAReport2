@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { fetchCurrentUser } from '@/lib/auth/server';
 
 export const Route = createFileRoute('/auth/me')({
@@ -15,7 +15,12 @@ function MeComponent() {
     <div>
       <h1>Current User</h1>
       {user ? (
-        <pre>{JSON.stringify(user, null, 2)}</pre>
+        <>
+          <pre>{JSON.stringify(user, null, 2)}</pre>
+          <p>
+            <Link to="/scopes">View My Scopes and Team Invitations &rarr;</Link>
+          </p>
+        </>
       ) : (
         <p>Not authenticated — no valid token found.</p>
       )}

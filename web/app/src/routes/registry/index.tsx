@@ -35,23 +35,38 @@ function RegistryIndexComponent() {
         <button type="submit">Search</button>
       </form>
       <p>
-        <Link to="/registry/upload">Upload package</Link> (requires login)
+        <Link to="/registry/upload">Upload package</Link> (requires login) |{' '}
+        <Link to="/scopes">Manage scopes</Link>
       </p>
       {packages.length === 0 ? (
         <p>No packages</p>
       ) : (
         <ul>
-          {packages.map((pkg) => (
-            <li key={pkg.name}>
-              <Link to="/registry/$name" params={{ name: pkg.name }}>
-                {pkg.name}
-              </Link>
-              {pkg.displayName ? ` — ${pkg.displayName}` : ''}
-              {pkg.description ? ` — ${pkg.description}` : ''}
-              {pkg.tags?.length ? ` [${pkg.tags.join(', ')}]` : ''}
-              {pkg.latestVersion ? ` (latest: ${pkg.latestVersion})` : ''}
-            </li>
-          ))}
+          {packages.map((pkg) => {
+            const isScoped = pkg.name.startsWith('@') && pkg.name.includes('/');
+            const scopePart = isScoped ? pkg.name.split('/')[0] : null;
+            return (
+              <li key={pkg.name}>
+                <Link to="/registry/$name" params={{ name: pkg.name }}>
+                  {pkg.name}
+                </Link>
+                {scopePart && (
+                  <>
+                    {' '}
+                    (Scope:{' '}
+                    <Link to="/scopes/$scope" params={{ scope: scopePart }}>
+                      {scopePart}
+                    </Link>
+                    )
+                  </>
+                )}
+                {pkg.displayName ? ` — ${pkg.displayName}` : ''}
+                {pkg.description ? ` — ${pkg.description}` : ''}
+                {pkg.tags?.length ? ` [${pkg.tags.join(', ')}]` : ''}
+                {pkg.latestVersion ? ` (latest: ${pkg.latestVersion})` : ''}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

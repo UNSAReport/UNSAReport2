@@ -159,3 +159,82 @@ export const ApiErrorResponseSchema = z.object({
   statusCode: z.number(),
 });
 export type ApiErrorResponse = z.infer<typeof ApiErrorResponseSchema>;
+
+export const ScopeMemberRoleSchema = z.enum(['admin', 'contributor']);
+export type ScopeMemberRole = z.infer<typeof ScopeMemberRoleSchema>;
+
+export const ScopeTypeSchema = z.enum(['email', 'custom']);
+export type ScopeType = z.infer<typeof ScopeTypeSchema>;
+
+export const ScopeRequestStatusSchema = z.enum(['pending', 'approved', 'rejected']);
+export type ScopeRequestStatus = z.infer<typeof ScopeRequestStatusSchema>;
+
+export const ScopeInvitationStatusSchema = z.enum(['pending', 'accepted', 'declined']);
+export type ScopeInvitationStatus = z.infer<typeof ScopeInvitationStatusSchema>;
+
+export const ScopeMemberSchema = z.object({
+  userId: z.string(),
+  role: ScopeMemberRoleSchema,
+  createdAt: z.string().or(z.date()),
+});
+export type ScopeMember = z.infer<typeof ScopeMemberSchema>;
+
+export const ScopeFileSchema = z.object({
+  path: z.string(),
+  size: z.number(),
+  checksum: z.string(),
+});
+export type ScopeFile = z.infer<typeof ScopeFileSchema>;
+
+export const ScopeItemSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  ownerId: z.string(),
+  scopeType: ScopeTypeSchema,
+  role: ScopeMemberRoleSchema.optional(),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
+});
+export type ScopeItem = z.infer<typeof ScopeItemSchema>;
+
+export const ScopeDetailSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string().nullable().optional(),
+  ownerId: z.string(),
+  scopeType: ScopeTypeSchema,
+  hasArchive: z.boolean(),
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()),
+  members: z.array(ScopeMemberSchema),
+  files: z.array(ScopeFileSchema),
+});
+export type ScopeDetail = z.infer<typeof ScopeDetailSchema>;
+
+export const ScopeRequestItemSchema = z.object({
+  id: z.string(),
+  scopeName: z.string(),
+  requestedBy: z.string(),
+  reason: z.string(),
+  status: ScopeRequestStatusSchema,
+  rejectionReason: z.string().nullable().optional(),
+  reviewedBy: z.string().nullable().optional(),
+  reviewedAt: z.string().or(z.date()).nullable().optional(),
+  createdAt: z.string().or(z.date()),
+});
+export type ScopeRequestItem = z.infer<typeof ScopeRequestItemSchema>;
+
+export const ScopeInvitationItemSchema = z.object({
+  id: z.string(),
+  scopeId: z.string(),
+  scopeName: z.string().optional(),
+  email: z.string(),
+  role: ScopeMemberRoleSchema,
+  invitedBy: z.string().optional(),
+  status: ScopeInvitationStatusSchema,
+  createdAt: z.string().or(z.date()),
+  updatedAt: z.string().or(z.date()).optional(),
+});
+export type ScopeInvitationItem = z.infer<typeof ScopeInvitationItemSchema>;
+

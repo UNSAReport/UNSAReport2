@@ -187,6 +187,39 @@ scopesRouter.post('/requests', requireAuth, async (c) => {
   );
 });
 
+scopesRouter.get('/invitations', requireAuth, async (c) => {
+  const user = c.get('user');
+  if (!user) {
+    throw new UnauthorizedError('Missing authentication');
+  }
+  if (!user.email) {
+    return c.json({ invitations: [] });
+  }
+
+  const userEmail = user.email.toLowerCase();
+  const rows = await db
+    .select({
+      id: scopeInvitations.id,
+      scopeId: scopeInvitations.scopeId,
+      scopeName: scopes.name,
+      email: scopeInvitations.email,
+      role: scopeInvitations.role,
+      invitedBy: scopeInvitations.invitedBy,
+      status: scopeInvitations.status,
+      createdAt: scopeInvitations.createdAt,
+    })
+    .from(scopeInvitations)
+    .innerJoin(scopes, eq(scopeInvitations.scopeId, scopes.id))
+    .where(
+      and(
+        eq(scopeInvitations.email, userEmail),
+        eq(scopeInvitations.status, 'pending'),
+      ),
+    );
+
+  return c.json({ invitations: rows });
+});
+
 scopesRouter.get(`/:scope{${PACKAGE_SCOPE_PART}}`, async (c) => {
   const scopeName = decodeScopeParam(c.req.param('scope'));
   const scopeRows = await db
@@ -558,6 +591,137 @@ scopesRouter.post(
       },
       201,
     );
+  },
+);
+
+scopesRouter.get(
+  `/:scope{${PACKAGE_SCOPE_PART}}/invitations`,
+  requireAuth,
+  async (c) => {
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
+
+    const scopeRows = await db
+      .select()
+      .from(scopes)
+      .where(eq(scopes.name, scopeName))
+      .limit(1);
+    if (scopeRows.length === 0) {
+      throw new NotFoundError(`Scope "${scopeName}" not found`);
+    }
+    const scope = scopeRows[0];
+
+    const isAdmin = user.roles.registry === 'admin';
+    const isOwner = scope.ownerId === user.id;
+    let isScopeAdmin = isOwner || isAdmin;
+
+    if (!isScopeAdmin) {
+      const memberRow = await db
+        .select({ role: scopeMembers.role })
+        .from(scopeMembers)
+        .where(
+          and(
+            eq(scopeMembers.scopeId, scope.id),
+            eq(scopeMembers.userId, user.id),
+          ),
+        )
+        .limit(1);
+      if (memberRow.length > 0 && memberRow[0].role === 'admin') {
+        isScopeAdmin = true;
+      }
+    }
+
+    if (!isScopeAdmin) {
+      throw new ForbiddenError(
+        `Only scope admins can view invitations for "${scopeName}"`,
+      );
+    }
+
+    const invitations = await db
+      .select()
+      .from(scopeInvitations)
+      .where(
+        and(
+          eq(scopeInvitations.scopeId, scope.id),
+          eq(scopeInvitations.status, 'pending'),
+        ),
+      );
+
+    return c.json({ invitations });
+  },
+);
+
+scopesRouter.delete(
+  `/:scope{${PACKAGE_SCOPE_PART}}/invitations/:id`,
+  requireAuth,
+  async (c) => {
+    const user = c.get('user');
+    if (!user) {
+      throw new UnauthorizedError('Missing authentication');
+    }
+    const scopeName = decodeScopeParam(c.req.param('scope'));
+    const invitationId = c.req.param('id');
+
+    const scopeRows = await db
+      .select()
+      .from(scopes)
+      .where(eq(scopes.name, scopeName))
+      .limit(1);
+    if (scopeRows.length === 0) {
+      throw new NotFoundError(`Scope "${scopeName}" not found`);
+    }
+    const scope = scopeRows[0];
+
+    const isAdmin = user.roles.registry === 'admin';
+    const isOwner = scope.ownerId === user.id;
+    let isScopeAdmin = isOwner || isAdmin;
+
+    if (!isScopeAdmin) {
+      const memberRow = await db
+        .select({ role: scopeMembers.role })
+        .from(scopeMembers)
+        .where(
+          and(
+            eq(scopeMembers.scopeId, scope.id),
+            eq(scopeMembers.userId, user.id),
+          ),
+        )
+        .limit(1);
+      if (memberRow.length > 0 && memberRow[0].role === 'admin') {
+        isScopeAdmin = true;
+      }
+    }
+
+    if (!isScopeAdmin) {
+      throw new ForbiddenError(
+        `Only scope admins can cancel invitations for "${scopeName}"`,
+      );
+    }
+
+    const invRows = await db
+      .select()
+      .from(scopeInvitations)
+      .where(
+        and(
+          eq(scopeInvitations.id, invitationId),
+          eq(scopeInvitations.scopeId, scope.id),
+          eq(scopeInvitations.status, 'pending'),
+        ),
+      )
+      .limit(1);
+
+    if (invRows.length === 0) {
+      throw new NotFoundError(`Pending invitation "${invitationId}" not found`);
+    }
+
+    await db
+      .delete(scopeInvitations)
+      .where(eq(scopeInvitations.id, invitationId));
+
+    return c.json({ message: 'Invitation cancelled successfully' });
   },
 );
 
