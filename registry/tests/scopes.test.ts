@@ -13,6 +13,11 @@ const USER_B_EMAIL = 'bob@example.com';
 const ADMIN_ID = '90000000-0000-4000-8000-000000000009';
 const ADMIN_EMAIL = 'admin@unsareport.org';
 
+const VALID_TOKEN = 'valid-token';
+const ADMIN_TOKEN = 'admin-token';
+const B_TOKEN = 'b-token';
+const CHARLIE_TOKEN = 'charlie-token';
+
 let currentUser = {
   id: USER_A_ID,
   email: USER_A_EMAIL,
@@ -179,9 +184,27 @@ mock.module('@/db', () => ({
 }));
 
 mock.module('@/lib/auth', () => ({
-  verifyJWT: async () => currentUser,
-  stripBearer: (header: string | null | undefined) =>
-    header?.startsWith('Bearer ') === true ? header.slice(7) : null,
+  verifyJWT: async (token: string) => {
+    if (
+      token !== VALID_TOKEN &&
+      token !== ADMIN_TOKEN &&
+      token !== B_TOKEN &&
+      token !== CHARLIE_TOKEN
+    ) {
+      throw new Error('Invalid authentication token');
+    }
+    return currentUser;
+  },
+  stripBearer: (header: string | null | undefined) => {
+    if (header?.startsWith('Bearer ') !== true) {
+      return null;
+    }
+    const token = header.slice(7);
+    if (token.length === 0 || token[0] === ' ' || token[0] === '\t') {
+      return null;
+    }
+    return token;
+  },
 }));
 
 mock.module('@/lib/s3', () => ({

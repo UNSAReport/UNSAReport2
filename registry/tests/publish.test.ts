@@ -8,6 +8,8 @@ const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
 const MOCK_USER_EMAIL = 'publisher@example.com';
 const MOCK_USER_ROLE = 'user';
 const MOCK_PRESIGNED_BASE_URL = 'http://localhost/s3-mock';
+const VALID_TOKEN = 'test-token';
+const GARBAGE_TOKEN = 'garbage-token-xyz';
 
 const TABLE_PACKAGES = 'packages';
 const TABLE_PACKAGE_VERSIONS = 'package_versions';
@@ -183,13 +185,26 @@ mock.module('@/db', () => ({
 }));
 
 mock.module('@/lib/auth', () => ({
-  verifyJWT: async () => ({
-    id: MOCK_USER_ID,
-    email: MOCK_USER_EMAIL,
-    roles: { registry: MOCK_USER_ROLE },
-  }),
-  stripBearer: (h: string | null | undefined) =>
-    h?.startsWith('Bearer ') === true ? h.slice(7) : null,
+  verifyJWT: async (token: string) => {
+    if (token !== VALID_TOKEN) {
+      throw new Error('Invalid authentication token');
+    }
+    return {
+      id: MOCK_USER_ID,
+      email: MOCK_USER_EMAIL,
+      roles: { registry: MOCK_USER_ROLE },
+    };
+  },
+  stripBearer: (h: string | null | undefined) => {
+    if (h?.startsWith('Bearer ') !== true) {
+      return null;
+    }
+    const token = h.slice(7);
+    if (token.length === 0 || token[0] === ' ' || token[0] === '\t') {
+      return null;
+    }
+    return token;
+  },
 }));
 
 const uploadS3ObjectMock = mock(async (key: string) => key);
@@ -367,7 +382,7 @@ describe('POST /v1/packages invalid behavior', () => {
     const res = await app.fetch(
       new Request('http://localhost/v1/packages', {
         method: 'POST',
-        headers: { Authorization: 'Bearer ' },
+        headers: { Authorization: `Bearer ${GARBAGE_TOKEN}` },
         body: form,
       }),
     );

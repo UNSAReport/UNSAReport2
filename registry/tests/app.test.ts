@@ -2,6 +2,8 @@ import { describe, expect, it, mock } from 'bun:test';
 import { getTableName } from 'drizzle-orm';
 import * as schema from '@/db/schema';
 
+const GARBAGE_TOKEN = 'garbage-token-xyz';
+
 const mockTags: Record<string, unknown>[] = [
   {
     id: '11111111-1111-4111-8111-111111111111',
@@ -143,6 +145,29 @@ mock.module('@/db', () => ({
   schema,
 }));
 
+mock.module('@/lib/auth', () => ({
+  verifyJWT: async (token: string) => {
+    if (token === GARBAGE_TOKEN) {
+      throw new Error('Invalid authentication token');
+    }
+    return {
+      id: '00000000-0000-4000-8000-000000000001',
+      email: 'test@example.com',
+      roles: {},
+    };
+  },
+  stripBearer: (h: string | null | undefined) => {
+    if (h?.startsWith('Bearer ') !== true) {
+      return null;
+    }
+    const token = h.slice(7);
+    if (token.length === 0 || token[0] === ' ' || token[0] === '\t') {
+      return null;
+    }
+    return token;
+  },
+}));
+
 const { default: app } = await import('@/index');
 
 describe('App API Routes', () => {
@@ -234,7 +259,7 @@ describe('App invalid behavior', () => {
     const res = await app.fetch(
       new Request('http://localhost/v1/packages', {
         method: 'POST',
-        headers: { Authorization: 'Bearer garbage-token-xyz' },
+        headers: { Authorization: `Bearer ${GARBAGE_TOKEN}` },
       }),
     );
     expect(res.status).toBe(401);
