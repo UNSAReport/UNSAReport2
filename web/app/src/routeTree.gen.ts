@@ -20,6 +20,8 @@ import { Route as PresentationsTopicRouteImport } from './routes/presentations/$
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
 import { Route as RegistryUploadRouteImport } from './routes/registry/upload'
+import { Route as ScopesIndexRouteImport } from './routes/scopes/index'
+import { Route as ScopesScopeRouteImport } from './routes/scopes/$scope'
 import { Route as RegistryNameVersionRouteImport } from './routes/registry/$name.$version'
 
 const IndexRoute = IndexRouteImport.update({
@@ -77,6 +79,16 @@ const RegistryUploadRoute = RegistryUploadRouteImport.update({
   path: '/registry/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ScopesIndexRoute = ScopesIndexRouteImport.update({
+  id: '/scopes/',
+  path: '/scopes/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ScopesScopeRoute = ScopesScopeRouteImport.update({
+  id: '/scopes/$scope',
+  path: '/scopes/$scope',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegistryNameVersionRoute = RegistryNameVersionRouteImport.update({
   id: '/$version',
   path: '/$version',
@@ -93,8 +105,10 @@ export interface FileRoutesByFullPath {
   '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/scopes/$scope': typeof ScopesScopeRoute
   '/presentations/': typeof PresentationsIndexRoute
   '/registry/': typeof RegistryIndexRoute
+  '/scopes/': typeof ScopesIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
 export interface FileRoutesByTo {
@@ -106,8 +120,10 @@ export interface FileRoutesByTo {
   '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/scopes/$scope': typeof ScopesScopeRoute
   '/presentations': typeof PresentationsIndexRoute
   '/registry': typeof RegistryIndexRoute
+  '/scopes': typeof ScopesIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
 export interface FileRoutesById {
@@ -121,8 +137,10 @@ export interface FileRoutesById {
   '/presentations/$topic': typeof PresentationsTopicRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
+  '/scopes/$scope': typeof ScopesScopeRoute
   '/presentations/': typeof PresentationsIndexRoute
   '/registry/': typeof RegistryIndexRoute
+  '/scopes/': typeof ScopesIndexRoute
   '/registry/$name/$version': typeof RegistryNameVersionRoute
 }
 export interface FileRouteTypes {
@@ -137,8 +155,10 @@ export interface FileRouteTypes {
     | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/scopes/$scope'
     | '/presentations/'
     | '/registry/'
+    | '/scopes/'
     | '/registry/$name/$version'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -150,8 +170,10 @@ export interface FileRouteTypes {
     | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/scopes/$scope'
     | '/presentations'
     | '/registry'
+    | '/scopes'
     | '/registry/$name/$version'
   id:
     | '__root__'
@@ -164,8 +186,10 @@ export interface FileRouteTypes {
     | '/presentations/$topic'
     | '/registry/$name'
     | '/registry/upload'
+    | '/scopes/$scope'
     | '/presentations/'
     | '/registry/'
+    | '/scopes/'
     | '/registry/$name/$version'
   fileRoutesById: FileRoutesById
 }
@@ -178,7 +202,9 @@ export interface RootRouteChildren {
   AuthPatRoute: typeof AuthPatRoute
   RegistryNameRoute: typeof RegistryNameRouteWithChildren
   RegistryUploadRoute: typeof RegistryUploadRoute
+  ScopesScopeRoute: typeof ScopesScopeRoute
   RegistryIndexRoute: typeof RegistryIndexRoute
+  ScopesIndexRoute: typeof ScopesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -260,6 +286,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegistryUploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/scopes/': {
+      id: '/scopes/'
+      path: '/scopes'
+      fullPath: '/scopes/'
+      preLoaderRoute: typeof ScopesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/scopes/$scope': {
+      id: '/scopes/$scope'
+      path: '/scopes/$scope'
+      fullPath: '/scopes/$scope'
+      preLoaderRoute: typeof ScopesScopeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/registry/$name/$version': {
       id: '/registry/$name/$version'
       path: '/$version'
@@ -304,7 +344,9 @@ const rootRouteChildren: RootRouteChildren = {
   AuthPatRoute: AuthPatRoute,
   RegistryNameRoute: RegistryNameRouteWithChildren,
   RegistryUploadRoute: RegistryUploadRoute,
+  ScopesScopeRoute: ScopesScopeRoute,
   RegistryIndexRoute: RegistryIndexRoute,
+  ScopesIndexRoute: ScopesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

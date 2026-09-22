@@ -32,7 +32,7 @@ function PatComponent() {
     setPats(loaderData.pats);
   }, [loaderData.pats]);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: React.SubmitEvent) => {
     e.preventDefault();
     setError(null);
     setNewToken(null);

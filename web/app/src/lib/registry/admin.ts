@@ -7,12 +7,26 @@ import { serverEnv } from '@/lib/env';
 export const ADMIN_PENDING_ENDPOINT = '/v1/admin/pending';
 export const ADMIN_PACKAGES_ENDPOINT = '/v1/admin/packages';
 export const ADMIN_TRUSTED_ENDPOINT = '/v1/admin/trusted';
+export const ADMIN_SCOPE_REQUESTS_ENDPOINT = '/v1/admin/scopes/requests';
+export const ADMIN_SCOPES_ENDPOINT = '/v1/admin/scopes';
 export const PACKAGES_ENDPOINT = '/v1/packages';
 export const TAGS_ENDPOINT = '/v1/tags';
 export const IDP_ROLES_ENDPOINT = '/v1/roles';
 export const REGISTRY_SUBAPP_NAME = 'registry';
 export { DEFAULT_PACKAGES_LIMIT };
 export const DEFAULT_PACKAGES_OFFSET = 0;
+
+export interface ScopeRequestItem {
+  id: string;
+  scopeName: string;
+  requestedBy: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string | null;
+  reviewedBy?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+}
 
 export interface PendingVersionItem {
   packageId: string;
@@ -335,3 +349,86 @@ export const getUserRolesServerFn = createServerFn({
     const json = (await res.json()) as { roles?: UserRoleItem[] };
     return json.roles ?? [];
   });
+
+export const listScopeRequestsServerFn = createServerFn({
+  method: 'GET',
+}).handler(async (): Promise<ScopeRequestItem[]> => {
+  const res = await registryAdminFetch(ADMIN_SCOPE_REQUESTS_ENDPOINT);
+  const data = (await res.json()) as { requests?: ScopeRequestItem[] };
+  return data.requests ?? [];
+});
+
+export const approveScopeRequestServerFn = createServerFn({
+  method: 'POST',
+})
+  .validator((data: { id: string }) => data)
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      message: string;
+      scope: { id: string; name: string; ownerId: string };
+    }> => {
+      const endpoint = `${ADMIN_SCOPE_REQUESTS_ENDPOINT}/${encodeURIComponent(data.id.trim())}/approve`;
+      const res = await registryAdminFetch(endpoint, { method: 'POST' });
+      return (await res.json()) as {
+        message: string;
+        scope: { id: string; name: string; ownerId: string };
+      };
+    },
+  );
+
+export const rejectScopeRequestServerFn = createServerFn({
+  method: 'POST',
+})
+  .validator((data: { id: string; reason?: string }) => data)
+  .handler(
+    async ({ data }): Promise<{ message: string; rejectionReason: string }> => {
+      const endpoint = `${ADMIN_SCOPE_REQUESTS_ENDPOINT}/${encodeURIComponent(data.id.trim())}/reject`;
+      const res = await registryAdminFetch(endpoint, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: data.reason?.trim() || 'Rejected by admin',
+        }),
+      });
+      return (await res.json()) as { message: string; rejectionReason: string };
+    },
+  );
+
+export const adminCreateScopeServerFn = createServerFn({
+  method: 'POST',
+})
+  .validator(
+    (data: { name: string; description?: string; ownerId?: string }) => data,
+  )
+  .handler(
+    async ({
+      data,
+    }): Promise<{
+      scope: {
+        id: string;
+        name: string;
+        description?: string;
+        ownerId: string;
+        scopeType: string;
+      };
+    }> => {
+      const res = await registryAdminFetch(ADMIN_SCOPES_ENDPOINT, {
+        method: 'POST',
+        body: JSON.stringify({
+          name: data.name.trim(),
+          description: data.description?.trim(),
+          ownerId: data.ownerId?.trim(),
+        }),
+      });
+      return (await res.json()) as {
+        scope: {
+          id: string;
+          name: string;
+          description?: string;
+          ownerId: string;
+          scopeType: string;
+        };
+      };
+    },
+  );

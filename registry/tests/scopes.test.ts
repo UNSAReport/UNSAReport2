@@ -601,4 +601,91 @@ describe('Scopes invalid behavior', () => {
     const data = (await res.json()) as { error: string };
     expect(data.error).toBe('ValidationError');
   });
+
+  it('lists pending invitations for authenticated user and for scope admin, then cancels', async () => {
+    currentUser = {
+      id: ADMIN_ID,
+      email: ADMIN_EMAIL,
+      roles: { registry: 'admin' },
+    };
+    const invRes = await app.fetch(
+      new Request('http://localhost/v1/scopes/@unsareport/invitations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer admin-token',
+        },
+        body: JSON.stringify({
+          email: 'bob@example.com',
+          role: 'contributor',
+        }),
+      }),
+    );
+    expect(invRes.status).toBe(201);
+    const invData = (await invRes.json()) as { invitation: { id: string } };
+
+    currentUser = {
+      id: USER_B_ID,
+      email: USER_B_EMAIL,
+      roles: { registry: 'user' },
+    };
+    const userInvsRes = await app.fetch(
+      new Request('http://localhost/v1/scopes/invitations', {
+        headers: { Authorization: 'Bearer b-token' },
+      }),
+    );
+    expect(userInvsRes.status).toBe(200);
+    const userInvsData = (await userInvsRes.json()) as {
+      invitations: Array<{ id: string; email: string; scopeName?: string }>;
+    };
+    expect(
+      userInvsData.invitations.some((i) => i.id === invData.invitation.id),
+    ).toBe(true);
+
+    currentUser = {
+      id: ADMIN_ID,
+      email: ADMIN_EMAIL,
+      roles: { registry: 'admin' },
+    };
+    const scopeInvsRes = await app.fetch(
+      new Request('http://localhost/v1/scopes/@unsareport/invitations', {
+        headers: { Authorization: 'Bearer admin-token' },
+      }),
+    );
+    expect(scopeInvsRes.status).toBe(200);
+    const scopeInvsData = (await scopeInvsRes.json()) as {
+      invitations: Array<{ id: string }>;
+    };
+    expect(
+      scopeInvsData.invitations.some((i) => i.id === invData.invitation.id),
+    ).toBe(true);
+
+    currentUser = {
+      id: USER_B_ID,
+      email: USER_B_EMAIL,
+      roles: { registry: 'user' },
+    };
+    const forbiddenRes = await app.fetch(
+      new Request('http://localhost/v1/scopes/@unsareport/invitations', {
+        headers: { Authorization: 'Bearer b-token' },
+      }),
+    );
+    expect(forbiddenRes.status).toBe(403);
+
+    currentUser = {
+      id: ADMIN_ID,
+      email: ADMIN_EMAIL,
+      roles: { registry: 'admin' },
+    };
+    const delRes = await app.fetch(
+      new Request(
+        `http://localhost/v1/scopes/@unsareport/invitations/${invData.invitation.id}`,
+        {
+          method: 'DELETE',
+          headers: { Authorization: 'Bearer admin-token' },
+        },
+      ),
+    );
+    expect(delRes.status).toBe(200);
+  });
 });

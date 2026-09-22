@@ -141,7 +141,7 @@ function RootComponent() {
         <a href="/">/</a> | <a href="/registry">Registry</a> |{' '}
         <a href="/presentations/microphoto">Slides</a> |{' '}
         <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{' '}
-        <a href="/auth/pat">PATs</a>
+        <a href="/scopes">Scopes</a> | <a href="/auth/pat">PATs</a>
         {hasAnyAdminRole ? (
           <>
             {' '}

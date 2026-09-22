@@ -30,9 +30,24 @@ export const Route = createFileRoute('/registry/$name')({
 
 function PackageComponent() {
   const { pkg, versions } = Route.useLoaderData();
+  const isScoped = pkg.name.startsWith('@') && pkg.name.includes('/');
+  const scopePart = isScoped ? pkg.name.split('/')[0] : null;
+
   return (
     <div>
       <h1>{pkg.name}</h1>
+      {scopePart && (
+        <p>
+          Belongs to Scope:{' '}
+          <Link
+            to="/scopes/$scope"
+            params={{ scope: scopePart }}
+            style={{ fontWeight: 'bold', color: '#2563eb' }}
+          >
+            {scopePart}
+          </Link>
+        </p>
+      )}
       <pre>{JSON.stringify(pkg, null, 2)}</pre>
       <h2>Versions</h2>
       {versions.length === 0 ? (

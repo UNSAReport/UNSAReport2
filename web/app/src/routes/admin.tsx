@@ -9,21 +9,26 @@ import { fetchCurrentUser } from '@/lib/auth/server';
 import {
   type AdminPackageItem,
   addTrustedUserServerFn,
+  adminCreateScopeServerFn,
   approvePackageVersionServerFn,
+  approveScopeRequestServerFn,
   assignRoleServerFn,
   createTagServerFn,
   deletePackageVersionServerFn,
   deleteTagServerFn,
   listAdminPackagesServerFn,
   listPendingPackagesServerFn,
+  listScopeRequestsServerFn,
   listSubAppRolesServerFn,
   listTagsServerFn,
   listTrustedUsersServerFn,
   type PendingVersionItem,
   REGISTRY_SUBAPP_NAME,
   rejectPackageVersionServerFn,
+  rejectScopeRequestServerFn,
   removeTrustedUserServerFn,
   revokeRoleServerFn,
+  type ScopeRequestItem,
   searchUsersServerFn,
   type TagItem,
   type TrustedUserItem,
@@ -35,6 +40,7 @@ const TAB_QUEUE = 'queue';
 const TAB_TRUSTED = 'trusted';
 const TAB_PACKAGES = 'packages';
 const TAB_TAGS = 'tags';
+const TAB_SCOPE_REQUESTS = 'scope-requests';
 const TAB_ROLES = 'roles';
 
 type TabType =
@@ -42,6 +48,7 @@ type TabType =
   | typeof TAB_TRUSTED
   | typeof TAB_PACKAGES
   | typeof TAB_TAGS
+  | typeof TAB_SCOPE_REQUESTS
   | typeof TAB_ROLES;
 
 const STATUS_ALL = 'all';
@@ -76,30 +83,48 @@ export const Route = createFileRoute('/admin')({
     const hasRegistryAdmin =
       context.user.roles?.[REGISTRY_SUBAPP_NAME] === REGISTRY_ADMIN_ROLE;
 
-    const [pending, trusted, packages, tags, roles, initialUsers] =
-      await Promise.all([
-        hasRegistryAdmin
-          ? listPendingPackagesServerFn().catch(() => [])
-          : Promise.resolve([]),
-        hasRegistryAdmin
-          ? listTrustedUsersServerFn().catch(() => [])
-          : Promise.resolve([]),
-        hasRegistryAdmin
-          ? listAdminPackagesServerFn({ data: { status: STATUS_ALL } }).catch(
-              () => [],
-            )
-          : Promise.resolve([]),
-        hasRegistryAdmin
-          ? listTagsServerFn().catch(() => [])
-          : Promise.resolve([]),
-        hasRegistryAdmin
-          ? listSubAppRolesServerFn({
-              data: { subApp: REGISTRY_SUBAPP_NAME },
-            }).catch(() => [])
-          : Promise.resolve([]),
-        searchUsersServerFn({ data: {} }).catch(() => []),
-      ]);
-    return { pending, trusted, packages, tags, roles, initialUsers };
+    const [
+      pending,
+      trusted,
+      packages,
+      tags,
+      roles,
+      initialUsers,
+      scopeRequests,
+    ] = await Promise.all([
+      hasRegistryAdmin
+        ? listPendingPackagesServerFn().catch(() => [])
+        : Promise.resolve([]),
+      hasRegistryAdmin
+        ? listTrustedUsersServerFn().catch(() => [])
+        : Promise.resolve([]),
+      hasRegistryAdmin
+        ? listAdminPackagesServerFn({ data: { status: STATUS_ALL } }).catch(
+            () => [],
+          )
+        : Promise.resolve([]),
+      hasRegistryAdmin
+        ? listTagsServerFn().catch(() => [])
+        : Promise.resolve([]),
+      hasRegistryAdmin
+        ? listSubAppRolesServerFn({
+            data: { subApp: REGISTRY_SUBAPP_NAME },
+          }).catch(() => [])
+        : Promise.resolve([]),
+      searchUsersServerFn({ data: {} }).catch(() => []),
+      hasRegistryAdmin
+        ? listScopeRequestsServerFn().catch(() => [])
+        : Promise.resolve([]),
+    ]);
+    return {
+      pending,
+      trusted,
+      packages,
+      tags,
+      roles,
+      initialUsers,
+      scopeRequests,
+    };
   },
   component: AdminDashboardComponent,
 });
@@ -160,6 +185,16 @@ function AdminDashboardComponent() {
     'admin',
   );
 
+  const [scopeRequestsList, setScopeRequestsList] = useState<
+    ScopeRequestItem[]
+  >(loaderData.scopeRequests ?? []);
+  const [scopeRejectionReasons, setScopeRejectionReasons] = useState<
+    Record<string, string>
+  >({});
+  const [newScopeName, setNewScopeName] = useState('');
+  const [newScopeDesc, setNewScopeDesc] = useState('');
+  const [newScopeOwnerId, setNewScopeOwnerId] = useState('');
+
   useEffect(() => {
     setPendingList(loaderData.pending);
     setTrustedList(loaderData.trusted);
@@ -167,6 +202,7 @@ function AdminDashboardComponent() {
     setTagsList(loaderData.tags);
     setRolesList(loaderData.roles);
     setUsersList(loaderData.initialUsers ?? []);
+    setScopeRequestsList(loaderData.scopeRequests ?? []);
   }, [loaderData]);
 
   useEffect(() => {
@@ -215,7 +251,7 @@ function AdminDashboardComponent() {
     }
   };
 
-  const handleAddTrusted = async (e: React.FormEvent) => {
+  const handleAddTrusted = async (e: React.SubmitEvent) => {
     e.preventDefault();
     clearNotifications();
     if (!newTrustedUserId.trim()) {
@@ -284,7 +320,7 @@ function AdminDashboardComponent() {
     }
   };
 
-  const handleCreateTag = async (e: React.FormEvent) => {
+  const handleCreateTag = async (e: React.SubmitEvent) => {
     e.preventDefault();
     clearNotifications();
     if (!newTagName.trim() || !newTagDisplayName.trim()) {
@@ -323,7 +359,7 @@ function AdminDashboardComponent() {
     }
   };
 
-  const handleSearchUsers = async (e?: React.FormEvent) => {
+  const handleSearchUsers = async (e?: React.SubmitEvent) => {
     if (e) e.preventDefault();
     clearNotifications();
     setIsSearchingUsers(true);
@@ -457,7 +493,58 @@ function AdminDashboardComponent() {
     }
   };
 
-  const handleAssignRole = async (e: React.FormEvent) => {
+  const handleApproveScopeRequest = async (id: string) => {
+    clearNotifications();
+    try {
+      const res = await approveScopeRequestServerFn({ data: { id } });
+      setScopeRequestsList((prev) => prev.filter((r) => r.id !== id));
+      setSuccessMessage(res.message);
+      await router.invalidate();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleRejectScopeRequest = async (id: string) => {
+    clearNotifications();
+    const reason = scopeRejectionReasons[id]?.trim() || 'Rejected by admin';
+    try {
+      const res = await rejectScopeRequestServerFn({ data: { id, reason } });
+      setScopeRequestsList((prev) => prev.filter((r) => r.id !== id));
+      setSuccessMessage(`${res.message} (Reason: ${res.rejectionReason})`);
+      await router.invalidate();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAdminCreateScope = async (e: React.SubmitEvent) => {
+    e.preventDefault();
+    clearNotifications();
+    const name = newScopeName.trim();
+    if (!name.startsWith('@')) {
+      setErrorMessage('Scope name must start with "@"');
+      return;
+    }
+    try {
+      const res = await adminCreateScopeServerFn({
+        data: {
+          name,
+          description: newScopeDesc.trim() || undefined,
+          ownerId: newScopeOwnerId.trim() || undefined,
+        },
+      });
+      setSuccessMessage(`Scope "${res.scope.name}" created successfully`);
+      setNewScopeName('');
+      setNewScopeDesc('');
+      setNewScopeOwnerId('');
+      await router.invalidate();
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : String(err));
+    }
+  };
+
+  const handleAssignRole = async (e: React.SubmitEvent) => {
     e.preventDefault();
     await handleAssignRoleForUser(targetUserId, targetSubApp, targetRole);
     setTargetUserId('');
@@ -650,6 +737,27 @@ function AdminDashboardComponent() {
             >
               4. Tag Taxonomy ({tagsList.length})
             </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearNotifications();
+                setActiveTab(TAB_SCOPE_REQUESTS);
+              }}
+              style={{
+                padding: '0.5rem 1rem',
+                cursor: 'pointer',
+                border: 'none',
+                borderBottom:
+                  activeTab === TAB_SCOPE_REQUESTS
+                    ? '3px solid #2563eb'
+                    : 'none',
+                fontWeight:
+                  activeTab === TAB_SCOPE_REQUESTS ? 'bold' : 'normal',
+                backgroundColor: 'transparent',
+              }}
+            >
+              5. Scope Requests ({scopeRequestsList.length})
+            </button>
           </>
         )}
         <button
@@ -668,8 +776,9 @@ function AdminDashboardComponent() {
             backgroundColor: 'transparent',
           }}
         >
-          {hasRegistryAdmin ? '5. Users & Roles' : 'Users & Roles'} (
-          {usersList.length})
+          {hasRegistryAdmin
+            ? `6. Ecosystem Roles (${usersList.length} users)`
+            : `1. Sub-App Roles (${usersList.length} users)`}
         </button>
       </div>
 
@@ -1183,6 +1292,188 @@ function AdminDashboardComponent() {
               </tbody>
             </table>
           )}
+        </section>
+      )}
+
+      {activeTab === TAB_SCOPE_REQUESTS && hasRegistryAdmin && (
+        <section>
+          <h2>Scope Requests Moderation</h2>
+          <p style={{ color: '#4b5563' }}>
+            Review pending requests for custom package scopes and manage scope
+            ownership.
+          </p>
+
+          <h3>Pending Custom Scope Requests</h3>
+          {scopeRequestsList.length === 0 ? (
+            <p style={{ fontStyle: 'italic' }}>No pending scope requests.</p>
+          ) : (
+            <table
+              style={{
+                width: '100%',
+                borderCollapse: 'collapse',
+                marginBottom: '2rem',
+              }}
+            >
+              <thead>
+                <tr
+                  style={{
+                    textAlign: 'left',
+                    borderBottom: '2px solid #e5e7eb',
+                  }}
+                >
+                  <th style={{ padding: '0.5rem' }}>Scope Name</th>
+                  <th style={{ padding: '0.5rem' }}>Requester User ID</th>
+                  <th style={{ padding: '0.5rem' }}>Reason</th>
+                  <th style={{ padding: '0.5rem' }}>Requested At</th>
+                  <th style={{ padding: '0.5rem' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scopeRequestsList.map((req) => (
+                  <tr
+                    key={req.id}
+                    style={{ borderBottom: '1px solid #e5e7eb' }}
+                  >
+                    <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>
+                      {req.scopeName}
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>
+                      <code>{req.requestedBy}</code>
+                    </td>
+                    <td style={{ padding: '0.5rem' }}>{req.reason}</td>
+                    <td style={{ padding: '0.5rem' }}>
+                      {new Date(req.createdAt).toLocaleString()}
+                    </td>
+                    <td
+                      style={{
+                        padding: '0.5rem',
+                        display: 'flex',
+                        gap: '0.5rem',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => handleApproveScopeRequest(req.id)}
+                        style={{
+                          backgroundColor: '#16a34a',
+                          color: '#ffffff',
+                          border: 'none',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Approve
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Rejection reason..."
+                        value={scopeRejectionReasons[req.id] ?? ''}
+                        onChange={(e) =>
+                          setScopeRejectionReasons((prev) => ({
+                            ...prev,
+                            [req.id]: e.target.value,
+                          }))
+                        }
+                        style={{
+                          padding: '0.2rem 0.4rem',
+                          fontSize: '0.85rem',
+                          width: '160px',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRejectScopeRequest(req.id)}
+                        style={{
+                          backgroundColor: '#fee2e2',
+                          color: '#b91c1c',
+                          border: '1px solid #f87171',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+
+          <h3>Direct Custom Scope Creation</h3>
+          <form
+            onSubmit={handleAdminCreateScope}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.5rem',
+              maxWidth: '500px',
+              border: '1px solid #e5e7eb',
+              padding: '1rem',
+              borderRadius: '6px',
+            }}
+          >
+            <label>
+              Scope Name (must start with @):
+              <input
+                type="text"
+                placeholder="@myorg"
+                value={newScopeName}
+                onChange={(e) => setNewScopeName(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.4rem',
+                  marginTop: '0.25rem',
+                }}
+              />
+            </label>
+            <label>
+              Description:
+              <input
+                type="text"
+                placeholder="Organization scope for..."
+                value={newScopeDesc}
+                onChange={(e) => setNewScopeDesc(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.4rem',
+                  marginTop: '0.25rem',
+                }}
+              />
+            </label>
+            <label>
+              Owner User ID (optional, defaults to yourself):
+              <input
+                type="text"
+                placeholder="UUID of target owner"
+                value={newScopeOwnerId}
+                onChange={(e) => setNewScopeOwnerId(e.target.value)}
+                style={{
+                  width: '100%',
+                  padding: '0.4rem',
+                  marginTop: '0.25rem',
+                }}
+              />
+            </label>
+            <button
+              type="submit"
+              style={{
+                backgroundColor: '#2563eb',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.5rem',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                marginTop: '0.5rem',
+              }}
+            >
+              Create Scope
+            </button>
+          </form>
         </section>
       )}
 
