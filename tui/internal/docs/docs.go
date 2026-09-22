@@ -601,15 +601,16 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			return err
 		}
 	}
-	bound := map[string][]string{}
-	for std, suggestions := range p.HooksSuggest {
+	bound := map[string]project.HookTiming{}
+	for std, timing := range p.Hooks {
 		if !scripts.HookStandards[std] {
 			return fmt.Errorf("package suggests unknown hook standard %q", std)
 		}
-		for _, s := range suggestions {
+		var current project.HookTiming
+		for _, s := range timing.Before {
 			alias := prefix + ":" + s
 			if mode == "ask" {
-				line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s]? [y/N]:", alias, std))
+				line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.before]? [y/N]:", alias, std))
 				if err != nil {
 					return err
 				}
@@ -625,7 +626,31 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			} else {
 				return fmt.Errorf("unknown command-select mode %q", mode)
 			}
-			bound[std] = append(bound[std], alias)
+			current.Before = append(current.Before, alias)
+		}
+		for _, s := range timing.After {
+			alias := prefix + ":" + s
+			if mode == "ask" {
+				line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.after]? [y/N]:", alias, std))
+				if err != nil {
+					return err
+				}
+				if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+					continue
+				}
+			} else if mode == "yes" || mode == "all" {
+				if _, ok := p.Commands[s]; !ok {
+					continue
+				}
+			} else if mode == "none" {
+				continue
+			} else {
+				return fmt.Errorf("unknown command-select mode %q", mode)
+			}
+			current.After = append(current.After, alias)
+		}
+		if len(current.Before) > 0 || len(current.After) > 0 {
+			bound[std] = current
 		}
 	}
 	if len(bound) > 0 {
@@ -633,8 +658,8 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 		if err := os.MkdirAll(hookDir, config.PermDirPublic); err != nil {
 			return err
 		}
-		for std, aliases := range bound {
-			if err := mergeHookFragment(root, hookDir, std, prefix, p.Package.Name, aliases, cfg.Hooks[std]); err != nil {
+		for std, timing := range bound {
+			if err := mergeHookFragment(root, hookDir, std, prefix, p.Package.Name, timing, cfg.Hooks[std]); err != nil {
 				return err
 			}
 		}
@@ -769,7 +794,7 @@ func checkConfigType(key, typ, val string) error {
 	return nil
 }
 
-func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []string, already project.HookTiming) error {
+func mergeHookFragment(root, hookDir, std, prefix, origin string, toBind project.HookTiming, already project.HookTiming) error {
 	path := filepath.Join(hookDir, std+"-"+prefix+".toml")
 	owned := map[string]bool{}
 	for _, a := range already.Before {
@@ -801,12 +826,19 @@ func mergeHookFragment(root, hookDir, std, prefix, origin string, aliases []stri
 			owned["after\x00"+stripHookAlias(a)] = true
 		}
 	}
-	for _, a := range aliases {
+	for _, a := range toBind.Before {
 		if owned[stripHookAlias(a)] {
 			continue
 		}
 		owned[stripHookAlias(a)] = true
 		frag.Before = append(frag.Before, a)
+	}
+	for _, a := range toBind.After {
+		if owned["after\x00"+stripHookAlias(a)] {
+			continue
+		}
+		owned["after\x00"+stripHookAlias(a)] = true
+		frag.After = append(frag.After, a)
 	}
 	var buf strings.Builder
 	if err := toml.NewEncoder(&buf).Encode(frag); err != nil {

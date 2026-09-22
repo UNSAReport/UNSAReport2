@@ -62,9 +62,9 @@ type PkgToml struct {
 	Dependencies map[string]string            `toml:"dependencies,omitempty"`
 	Components   ComponentsDef                `toml:"components"`
 	Templates    TemplatesDef                 `toml:"templates"`
-	Commands     map[string]CommandDef        `toml:"commands,omitempty"`
-	HooksSuggest map[string][]string          `toml:"hooks-suggest,omitempty"`
-	ConfigSchema map[string]ConfigSchemaEntry `toml:"config-schema,omitempty"`
+	Commands     map[string]CommandDef         `toml:"commands,omitempty"`
+	Hooks        map[string]project.HookTiming `toml:"hooks,omitempty"`
+	ConfigSchema map[string]ConfigSchemaEntry  `toml:"config-schema,omitempty"`
 }
 
 var configTypes = map[string]bool{
@@ -184,13 +184,18 @@ func Validate(p PkgToml) error {
 				return fmt.Errorf("[commands.%s] commands must not be empty", cmd)
 			}
 		}
-		for std, cmds := range p.HooksSuggest {
+		for std, timing := range p.Hooks {
 			if std == "init" {
-				return fmt.Errorf("[hooks-suggest] must not target init")
+				return fmt.Errorf("[hooks] must not target init")
 			}
-			for _, c := range cmds {
+			for _, c := range timing.Before {
 				if strings.TrimSpace(c) == "" {
-					return fmt.Errorf("[hooks-suggest.%s] has empty command", std)
+					return fmt.Errorf("[hooks.%s.before] has empty command", std)
+				}
+			}
+			for _, c := range timing.After {
+				if strings.TrimSpace(c) == "" {
+					return fmt.Errorf("[hooks.%s.after] has empty command", std)
 				}
 			}
 		}

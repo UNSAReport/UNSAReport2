@@ -53,6 +53,12 @@ export const ScopeSchema = z.object({
 });
 export type ScopeDef = z.infer<typeof ScopeSchema>;
 
+export const HookTimingSchema = z.object({
+  before: z.array(z.string().min(1)).default([]),
+  after: z.array(z.string().min(1)).default([]),
+});
+export type HookTiming = z.infer<typeof HookTimingSchema>;
+
 export const UnsareportTomlSchema = z.object({
   project: ProjectSchema,
   scope: ScopeSchema.optional(),
@@ -88,7 +94,7 @@ export const UnsareportTomlSchema = z.object({
     })
     .default({ files: [] }),
   commands: z.record(z.string(), PkgTomlCommandSchema).default({}),
-  'hooks-suggest': z.record(z.string(), z.array(z.string())).default({}),
+  hooks: z.record(z.string(), HookTimingSchema).default({}),
   'config-schema': z
     .record(z.string(), PkgTomlConfigSchemaEntrySchema)
     .default({}),
