@@ -56,12 +56,8 @@
           "name": "package_dependencies_version_id_package_versions_id_fk",
           "tableFrom": "package_dependencies",
           "tableTo": "package_versions",
-          "columnsFrom": [
-            "version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -71,10 +67,7 @@
         "unique_version_dep_name": {
           "name": "unique_version_dep_name",
           "nullsNotDistinct": false,
-          "columns": [
-            "version_id",
-            "dependency_name"
-          ]
+          "columns": ["version_id", "dependency_name"]
         }
       },
       "policies": {},
@@ -152,12 +145,8 @@
           "name": "package_files_version_id_package_versions_id_fk",
           "tableFrom": "package_files",
           "tableTo": "package_versions",
-          "columnsFrom": [
-            "version_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["version_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -167,10 +156,7 @@
         "unique_version_path": {
           "name": "unique_version_path",
           "nullsNotDistinct": false,
-          "columns": [
-            "version_id",
-            "path"
-          ]
+          "columns": ["version_id", "path"]
         }
       },
       "policies": {},
@@ -216,12 +202,8 @@
           "name": "package_tags_package_id_packages_id_fk",
           "tableFrom": "package_tags",
           "tableTo": "packages",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -229,12 +211,8 @@
           "name": "package_tags_tag_id_tags_id_fk",
           "tableFrom": "package_tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "tag_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["tag_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -242,10 +220,7 @@
       "compositePrimaryKeys": {
         "package_tags_package_id_tag_id_pk": {
           "name": "package_tags_package_id_tag_id_pk",
-          "columns": [
-            "package_id",
-            "tag_id"
-          ]
+          "columns": ["package_id", "tag_id"]
         }
       },
       "uniqueConstraints": {},
@@ -371,12 +346,8 @@
           "name": "package_versions_package_id_packages_id_fk",
           "tableFrom": "package_versions",
           "tableTo": "packages",
-          "columnsFrom": [
-            "package_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["package_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -386,10 +357,7 @@
         "unique_package_version": {
           "name": "unique_package_version",
           "nullsNotDistinct": false,
-          "columns": [
-            "package_id",
-            "version"
-          ]
+          "columns": ["package_id", "version"]
         }
       },
       "policies": {},
@@ -518,9 +486,7 @@
         "packages_name_unique": {
           "name": "packages_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -591,12 +557,8 @@
           "name": "scope_files_scope_id_scopes_id_fk",
           "tableFrom": "scope_files",
           "tableTo": "scopes",
-          "columnsFrom": [
-            "scope_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scope_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -606,10 +568,7 @@
         "unique_scope_file_path": {
           "name": "unique_scope_file_path",
           "nullsNotDistinct": false,
-          "columns": [
-            "scope_id",
-            "path"
-          ]
+          "columns": ["scope_id", "path"]
         }
       },
       "policies": {},
@@ -710,12 +669,8 @@
           "name": "scope_invitations_scope_id_scopes_id_fk",
           "tableFrom": "scope_invitations",
           "tableTo": "scopes",
-          "columnsFrom": [
-            "scope_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scope_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -792,12 +747,8 @@
           "name": "scope_members_scope_id_scopes_id_fk",
           "tableFrom": "scope_members",
           "tableTo": "scopes",
-          "columnsFrom": [
-            "scope_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["scope_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -807,10 +758,7 @@
         "unique_scope_member": {
           "name": "unique_scope_member",
           "nullsNotDistinct": false,
-          "columns": [
-            "scope_id",
-            "user_id"
-          ]
+          "columns": ["scope_id", "user_id"]
         }
       },
       "policies": {},
@@ -1027,9 +975,7 @@
         "scopes_name_unique": {
           "name": "scopes_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
@@ -1095,12 +1041,8 @@
           "name": "tags_parent_id_fkey",
           "tableFrom": "tags",
           "tableTo": "tags",
-          "columnsFrom": [
-            "parent_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["parent_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -1110,9 +1052,7 @@
         "tags_name_unique": {
           "name": "tags_name_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "name"
-          ]
+          "columns": ["name"]
         }
       },
       "policies": {},
