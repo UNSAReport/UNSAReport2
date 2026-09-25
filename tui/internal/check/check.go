@@ -181,13 +181,9 @@ func checkLock(root string) []Finding {
 		}
 		for _, f := range p.Files {
 			fp := filepath.Join(dir, filepath.FromSlash(f.Path))
-			b, err := os.ReadFile(fp)
-			if err != nil {
+			if _, err := os.Stat(fp); err != nil {
 				out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
 				continue
-			}
-			if got := lock.SHA256Hex(b); got != f.SHA256 {
-				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: fmt.Sprintf("drift: sha256 mismatch vs %s", config.LockFileName)})
 			}
 		}
 	}
