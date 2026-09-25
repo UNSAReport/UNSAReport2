@@ -782,10 +782,13 @@ func mockUpdatableRegistry(t *testing.T, versions map[string]string) *httptest.S
 					ver = "1.0.0"
 				}
 				var depsToml string
-				if pkgName == "@scope/cardo" {
+				switch pkgName {
+				case "@scope/cardo":
 					depsToml = "\n[dependencies]\n\"@scope/theme\" = \"^1.0.0\"\n"
-				} else if pkgName == "@scope/theme" {
+				case "@scope/theme":
 					depsToml = "\n[dependencies]\n\"@scope/utils\" = \"^1.0.0\"\n"
+				default:
+					depsToml = ""
 				}
 				manifest := fmt.Sprintf("[project]\nconfig_version = 1\n\n[package]\nname = %q\nversion = %q%s\n[components]\nfiles = [\"lib.typ\"]\n", pkgName, ver, depsToml)
 				libContent := fmt.Sprintf("// %s v%s\n", pkgName, ver)
