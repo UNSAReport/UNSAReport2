@@ -70,6 +70,7 @@ jobs:
       slides: ${{ steps.filter.outputs.slides }}
       website: ${{ steps.filter.outputs.website }}
       tui: ${{ steps.filter.outputs.tui }}
+      actions: ${{ steps.filter.outputs.actions }}
     steps:
       - uses: actions/checkout@v4
 
@@ -91,6 +92,9 @@ jobs:
               - 'packages/**'
             tui:
               - 'tui/**'
+            actions:
+              - 'actions/**'
+              - '.github/workflows/ci.yml'
 
   image-auth:
     name: Image auth
@@ -364,3 +368,45 @@ jobs:
             tui/dist/checksums.txt \
             --title "Release ${{ github.ref_name }}" \
             --generate-notes
+
+  test-actions:
+    name: Test GitHub Actions
+    needs: changes
+    if: needs.changes.outputs.actions == 'true' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test actions/setup
+        uses: ./actions/setup
+        with:
+          version: 'latest'
+
+      - name: Verify unsarep CLI in PATH
+        run: |
+          command -v unsarep
+          unsarep version
+
+      - name: Test actions/publish (dry-run on single package)
+        uses: ./actions/publish
+        with:
+          token: 'unsareport_pat_00000000000000000000000000000000'
+          dir: 'actions/test/fixtures/sample-pkg'
+          mode: 'package'
+          check: 'true'
+          dry-run: 'true'
+
+      - name: Test actions/publish (dry-run on scope monorepo)
+        uses: ./actions/publish
+        with:
+          token: 'unsareport_pat_00000000000000000000000000000000'
+          dir: 'actions/test/fixtures/sample-scope'
+          mode: 'scope'
+          packages-dir: 'packages'
+          check: 'true'
+          dry-run: 'true'
+
+      - name: Run actions test suite (caching & validation)
+        run: bash actions/test/test_publish.sh
+
+

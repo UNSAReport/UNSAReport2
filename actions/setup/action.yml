@@ -1,0 +1,21 @@
+name: 'Setup UNSAReport CLI'
+description: 'Download, verify checksums, and set up the unsarep CLI in PATH'
+inputs:
+  version:
+    description: 'Version tag of unsarep to install (e.g. latest, v0.1.0)'
+    required: false
+    default: 'latest'
+outputs:
+  cli-path:
+    description: 'Absolute path to the installed unsarep executable'
+    value: ${{ steps.install.outputs.cli-path }}
+  cli-version:
+    description: 'Installed unsarep version'
+    value: ${{ steps.install.outputs.cli-version }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: install
+      shell: bash
+      run: bash "${{ github.action_path }}/install.sh" "${{ inputs.version }}"

@@ -171,6 +171,30 @@ unsarep registry check ./mi-paquete
 unsarep registry publish ./mi-paquete
 ```
 
+### Publicación automatizada en GitHub Actions (estilo npm)
+
+Puedes publicar automáticamente tus paquetes desde GitHub Actions utilizando la GitHub Action oficial [`actions/publish`](actions/README.md) y un Personal Access Token (PAT):
+
+```yaml
+name: Publicar Paquete
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: UNSAReport/UNSAReport2/actions/publish@v0.1.0
+        with:
+          token: ${{ secrets.UNSAREP_TOKEN }}
+          dir: '.'
+```
+
+Consulta la [documentación de GitHub Actions](actions/README.md) para más opciones como monorepos/scopes enteros con subida por lotes y caché automático, modo `dry-run` y la acción `actions/setup`.
+
+
 ---
 
 ## Contribuciones, Errores y Sugerencias
