@@ -85,6 +85,8 @@
             ];
 
           packages = pkgs.lib.flatten [
+            self.packages.${system}.default
+            unstable.typst
             (with pkgs; [
               sops
               just

@@ -21,7 +21,7 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
     volumes:
-      - ./traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./.dev-config/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
   postgres-registry:
     image: postgres:16-alpine
     container_name: unsareport-postgres-registry
