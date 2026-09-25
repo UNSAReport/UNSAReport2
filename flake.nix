@@ -34,7 +34,7 @@
           src = ./tui;
           subPackages = [ "cmd/unsarep" ];
 
-          vendorHash = "sha256-z9D0x0kBEFr172wJHiVW07i87PVcUHHbkfxmjZwMRZI=";
+          vendorHash = "sha256-LOKJll/mrcjyBjGDz1hD49/fucVV+hSxym2dJou4m28=";
 
           nativeBuildInputs = [
             pkgs.pkg-config
