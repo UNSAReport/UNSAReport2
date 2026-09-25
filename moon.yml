@@ -26,6 +26,7 @@ tasks:
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+      - slides-kit:typecheck
 
   test:
     description: 'Test everything (auth:test stays local-only: needs live OAuth, run via moon run auth:test)'
@@ -58,6 +59,7 @@ tasks:
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+      - slides-kit:typecheck
 
   build-tui:
     description: 'Build all multiplatform binaries for unsarep TUI'

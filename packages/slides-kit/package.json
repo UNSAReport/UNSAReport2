@@ -1,0 +1,58 @@
+{
+  "name": "@unsa/slides-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/config.ts",
+      "import": "./src/config.ts"
+    },
+    "./types": {
+      "types": "./src/types.ts"
+    },
+    "./layouts": {
+      "types": "./src/layouts/registry.ts",
+      "import": "./src/layouts/registry.ts"
+    },
+    "./layouts/types": {
+      "types": "./src/layouts/types.ts"
+    },
+    "./themes": {
+      "types": "./src/themes/registry.ts",
+      "import": "./src/themes/registry.ts"
+    },
+    "./themes/types": {
+      "types": "./src/themes/types.ts"
+    },
+    "./renderer": {
+      "types": "./src/renderer/DeckRenderer.tsx",
+      "import": "./src/renderer/DeckRenderer.tsx"
+    },
+    "./primitives/*": {
+      "types": "./src/primitives/*.tsx",
+      "import": "./src/primitives/*.tsx"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "reveal.js": ">=5.0.0"
+  },
+  "dependencies": {
+    "@revealjs/react": "^0.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "reveal.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@unsa/config": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

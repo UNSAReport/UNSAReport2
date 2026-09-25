@@ -1,0 +1,8 @@
+language: typescript
+
+tasks:
+  typecheck:
+    command: bun
+    args:
+      - run
+      - typecheck

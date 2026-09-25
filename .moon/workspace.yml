@@ -8,6 +8,7 @@ projects:
   schemas: 'web/packages/schemas'
   api: 'web/packages/api'
   uconfig: 'web/packages/config'
+  slides-kit: 'packages/slides-kit'
 vcs:
   defaultBranch: main
 defaultProject: root
