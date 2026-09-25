@@ -2,9 +2,11 @@ package docs
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -223,6 +225,11 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 	return p, nil
 }
 
+var (
+	isTTYFunc               = isTTY
+	stdinReader   io.Reader = os.Stdin
+)
+
 func selectMode(flags []string) (mode string, err error) {
 	for _, f := range flags {
 		switch f {
@@ -234,7 +241,7 @@ func selectMode(flags []string) (mode string, err error) {
 			return "none", nil
 		}
 	}
-	if !isTTY() {
+	if !isTTYFunc() {
 		return "", fmt.Errorf("non-TTY requires one of --yes|--all|--none")
 	}
 	return "ask", nil
@@ -242,7 +249,7 @@ func selectMode(flags []string) (mode string, err error) {
 
 func promptLine(prompt string) (string, error) {
 	fmt.Printf("%s ", prompt)
-	r := bufio.NewReader(os.Stdin)
+	r := bufio.NewReader(stdinReader)
 	line, err := r.ReadString('\n')
 	if err != nil {
 		return "", err
@@ -909,11 +916,73 @@ func runHooks(root, std, when string, cfg project.SpecConfig, env []string) erro
 
 type UpdateOptions struct {
 	Package string
+	Deps    bool
 	Flags   []string
 }
 
+func collectTargets(l lock.Lock, pkgName string, includeDeps bool) ([]lock.PkgEntry, error) {
+	if pkgName == "" {
+		return l.Pkg, nil
+	}
+	name, _ := parseNameRange(pkgName)
+	var rootEntry *lock.PkgEntry
+	for i := range l.Pkg {
+		if l.Pkg[i].Name == name {
+			rootEntry = &l.Pkg[i]
+			break
+		}
+	}
+	if rootEntry == nil {
+		return nil, fmt.Errorf("package %q not in lock", pkgName)
+	}
+	if !includeDeps {
+		return []lock.PkgEntry{*rootEntry}, nil
+	}
+	targets := []lock.PkgEntry{*rootEntry}
+	visited := map[string]bool{name: true}
+	queue := []lock.PkgEntry{*rootEntry}
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, depSpec := range curr.DependsOn {
+			depName, _, _ := strings.Cut(strings.TrimSpace(depSpec), " ")
+			depName = strings.TrimSpace(depName)
+			if depName == "" || visited[depName] {
+				continue
+			}
+			visited[depName] = true
+			if depEntry, ok := l.Find(depName); ok {
+				targets = append(targets, depEntry)
+				queue = append(queue, depEntry)
+			}
+		}
+	}
+	return targets, nil
+}
+
+func resolvePackageRange(pkgName, optPackage string, cfg project.SpecConfig, l lock.Lock) string {
+	if optPackage != "" {
+		name, rng := parseNameRange(optPackage)
+		if name == pkgName && rng != "*" {
+			return rng
+		}
+	}
+	if rng, ok := cfg.Dependencies[pkgName]; ok && strings.TrimSpace(rng) != "" {
+		return strings.TrimSpace(rng)
+	}
+	for _, p := range l.Pkg {
+		for _, dep := range p.DependsOn {
+			depName, depRng, hasRng := strings.Cut(strings.TrimSpace(dep), " ")
+			if depName == pkgName && hasRng && strings.TrimSpace(depRng) != "" {
+				return strings.TrimSpace(depRng)
+			}
+		}
+	}
+	return "*"
+}
+
 func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
-	root, _, err := resolveRoot(cwd)
+	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
 		return err
 	}
@@ -925,25 +994,20 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 	if err != nil {
 		return err
 	}
-	var targets []lock.PkgEntry
-	if opt.Package != "" {
-		for _, e := range l.Pkg {
-			if e.Name == opt.Package {
-				targets = append(targets, e)
-			}
-		}
-		if len(targets) == 0 {
-			return fmt.Errorf("package %q not in lock", opt.Package)
-		}
-	} else {
-		targets = l.Pkg
+	targets, err := collectTargets(l, opt.Package, opt.Deps)
+	if err != nil {
+		return err
 	}
 	client, err := registry.NewClient()
 	if err != nil {
 		return err
 	}
-	for _, t := range targets {
-		version, err := client.ResolveVersion(ctx, t.Name, "*")
+	applyAll := false
+	skipAll := false
+	for i := 0; i < len(targets); i++ {
+		t := targets[i]
+		rng := resolvePackageRange(t.Name, opt.Package, cfg, l)
+		version, err := client.ResolveVersion(ctx, t.Name, rng)
 		if err != nil {
 			return err
 		}
@@ -964,26 +1028,102 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 		}
 		sort.Strings(names)
 		apply := map[string]bool{}
+		changesCount := 0
+		acceptedChanges := 0
 		switch mode {
 		case "all", "yes":
 			for _, n := range names {
+				target := filepath.Join(dest, filepath.FromSlash(n))
+				cur, readErr := os.ReadFile(target)
+				if readErr != nil || !bytes.Equal(cur, files[n]) {
+					changesCount++
+					acceptedChanges++
+				}
 				apply[n] = true
 			}
 		case "ask":
 			for _, n := range names {
-				cur, _ := os.ReadFile(filepath.Join(dest, filepath.FromSlash(n)))
-				if string(cur) == string(files[n]) {
+				target := filepath.Join(dest, filepath.FromSlash(n))
+				cur, readErr := os.ReadFile(target)
+				if readErr == nil && bytes.Equal(cur, files[n]) {
+					apply[n] = true
 					continue
 				}
-				line, err := promptLine(fmt.Sprintf("Apply update %s/%s? [y/N]:", t.Name, n))
+				changesCount++
+				if applyAll {
+					apply[n] = true
+					acceptedChanges++
+					continue
+				}
+				if skipAll {
+					apply[n] = false
+					continue
+				}
+
+				if readErr != nil {
+					fmt.Printf("\n[NEW FILE] %s/%s\n", t.Name, n)
+					line, err := promptLine(fmt.Sprintf("Add new file %s/%s? [y/N/a/q]:", t.Name, n))
+					if err != nil {
+						return err
+					}
+					switch strings.ToLower(strings.TrimSpace(line)) {
+					case "y", "yes":
+						apply[n] = true
+						acceptedChanges++
+					case "n", "no", "":
+						apply[n] = false
+					case "a", "all":
+						applyAll = true
+						apply[n] = true
+						acceptedChanges++
+					case "q", "quit":
+						skipAll = true
+						apply[n] = false
+					default:
+						return fmt.Errorf("invalid response %q", line)
+					}
+					continue
+				}
+
+				oldLabel := fmt.Sprintf("%s/%s (current)", t.Name, n)
+				newLabel := fmt.Sprintf("%s/%s (v%s)", t.Name, n, version)
+				diffText, dErr := generateDiff(oldLabel, newLabel, cur, files[n])
+				if dErr != nil {
+					return dErr
+				}
+				fmt.Println()
+				fmt.Print(colorizeDiff(diffText))
+				line, err := promptLine(fmt.Sprintf("Apply update to %s/%s? [y/N/a/q]:", t.Name, n))
 				if err != nil {
 					return err
 				}
-				if strings.ToLower(line) == "y" || strings.ToLower(line) == "yes" {
+				switch strings.ToLower(strings.TrimSpace(line)) {
+				case "y", "yes":
 					apply[n] = true
+					acceptedChanges++
+				case "n", "no", "":
+					apply[n] = false
+				case "a", "all":
+					applyAll = true
+					apply[n] = true
+					acceptedChanges++
+				case "q", "quit":
+					skipAll = true
+					apply[n] = false
+				default:
+					return fmt.Errorf("invalid response %q", line)
 				}
 			}
 		case "none":
+			for _, n := range names {
+				target := filepath.Join(dest, filepath.FromSlash(n))
+				cur, readErr := os.ReadFile(target)
+				if readErr != nil || !bytes.Equal(cur, files[n]) {
+					changesCount++
+				}
+			}
+		default:
+			return fmt.Errorf("unknown mode %q", mode)
 		}
 		var entries []lock.FileEntry
 		for _, n := range names {
@@ -998,6 +1138,9 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 			}
 			b, err := os.ReadFile(target)
 			if err != nil {
+				if os.IsNotExist(err) && !apply[n] {
+					continue
+				}
 				return err
 			}
 			entries = append(entries, lock.FileEntry{Path: n, SHA256: lock.SHA256Hex(b)})
@@ -1007,12 +1150,30 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 		if ok {
 			if p, err := pkg.Parse(string(raw)); err == nil {
 				for depName, depRange := range p.Dependencies {
-					deps = append(deps, strings.TrimSpace(depName)+" "+strings.TrimSpace(depRange))
+					depName = strings.TrimSpace(depName)
+					depRange = strings.TrimSpace(depRange)
+					deps = append(deps, depName+" "+depRange)
+					if opt.Deps {
+						found := false
+						for _, tgt := range targets {
+							if tgt.Name == depName {
+								found = true
+								break
+							}
+						}
+						if !found {
+							targets = append(targets, lock.PkgEntry{Name: depName, Version: ""})
+						}
+					}
 				}
 				sort.Strings(deps)
 			}
 		}
-		l.Upsert(lock.PkgEntry{Name: t.Name, Version: version, Files: entries, DependsOn: deps})
+		finalVersion := version
+		if changesCount > 0 && acceptedChanges == 0 {
+			finalVersion = t.Version
+		}
+		l.Upsert(lock.PkgEntry{Name: t.Name, Version: finalVersion, Files: entries, DependsOn: deps})
 	}
 	if err := lock.Write(root, l); err != nil {
 		return err

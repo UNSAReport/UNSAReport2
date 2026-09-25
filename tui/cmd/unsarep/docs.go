@@ -4,10 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/docs"
+	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -194,7 +197,7 @@ func newDocsAddCmd() *cobra.Command {
 
 func newDocsUpdateCmd() *cobra.Command {
 	var pkgFlag string
-	var yes, all, none bool
+	var yes, all, none, deps bool
 	cmd := &cobra.Command{
 		Use:   "update [pkg]",
 		Short: "Update vendored components",
@@ -211,25 +214,56 @@ func newDocsUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			cwd, _ := os.Getwd()
 			if len(args) == 0 && !cmd.Flags().Changed("package") && !yes && !all && !none && canPrompt() {
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Package").
-						Description("Empty updates every locked package").
-						Value(&pkg),
-				))
-				if err := runForm(form); err != nil {
-					return err
+				l, lErr := lock.Load(cwd)
+				if lErr == nil && len(l.Pkg) > 0 {
+					cfg, _ := project.Load(filepath.Join(cwd, config.ConfigFileName))
+					options := make([]huh.Option[string], 0, len(l.Pkg)+1)
+					options = append(options, huh.NewOption("All packages (entire project)", ""))
+					for _, p := range l.Pkg {
+						if _, isDirect := cfg.Dependencies[p.Name]; isDirect {
+							options = append(options, huh.NewOption(fmt.Sprintf("%s (direct, v%s)", p.Name, p.Version), p.Name))
+						} else {
+							options = append(options, huh.NewOption(fmt.Sprintf("%s (dependency, v%s)", p.Name, p.Version), p.Name))
+						}
+					}
+					selectForm := huh.NewForm(huh.NewGroup(
+						huh.NewSelect[string]().
+							Title("Select package to update").
+							Options(options...).
+							Value(&pkg),
+					))
+					if err := runForm(selectForm); err != nil {
+						return err
+					}
+				} else {
+					form := huh.NewForm(huh.NewGroup(
+						huh.NewInput().
+							Title("Package").
+							Description("Empty updates every locked package").
+							Value(&pkg),
+					))
+					if err := runForm(form); err != nil {
+						return err
+					}
 				}
-				var err error
-				yes, all, none, err = promptMode(cmd)
-				if err != nil {
-					return err
+
+				if !cmd.Flags().Changed("deps") {
+					depsConfirm := false
+					depsForm := huh.NewForm(huh.NewGroup(
+						huh.NewConfirm().
+							Title("Update dependencies as well?").
+							Value(&depsConfirm),
+					))
+					if err := runForm(depsForm); err != nil {
+						return err
+					}
+					deps = depsConfirm
 				}
 			}
 			ctx := context.Background()
-			cwd, _ := os.Getwd()
-			if err := docs.Update(ctx, cwd, docs.UpdateOptions{Package: pkg, Flags: selectFlags(yes, all, none)}); err != nil {
+			if err := docs.Update(ctx, cwd, docs.UpdateOptions{Package: pkg, Deps: deps, Flags: selectFlags(yes, all, none)}); err != nil {
 				return err
 			}
 			printOK("Update complete.")
@@ -237,6 +271,7 @@ func newDocsUpdateCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package name (empty updates all), same as positional")
+	cmd.Flags().BoolVarP(&deps, "deps", "d", false, "Update dependencies as well")
 	cmd.Flags().BoolVar(&yes, "yes", false, "Apply all")
 	cmd.Flags().BoolVar(&all, "all", false, "Apply all")
 	cmd.Flags().BoolVar(&none, "none", false, "Apply none")
