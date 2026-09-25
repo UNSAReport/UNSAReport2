@@ -89,3 +89,13 @@ func TestSelectFlags(t *testing.T) {
 		t.Fatalf("all: %v", got)
 	}
 }
+
+func TestDocsUpdateCmdFlags(t *testing.T) {
+	cmd := newDocsUpdateCmd()
+	if f := cmd.Flags().Lookup("deps"); f == nil {
+		t.Fatal("expected --deps flag on update command")
+	} else if f.Shorthand != "d" {
+		t.Fatalf("expected -d shorthand for deps, got %q", f.Shorthand)
+	}
+}
+

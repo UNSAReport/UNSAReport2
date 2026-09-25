@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -726,5 +728,265 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 	}
 	if _, ok := lAfter.FindScope("@myscope"); ok {
 		t.Fatal("expected @myscope to be removed from lock scopes")
+	}
+}
+
+func mockUpdatableRegistry(t *testing.T, versions map[string]string) *httptest.Server {
+	t.Helper()
+	var srv *httptest.Server
+
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
+			var body struct {
+				Packages map[string]string `json:"packages"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			var resolved []map[string]any
+			for pkgName := range body.Packages {
+				ver := versions[pkgName]
+				if ver == "" {
+					ver = "1.0.0"
+				}
+				resolved = append(resolved, map[string]any{
+					"name":        pkgName,
+					"version":     ver,
+					"archive_url": srv.URL + "/dl/" + url.PathEscape(pkgName) + "/components.zip",
+					"files":       []string{"lib.typ"},
+				})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"resolved": resolved})
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/archive") {
+			sec := r.URL.Query().Get("section")
+			trimmed := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, "/archive"), "/v1/")
+			parts := strings.Split(trimmed, "/")
+			if len(parts) >= 2 {
+				pkgName := strings.Join(parts[:len(parts)-1], "/")
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"archive_url": fmt.Sprintf("%s/dl/%s/%s.zip", srv.URL, url.PathEscape(pkgName), sec),
+				})
+				return
+			}
+		}
+
+		if strings.HasPrefix(r.URL.Path, "/dl/") {
+			rest := strings.TrimPrefix(r.URL.Path, "/dl/")
+			lastSlash := strings.LastIndex(rest, "/")
+			if lastSlash > 0 {
+				rawPkg := rest[:lastSlash]
+				pkgName, _ := url.PathUnescape(rawPkg)
+				ver := versions[pkgName]
+				if ver == "" {
+					ver = "1.0.0"
+				}
+				var depsToml string
+				if pkgName == "@scope/cardo" {
+					depsToml = "\n[dependencies]\n\"@scope/theme\" = \"^1.0.0\"\n"
+				} else if pkgName == "@scope/theme" {
+					depsToml = "\n[dependencies]\n\"@scope/utils\" = \"^1.0.0\"\n"
+				}
+				manifest := fmt.Sprintf("[project]\nconfig_version = 1\n\n[package]\nname = %q\nversion = %q%s\n[components]\nfiles = [\"lib.typ\"]\n", pkgName, ver, depsToml)
+				libContent := fmt.Sprintf("// %s v%s\n", pkgName, ver)
+				zipBytes := testutil.CreateZip(map[string]string{
+					"unsareport.toml": manifest,
+					"lib.typ":         libContent,
+				})
+				_, _ = w.Write(zipBytes)
+				return
+			}
+		}
+
+		w.WriteHeader(404)
+	}))
+
+	t.Setenv(config.EnvRegistryURL, srv.URL)
+	return srv
+}
+
+func setupTestProject(t *testing.T) string {
+	t.Helper()
+	tmp := t.TempDir()
+	cfg := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[dependencies]\n\"@scope/cardo\" = \"^1.0.0\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "report.typ"), []byte("= Report\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return tmp
+}
+
+func TestUpdatePackageDepsOption(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	versions["@scope/cardo"] = "1.1.0"
+	versions["@scope/theme"] = "1.1.0"
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Deps:    false,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Update without deps failed: %v", err)
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cardoEntry, ok := l.Find("@scope/cardo")
+	if !ok || cardoEntry.Version != "1.1.0" {
+		t.Fatalf("expected cardo 1.1.0, got %+v", cardoEntry)
+	}
+	themeEntry, ok := l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.0.0" {
+		t.Fatalf("expected theme to remain 1.0.0 when Deps=false, got %+v", themeEntry)
+	}
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Deps:    true,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Update with deps failed: %v", err)
+	}
+
+	l, err = lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	themeEntry, ok = l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.1.0" {
+		t.Fatalf("expected theme to update to 1.1.0 when Deps=true, got %+v", themeEntry)
+	}
+}
+
+func TestUpdateDependencyPackageDirectly(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	versions["@scope/theme"] = "1.1.0"
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/theme",
+		Deps:    false,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("expected updating dependency package directly to succeed, got %v", err)
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	themeEntry, ok := l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.1.0" {
+		t.Fatalf("expected theme to update to 1.1.0, got %+v", themeEntry)
+	}
+}
+
+func TestUpdateInteractiveDiffReview(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	localContent := "// local custom modification\n"
+	cardoLibPath := filepath.Join(tmp, "components", "@scope", "cardo", "lib.typ")
+	if err := os.WriteFile(cardoLibPath, []byte(localContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	versions["@scope/cardo"] = "1.1.0"
+
+	origTTY := isTTYFunc
+	isTTYFunc = func() bool { return true }
+	defer func() { isTTYFunc = origTTY }()
+
+	origStdin := stdinReader
+	defer func() { stdinReader = origStdin }()
+
+	stdinReader = strings.NewReader("n\n")
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Flags:   nil,
+	})
+	if err != nil {
+		t.Fatalf("interactive Update failed: %v", err)
+	}
+
+	content, err := os.ReadFile(cardoLibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != localContent {
+		t.Fatalf("expected local modification to be preserved on 'n', got %q", string(content))
+	}
+
+	stdinReader = strings.NewReader("y\n")
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Flags:   nil,
+	})
+	if err != nil {
+		t.Fatalf("interactive Update failed: %v", err)
+	}
+
+	content, err = os.ReadFile(cardoLibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedUpstream := "// @scope/cardo v1.1.0\n"
+	if string(content) != expectedUpstream {
+		t.Fatalf("expected file to be updated on 'y', got %q", string(content))
 	}
 }
