@@ -1,0 +1,124 @@
+name: 'Publish UNSAReport Package'
+description: 'Validate and publish packages or whole scopes to the UNSAReport registry using Personal Access Tokens (PAT) with automated caching'
+inputs:
+  token:
+    description: 'Personal Access Token (PAT) for the UNSAReport registry'
+    required: true
+  dir:
+    description: 'Path to package directory or scope root containing unsareport.toml'
+    required: false
+    default: '.'
+  mode:
+    description: 'Execution mode: auto, package (single package), or scope (scope monorepo)'
+    required: false
+    default: 'auto'
+  packages-dir:
+    description: 'Subdirectory containing packages when running in scope mode'
+    required: false
+    default: 'packages'
+  registry-url:
+    description: 'URL of the UNSAReport package registry'
+    required: false
+    default: 'https://unsareport.ynoacamino.tech'
+  version:
+    description: 'Version tag of unsarep CLI to install if not already in PATH'
+    required: false
+    default: 'latest'
+  check:
+    description: 'Whether to validate package integrity before publishing'
+    required: false
+    default: 'true'
+  dry-run:
+    description: 'If true, validate packages without uploading to registry'
+    required: false
+    default: 'false'
+  cache:
+    description: 'Whether to automatically cache and skip unchanged packages across runs'
+    required: false
+    default: 'true'
+  cache-key-prefix:
+    description: 'Cache key prefix for GitHub Actions cache storage'
+    required: false
+    default: 'unsarep-cache'
+  push-scope:
+    description: 'Whether to push root scope configuration in scope mode'
+    required: false
+    default: 'true'
+outputs:
+  package-name:
+    description: 'Name of the package (or last processed package in scope mode)'
+    value: ${{ steps.run-publish.outputs.package-name }}
+  package-version:
+    description: 'Version of the package (or last processed package in scope mode)'
+    value: ${{ steps.run-publish.outputs.package-version }}
+  scope-name:
+    description: 'Name of the scope if scope configuration was processed'
+    value: ${{ steps.run-publish.outputs.scope-name }}
+  published-packages:
+    description: 'JSON array of packages published or validated in this run'
+    value: ${{ steps.run-publish.outputs.published-packages }}
+  skipped-packages:
+    description: 'JSON array of packages skipped due to cache matches'
+    value: ${{ steps.run-publish.outputs.skipped-packages }}
+  published-count:
+    description: 'Count of published or validated packages'
+    value: ${{ steps.run-publish.outputs.published-count }}
+  skipped-count:
+    description: 'Count of packages skipped due to cache matches'
+    value: ${{ steps.run-publish.outputs.skipped-count }}
+  total-packages:
+    description: 'Total number of packages evaluated'
+    value: ${{ steps.run-publish.outputs.total-packages }}
+  cache-updated:
+    description: 'Whether local cache entries were updated in this run'
+    value: ${{ steps.run-publish.outputs.cache-updated }}
+
+runs:
+  using: 'composite'
+  steps:
+    - id: setup-cli
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        if ! command -v unsarep >/dev/null 2>&1; then
+          echo "unsarep CLI not found in PATH. Installing..."
+          bash "${{ github.action_path }}/../setup/install.sh" "${INPUT_VERSION}"
+        else
+          echo "unsarep CLI is already installed at: $(command -v unsarep)"
+        fi
+
+    - name: Restore publish cache
+      id: restore-cache
+      if: ${{ inputs.cache == 'true' }}
+      uses: actions/cache/restore@v4
+      with:
+        path: ${{ runner.temp }}/unsarep-cache
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/unsareport.toml') }}
+        restore-keys: |
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
+
+    - id: run-publish
+      shell: bash
+      env:
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_DIR: ${{ inputs.dir }}
+        INPUT_MODE: ${{ inputs.mode }}
+        INPUT_PACKAGES_DIR: ${{ inputs.packages-dir }}
+        INPUT_REGISTRY_URL: ${{ inputs.registry-url }}
+        INPUT_CHECK: ${{ inputs.check }}
+        INPUT_DRY_RUN: ${{ inputs.dry-run }}
+        INPUT_CACHE: ${{ inputs.cache }}
+        INPUT_PUSH_SCOPE: ${{ inputs.push-scope }}
+        CACHE_DIR: ${{ runner.temp }}/unsarep-cache
+      run: |
+        bash "${{ github.action_path }}/publish.sh"
+
+    - name: Save publish cache
+      if: ${{ inputs.cache == 'true' && steps.run-publish.outputs.cache-updated == 'true' && !cancelled() }}
+      uses: actions/cache/save@v4
+      with:
+        path: ${{ runner.temp }}/unsarep-cache
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/unsareport.toml') }}-${{ github.run_id }}-${{ github.run_attempt }}
