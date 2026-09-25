@@ -27,6 +27,41 @@ type PackageInfo struct {
 	Versions    []string `json:"versions"`
 }
 
+type rawPackageInfo struct {
+	Name          string   `json:"name"`
+	Description   string   `json:"description"`
+	Version       string   `json:"version"`
+	LatestVersion string   `json:"latestVersion"`
+	Versions      []string `json:"versions"`
+}
+
+func (p *PackageInfo) UnmarshalJSON(data []byte) error {
+	var raw rawPackageInfo
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	p.Name = raw.Name
+	p.Description = raw.Description
+
+	if raw.Version != "" {
+		p.Version = raw.Version
+	} else if raw.LatestVersion != "" {
+		p.Version = raw.LatestVersion
+	} else {
+		p.Version = ""
+	}
+
+	if raw.Versions != nil {
+		p.Versions = raw.Versions
+	} else if p.Version != "" {
+		p.Versions = []string{p.Version}
+	} else {
+		p.Versions = []string{}
+	}
+
+	return nil
+}
+
 type ResolvedPackage struct {
 	Name       string   `json:"name"`
 	Version    string   `json:"version"`

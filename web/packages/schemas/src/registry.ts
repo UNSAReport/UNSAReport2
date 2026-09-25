@@ -146,7 +146,7 @@ export const PackageSchema = z.object({
   description: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
   latestVersion: z.string().nullable().optional(),
-  versions: z.array(PackageVersionSchema).optional(),
+  versions: z.array(PackageVersionSchema).or(z.array(z.string())).optional(),
   version: z.string().optional(),
   pkgToml: PkgTomlSchema.optional(),
 });

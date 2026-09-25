@@ -38,6 +38,16 @@ const mockPackageTags: Record<string, unknown>[] = [
   },
 ];
 
+const mockPackageVersions: Record<string, unknown>[] = [
+  {
+    id: '55555555-5555-4555-8555-555555555555',
+    packageId: '33333333-3333-4333-8333-333333333333',
+    version: '1.0.0',
+    status: 'approved',
+    createdAt: new Date(),
+  },
+];
+
 function extractFilters(condition: unknown): { col: string; val: unknown }[] {
   const filters: { col: string; val: unknown }[] = [];
   if (!condition || typeof condition !== 'object') return filters;
@@ -105,6 +115,8 @@ function createMockQuery(tableName: string): MockQuery {
       source = [...mockPackages];
     } else if (tableName === 'package_tags') {
       source = [...mockPackageTags];
+    } else if (tableName === 'package_versions') {
+      source = [...mockPackageVersions];
     } else {
       throw new Error(`Unhandled mock table in query: ${tableName}`);
     }
@@ -222,13 +234,21 @@ describe('App API Routes', () => {
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
       total: number;
-      packages: { id: string; name: string; status: string }[];
+      packages: {
+        id: string;
+        name: string;
+        status: string;
+        version: string;
+        versions: string[];
+      }[];
     };
     expect(data.total).toBe(1);
     expect(Array.isArray(data.packages)).toBe(true);
     expect(data.packages).toHaveLength(1);
     expect(data.packages[0].name).toBe('typst-cover');
     expect(data.packages[0].status).toBe('approved');
+    expect(data.packages[0].version).toBe('1.0.0');
+    expect(data.packages[0].versions).toEqual(['1.0.0']);
   });
 
   it('POST /v1/packages rejects unauthorized request with 401', async () => {
