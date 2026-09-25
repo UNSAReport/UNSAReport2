@@ -42,7 +42,8 @@ export function SlideSplit({
   className = '',
   style = {},
 }: SlideSplitProps) {
-  const { left: leftFr, right: rightFr } = ratioStyles[ratio] || ratioStyles['50-50'];
+  const { left: leftFr, right: rightFr } =
+    ratioStyles[ratio] || ratioStyles['50-50'];
   const gridTemplate = reverse
     ? `${rightFr} ${leftFr}`
     : `${leftFr} ${rightFr}`;
@@ -65,13 +66,21 @@ export function SlideSplit({
     >
       {reverse ? (
         <>
-          <div className="min-w-0 h-full flex flex-col justify-center">{right}</div>
-          <div className="min-w-0 h-full flex flex-col justify-center">{left}</div>
+          <div className="min-w-0 h-full flex flex-col justify-center">
+            {right}
+          </div>
+          <div className="min-w-0 h-full flex flex-col justify-center">
+            {left}
+          </div>
         </>
       ) : (
         <>
-          <div className="min-w-0 h-full flex flex-col justify-center">{left}</div>
-          <div className="min-w-0 h-full flex flex-col justify-center">{right}</div>
+          <div className="min-w-0 h-full flex flex-col justify-center">
+            {left}
+          </div>
+          <div className="min-w-0 h-full flex flex-col justify-center">
+            {right}
+          </div>
         </>
       )}
     </div>

@@ -1,6 +1,6 @@
-import { SlideBadge } from '../../primitives/SlideAccent';
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface CodeFullscreenProps {
   tag?: string;
@@ -25,7 +25,11 @@ export function CodeFullscreen({
 }: CodeFullscreenProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideCard variant="elevated" padding={0} className="w-full h-full overflow-hidden border border-white/10 bg-[#090d16]">
+      <SlideCard
+        variant="elevated"
+        padding={0}
+        className="w-full h-full overflow-hidden border border-white/10 bg-[#090d16]"
+      >
         {/* Barra superior de la ventana del editor */}
         <div className="flex items-center justify-between px-4 py-3 bg-black/40 border-b border-white/10">
           <div className="flex items-center gap-2">
@@ -39,7 +43,10 @@ export function CodeFullscreen({
             )}
           </div>
           {language && (
-            <SlideBadge variant="secondary" className="text-[10px] tracking-widest font-mono">
+            <SlideBadge
+              variant="secondary"
+              className="text-[10px] tracking-widest font-mono"
+            >
               {language}
             </SlideBadge>
           )}

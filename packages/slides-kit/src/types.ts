@@ -43,11 +43,12 @@ export interface SlideDefinition {
   /** Notas de orador (Speaker Notes) visibles en el modo orador */
   notes?: string;
   /** Componente React personalizado (cuando layout === 'custom') */
+  // biome-ignore lint/suspicious/noExplicitAny: Componentes personalizados aceptan props libres
   component?: React.ComponentType<any>;
   /** Contenido de hijos o slots adicionales */
   children?: ReactNode;
   /** Props y slots dinámicos específicos de cada layout */
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**

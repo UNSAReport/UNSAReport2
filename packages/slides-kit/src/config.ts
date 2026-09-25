@@ -2,7 +2,7 @@ import {
   type DeckConfig,
   PresentationVisibility,
   SlideTransition,
-} from './types';
+} from '@/types';
 
 /**
  * Función canónica para definir la configuración tipada de una presentación.
@@ -34,4 +34,4 @@ export function defineConfig(config: DeckConfig): DeckConfig {
   };
 }
 
-export type { DeckConfig, SlideDefinition } from './types';
+export type { DeckConfig, SlideDefinition } from '@/types';

@@ -1,20 +1,20 @@
 import { describe, expect, it } from 'bun:test';
-import { defineConfig } from '../src/config';
-import { LayoutCategory } from '../src/layouts/types';
+import { defineConfig } from '@/config';
 import {
   getLayout,
   layoutRegistry,
   listCategories,
   listLayouts,
   registerLayout,
-} from '../src/layouts/registry';
+} from '@/layouts/registry';
+import { LayoutCategory } from '@/layouts/types';
 import {
   getTheme,
   listThemes,
   registerTheme,
   themeRegistry,
-} from '../src/themes/registry';
-import { ThemeId } from '../src/themes/types';
+} from '@/themes/registry';
+import { ThemeId } from '@/themes/types';
 
 describe('packages/slides-kit: Core Kit & Registries', () => {
   it('defineConfig asigna valores por defecto correctamente', () => {
@@ -65,10 +65,14 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
     it('permite filtrar layouts por categoría y búsqueda textual', () => {
       const bentoLayouts = listLayouts({ category: LayoutCategory.BENTO });
       expect(bentoLayouts.length).toBeGreaterThanOrEqual(1);
-      expect(bentoLayouts.every((l) => l.category === LayoutCategory.BENTO)).toBe(true);
+      expect(
+        bentoLayouts.every((l) => l.category === LayoutCategory.BENTO),
+      ).toBe(true);
 
       const searchResults = listLayouts({ search: 'dashboard' });
-      expect(searchResults.some((l) => l.id === 'bento-4-featured-left')).toBe(true);
+      expect(searchResults.some((l) => l.id === 'bento-4-featured-left')).toBe(
+        true,
+      );
     });
 
     it('permite registrar layouts personalizados en caliente', () => {

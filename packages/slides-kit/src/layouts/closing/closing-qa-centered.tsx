@@ -1,6 +1,6 @@
-import { SlideBadge } from '../../primitives/SlideAccent';
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface ClosingQACenteredProps {
   tag?: string;

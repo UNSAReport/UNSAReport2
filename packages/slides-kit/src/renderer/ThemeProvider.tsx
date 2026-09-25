@@ -1,12 +1,12 @@
 import {
   type CSSProperties,
   createContext,
+  type ReactNode,
   useContext,
   useMemo,
-  type ReactNode,
 } from 'react';
-import { themeRegistry } from '../themes/registry';
-import type { ThemeDefinition } from '../themes/types';
+import { themeRegistry } from '@/themes/registry';
+import type { ThemeDefinition } from '@/themes/types';
 
 interface ThemeContextValue {
   theme: ThemeDefinition;

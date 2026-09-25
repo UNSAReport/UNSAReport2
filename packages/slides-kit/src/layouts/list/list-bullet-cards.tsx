@@ -1,6 +1,6 @@
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideGrid } from '../../primitives/SlideGrid';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideGrid } from '@/primitives/SlideGrid';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface BulletCardItem {
   title: string;
@@ -30,7 +30,11 @@ export function ListBulletCards({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideGrid cols={cols as 2 | 3} gap="1.5rem">
         {items.map((item, idx) => (
-          <SlideCard key={idx} variant="default" className="p-6 justify-start">
+          <SlideCard
+            key={`bullet-${item.title || idx}`}
+            variant="default"
+            className="p-6 justify-start"
+          >
             <div className="flex items-start gap-4">
               <span className="w-8 h-8 rounded-lg bg-[var(--slide-accent,#800020)] text-[var(--slide-accent-secondary,#D4AF37)] font-bold flex items-center justify-center shrink-0 text-sm">
                 {item.icon || '→'}

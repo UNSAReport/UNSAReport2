@@ -1,5 +1,5 @@
-import type { ThemeDefinition } from './types';
-import { ThemeId } from './types';
+import type { ThemeDefinition } from '@/themes/types';
+import { ThemeId } from '@/themes/types';
 
 export const unsaClassicTheme: ThemeDefinition = {
   id: ThemeId.UNSA_CLASSIC,
@@ -22,8 +22,7 @@ export const unsaClassicTheme: ThemeDefinition = {
     error: '#dc2626',
   },
   typography: {
-    fontFamily:
-      'Georgia, Cambria, "Times New Roman", Times, serif',
+    fontFamily: 'Georgia, Cambria, "Times New Roman", Times, serif',
     monoFamily: 'ui-monospace, "SFMono-Regular", Consolas, monospace',
     headingWeight: 700,
     headingLetterSpacing: '-0.01em',

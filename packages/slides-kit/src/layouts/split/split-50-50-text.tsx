@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideSection } from '../../primitives/SlideSection';
-import { SlideSplit } from '../../primitives/SlideSplit';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideSection } from '@/primitives/SlideSection';
+import { SlideSplit } from '@/primitives/SlideSplit';
 
 export interface Split5050TextProps {
   tag?: string;

@@ -1,6 +1,6 @@
-import { defaultThemes } from './catalog';
-import type { ThemeDefinition } from './types';
-import { ThemeId } from './types';
+import { defaultThemes } from '@/themes/catalog';
+import type { ThemeDefinition } from '@/themes/types';
+import { ThemeId } from '@/themes/types';
 
 /**
  * Registro dinámico de temas visuales para la plataforma de diapositivas.
@@ -30,7 +30,7 @@ export class ThemeRegistry {
       const fallback = this.themes.get(ThemeId.UNSA_DARK);
       if (fallback) return fallback;
       throw new Error(
-        `Theme '${id}' not found and default '${ThemeId.UNSA_DARK}' is missing.`
+        `Theme '${id}' not found and default '${ThemeId.UNSA_DARK}' is missing.`,
       );
     }
     return theme;

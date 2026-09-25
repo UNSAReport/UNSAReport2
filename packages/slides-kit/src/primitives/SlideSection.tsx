@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { SlideBadge, SlideGradientBar } from './SlideAccent';
+import { SlideBadge, SlideGradientBar } from '@/primitives/SlideAccent';
 
 export interface SlideSectionProps {
   /** Tag o categoría de la diapositiva */

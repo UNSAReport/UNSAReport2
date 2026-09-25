@@ -1,6 +1,6 @@
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideGrid } from '../../primitives/SlideGrid';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideGrid } from '@/primitives/SlideGrid';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface StatItem {
   number: string;
@@ -31,7 +31,7 @@ export function Stats3Row({
       <SlideGrid cols={3} gap="2rem">
         {stats.slice(0, 3).map((item, index) => (
           <SlideCard
-            key={index}
+            key={`stat-${item.label || index}`}
             variant="elevated"
             className="p-8 text-center justify-center items-center h-full"
           >

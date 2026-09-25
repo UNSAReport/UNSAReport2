@@ -20,8 +20,7 @@ const variantStyles: Record<string, string> = {
     'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-border,rgba(255,255,255,0.08))] text-[var(--slide-text,#f1f5f9)]',
   elevated:
     'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-border,rgba(255,255,255,0.1))] shadow-xl shadow-black/40 text-[var(--slide-text,#f1f5f9)]',
-  glow:
-    'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-accent,#800020)] shadow-[0_0_25px_var(--slide-border-glow,rgba(128,0,32,0.35))] text-[var(--slide-text,#f1f5f9)]',
+  glow: 'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-accent,#800020)] shadow-[0_0_25px_var(--slide-border-glow,rgba(128,0,32,0.35))] text-[var(--slide-text,#f1f5f9)]',
   outlined:
     'bg-transparent border border-[var(--slide-border,rgba(255,255,255,0.15))] text-[var(--slide-text,#f1f5f9)]',
   muted:

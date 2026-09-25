@@ -1,4 +1,4 @@
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface QuoteCenteredLargeProps {
   tag?: string;

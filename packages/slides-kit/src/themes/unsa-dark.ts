@@ -1,5 +1,5 @@
-import type { ThemeDefinition } from './types';
-import { ThemeId } from './types';
+import type { ThemeDefinition } from '@/themes/types';
+import { ThemeId } from '@/themes/types';
 
 export const unsaDarkTheme: ThemeDefinition = {
   id: ThemeId.UNSA_DARK,

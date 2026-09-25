@@ -1,5 +1,5 @@
-import type { ThemeDefinition } from './types';
-import { ThemeId } from './types';
+import type { ThemeDefinition } from '@/themes/types';
+import { ThemeId } from '@/themes/types';
 
 export const episTechTheme: ThemeDefinition = {
   id: ThemeId.EPIS_TECH,

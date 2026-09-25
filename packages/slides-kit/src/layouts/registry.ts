@@ -1,5 +1,5 @@
-import { defaultLayouts } from './catalog';
-import { LayoutCategory, type LayoutDefinition } from './types';
+import { defaultLayouts } from '@/layouts/catalog';
+import { LayoutCategory, type LayoutDefinition } from '@/layouts/types';
 
 export interface LayoutFilter {
   category?: LayoutCategory;
@@ -40,7 +40,7 @@ export class LayoutRegistry {
     if (!layout) {
       const available = Array.from(this.layouts.keys()).join(', ');
       throw new Error(
-        `Layout '${id}' no encontrado en LayoutRegistry. Layouts disponibles: [${available}]`
+        `Layout '${id}' no encontrado en LayoutRegistry. Layouts disponibles: [${available}]`,
       );
     }
     return layout;
@@ -63,7 +63,7 @@ export class LayoutRegistry {
           l.id.toLowerCase().includes(term) ||
           l.name.toLowerCase().includes(term) ||
           l.description.toLowerCase().includes(term) ||
-          l.tags.some((t) => t.toLowerCase().includes(term))
+          l.tags.some((t) => t.toLowerCase().includes(term)),
       );
     }
 

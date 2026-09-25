@@ -1,7 +1,7 @@
-import { SlideBadge } from '../../primitives/SlideAccent';
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideGrid } from '../../primitives/SlideGrid';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideGrid } from '@/primitives/SlideGrid';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface ProcessStepItem {
   step: number | string;
@@ -36,7 +36,7 @@ export function ProcessHorizontal3({
           <SlideGrid cols={3} gap="2rem">
             {steps.slice(0, 3).map((item, idx) => (
               <SlideCard
-                key={idx}
+                key={`process-step-${item.step || idx}-${item.title}`}
                 variant="elevated"
                 className="p-8 text-center items-center justify-between h-full bg-[var(--slide-surface,#131b2e)] relative"
               >

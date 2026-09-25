@@ -1,7 +1,7 @@
 import { Deck } from '@revealjs/react';
-import type { DeckConfig } from '../types';
-import { SlideRenderer } from './SlideRenderer';
-import { ThemeProvider } from './ThemeProvider';
+import { SlideRenderer } from '@/renderer/SlideRenderer';
+import { ThemeProvider } from '@/renderer/ThemeProvider';
+import type { DeckConfig } from '@/types';
 import 'reveal.js/reveal.css';
 
 export interface DeckRendererProps {
@@ -17,7 +17,6 @@ export interface DeckRendererProps {
  */
 export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
   const {
-    title,
     theme = 'unsa-dark',
     transition = 'slide',
     width = 1280,
@@ -29,7 +28,10 @@ export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
   } = config;
 
   return (
-    <ThemeProvider theme={theme} className={`w-full h-full relative ${className}`}>
+    <ThemeProvider
+      theme={theme}
+      className={`w-full h-full relative ${className}`}
+    >
       <Deck
         config={{
           width,
@@ -49,7 +51,11 @@ export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
         }}
       >
         {slides.map((slide, index) => (
-          <SlideRenderer key={index} slide={slide} index={index} />
+          <SlideRenderer
+            key={`slide-${slide.layout}-${slide.title || index}`}
+            slide={slide}
+            index={index}
+          />
         ))}
       </Deck>
     </ThemeProvider>

@@ -1,13 +1,13 @@
-import { Bento4FeaturedLeft } from './bento/bento-4-featured-left';
-import { ClosingQACentered } from './closing/closing-qa-centered';
-import { CodeFullscreen } from './code/code-fullscreen';
-import { HeroCenteredBold } from './hero/hero-centered-bold';
-import { ListBulletCards } from './list/list-bullet-cards';
-import { ProcessHorizontal3 } from './process/process-horizontal-3';
-import { QuoteCenteredLarge } from './quote/quote-centered-large';
-import { Split5050Text } from './split/split-50-50-text';
-import { Stats3Row } from './stats/stats-3-row';
-import { LayoutCategory, type LayoutDefinition } from './types';
+import { Bento4FeaturedLeft } from '@/layouts/bento/bento-4-featured-left';
+import { ClosingQACentered } from '@/layouts/closing/closing-qa-centered';
+import { CodeFullscreen } from '@/layouts/code/code-fullscreen';
+import { HeroCenteredBold } from '@/layouts/hero/hero-centered-bold';
+import { ListBulletCards } from '@/layouts/list/list-bullet-cards';
+import { ProcessHorizontal3 } from '@/layouts/process/process-horizontal-3';
+import { QuoteCenteredLarge } from '@/layouts/quote/quote-centered-large';
+import { Split5050Text } from '@/layouts/split/split-50-50-text';
+import { Stats3Row } from '@/layouts/stats/stats-3-row';
+import { LayoutCategory, type LayoutDefinition } from '@/layouts/types';
 
 /**
  * Catálogo central de layouts preinstalados en @unsa/slides-kit.
@@ -22,11 +22,36 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Portada imponente con título gigante centrado, subtítulo, autor y fecha. Ideal para abrir presentaciones oficiales o de laboratorio.',
     tags: ['portada', 'título', 'hero', 'centrado'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título principal' },
-      { name: 'subtitle', type: 'string', required: false, description: 'Subtítulo descriptivo' },
-      { name: 'tag', type: 'string', required: false, description: 'Insignia superior' },
-      { name: 'author', type: 'string', required: false, description: 'Autor(es)' },
-      { name: 'date', type: 'string', required: false, description: 'Fecha o evento' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título principal',
+      },
+      {
+        name: 'subtitle',
+        type: 'string',
+        required: false,
+        description: 'Subtítulo descriptivo',
+      },
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia superior',
+      },
+      {
+        name: 'author',
+        type: 'string',
+        required: false,
+        description: 'Autor(es)',
+      },
+      {
+        name: 'date',
+        type: 'string',
+        required: false,
+        description: 'Fecha o evento',
+      },
     ],
     component: HeroCenteredBold,
   },
@@ -40,11 +65,36 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Dos columnas simétricas balanceadas para contrastar dos ideas, enfoques o tecnologías en tarjetas independientes.',
     tags: ['comparación', 'dos columnas', 'split', '50/50'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título de la diapositiva' },
-      { name: 'leftTitle', type: 'string', required: false, description: 'Título columna izquierda' },
-      { name: 'leftContent', type: 'string', required: true, description: 'Contenido columna izquierda' },
-      { name: 'rightTitle', type: 'string', required: false, description: 'Título columna derecha' },
-      { name: 'rightContent', type: 'string', required: true, description: 'Contenido columna derecha' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título de la diapositiva',
+      },
+      {
+        name: 'leftTitle',
+        type: 'string',
+        required: false,
+        description: 'Título columna izquierda',
+      },
+      {
+        name: 'leftContent',
+        type: 'string',
+        required: true,
+        description: 'Contenido columna izquierda',
+      },
+      {
+        name: 'rightTitle',
+        type: 'string',
+        required: false,
+        description: 'Título columna derecha',
+      },
+      {
+        name: 'rightContent',
+        type: 'string',
+        required: true,
+        description: 'Contenido columna derecha',
+      },
     ],
     component: Split5050Text,
   },
@@ -58,9 +108,24 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Composición asimétrica estilo Bento Grid con tarjeta destacada a la izquierda y tres secundarias a la derecha.',
     tags: ['bento', 'dashboard', 'métricas', 'grid asimétrico'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título del bloque bento' },
-      { name: 'featured', type: 'object', required: true, description: 'Tarjeta destacada izquierda con métrica' },
-      { name: 'cards', type: 'array', required: true, description: 'Arreglo de hasta 3 tarjetas secundarias' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título del bloque bento',
+      },
+      {
+        name: 'featured',
+        type: 'object',
+        required: true,
+        description: 'Tarjeta destacada izquierda con métrica',
+      },
+      {
+        name: 'cards',
+        type: 'array',
+        required: true,
+        description: 'Arreglo de hasta 3 tarjetas secundarias',
+      },
     ],
     component: Bento4FeaturedLeft,
   },
@@ -74,8 +139,19 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Tres tarjetas con números gigantes para resaltar KPIs, volumen de datos, porcentajes de éxito o benchmarks.',
     tags: ['kpi', 'métricas', 'estadísticas', 'números'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título de la diapositiva' },
-      { name: 'stats', type: 'array', required: true, description: 'Lista de 3 objetos { number, label, change, description }' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título de la diapositiva',
+      },
+      {
+        name: 'stats',
+        type: 'array',
+        required: true,
+        description:
+          'Lista de 3 objetos { number, label, change, description }',
+      },
     ],
     component: Stats3Row,
   },
@@ -89,8 +165,18 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Línea de tiempo horizontal de 3 etapas secuenciales conectadas con numeración circular destacada.',
     tags: ['proceso', 'timeline', 'etapas', 'pasos'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título del proceso' },
-      { name: 'steps', type: 'array', required: true, description: 'Lista de 3 pasos { step, title, description }' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título del proceso',
+      },
+      {
+        name: 'steps',
+        type: 'array',
+        required: true,
+        description: 'Lista de 3 pasos { step, title, description }',
+      },
     ],
     component: ProcessHorizontal3,
   },
@@ -104,10 +190,30 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Visor de código estilo ventana de editor moderno con barra de control, lenguaje y filename.',
     tags: ['código', 'desarrollo', 'terminal', 'snippet'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título de la diapositiva' },
-      { name: 'code', type: 'string', required: true, description: 'Snippet de código a mostrar' },
-      { name: 'language', type: 'string', required: false, description: 'Lenguaje de programación' },
-      { name: 'filename', type: 'string', required: false, description: 'Nombre del archivo fuente' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título de la diapositiva',
+      },
+      {
+        name: 'code',
+        type: 'string',
+        required: true,
+        description: 'Snippet de código a mostrar',
+      },
+      {
+        name: 'language',
+        type: 'string',
+        required: false,
+        description: 'Lenguaje de programación',
+      },
+      {
+        name: 'filename',
+        type: 'string',
+        required: false,
+        description: 'Nombre del archivo fuente',
+      },
     ],
     component: CodeFullscreen,
   },
@@ -121,8 +227,18 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Cuadrícula de tarjetas con viñetas estilizadas o íconos para presentar agendas, requerimientos o características.',
     tags: ['lista', 'agenda', 'viñetas', 'cards'],
     slots: [
-      { name: 'title', type: 'string', required: true, description: 'Título de la lista' },
-      { name: 'items', type: 'array', required: true, description: 'Lista de elementos { title, description, icon }' },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título de la lista',
+      },
+      {
+        name: 'items',
+        type: 'array',
+        required: true,
+        description: 'Lista de elementos { title, description, icon }',
+      },
     ],
     component: ListBulletCards,
   },
@@ -136,9 +252,24 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Cita textual grande centrada con comillas estilizadas, autor y afiliación para marcar pausas reflexivas.',
     tags: ['cita', 'quote', 'reflexión', 'autor'],
     slots: [
-      { name: 'quote', type: 'string', required: true, description: 'Texto de la cita' },
-      { name: 'author', type: 'string', required: true, description: 'Autor de la cita' },
-      { name: 'role', type: 'string', required: false, description: 'Cargo o afiliación del autor' },
+      {
+        name: 'quote',
+        type: 'string',
+        required: true,
+        description: 'Texto de la cita',
+      },
+      {
+        name: 'author',
+        type: 'string',
+        required: true,
+        description: 'Autor de la cita',
+      },
+      {
+        name: 'role',
+        type: 'string',
+        required: false,
+        description: 'Cargo o afiliación del autor',
+      },
     ],
     component: QuoteCenteredLarge,
   },
@@ -152,10 +283,30 @@ export const defaultLayouts: LayoutDefinition[] = [
       'Diapositiva final con llamado a preguntas, agradecimiento institucional y tarjeta de datos de contacto.',
     tags: ['cierre', 'preguntas', 'qa', 'contacto', 'gracias'],
     slots: [
-      { name: 'title', type: 'string', required: false, description: 'Título de cierre (default: ¿Preguntas?)' },
-      { name: 'subtitle', type: 'string', required: false, description: 'Mensaje de agradecimiento' },
-      { name: 'contactEmail', type: 'string', required: false, description: 'Correo de contacto' },
-      { name: 'contactUrl', type: 'string', required: false, description: 'Enlace web o repositorio' },
+      {
+        name: 'title',
+        type: 'string',
+        required: false,
+        description: 'Título de cierre (default: ¿Preguntas?)',
+      },
+      {
+        name: 'subtitle',
+        type: 'string',
+        required: false,
+        description: 'Mensaje de agradecimiento',
+      },
+      {
+        name: 'contactEmail',
+        type: 'string',
+        required: false,
+        description: 'Correo de contacto',
+      },
+      {
+        name: 'contactUrl',
+        type: 'string',
+        required: false,
+        description: 'Enlace web o repositorio',
+      },
     ],
     component: ClosingQACentered,
   },

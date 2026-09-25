@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { SlideBadge } from '../../primitives/SlideAccent';
-import { SlideCard } from '../../primitives/SlideCard';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideCard } from '@/primitives/SlideCard';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface BentoCardItem {
   title: string;
@@ -40,7 +40,11 @@ export function Bento4FeaturedLeft({
       <div className="grid grid-cols-12 gap-6 w-full h-full items-stretch">
         {/* Featured Left Card (5 cols) */}
         <div className="col-span-5 h-full">
-          <SlideCard variant="glow" featured={true} className="h-full justify-between p-8">
+          <SlideCard
+            variant="glow"
+            featured={true}
+            className="h-full justify-between p-8"
+          >
             <div>
               {featured.badge && (
                 <div className="mb-4">
@@ -94,7 +98,10 @@ export function Bento4FeaturedLeft({
 
           <div className="flex-1 grid grid-cols-2 gap-6">
             {cards.slice(1, 3).map((card, idx) => (
-              <SlideCard key={idx} className="h-full justify-between p-6">
+              <SlideCard
+                key={`bento-card-${card.title || idx}`}
+                className="h-full justify-between p-6"
+              >
                 <div>
                   <h4 className="text-base font-semibold text-[var(--slide-text,#f1f5f9)] mb-1">
                     {card.title}

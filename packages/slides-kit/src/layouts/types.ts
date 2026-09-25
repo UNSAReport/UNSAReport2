@@ -47,7 +47,7 @@ export interface BaseLayoutProps {
   /** Clases CSS adicionales */
   className?: string;
   /** Props arbitrarias adicionales del slot */
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 /**
@@ -67,6 +67,7 @@ export interface LayoutDefinition {
   /** Especificación de los slots aceptados por este layout */
   slots: SlotSchema[];
   /** Componente React que renderiza el layout */
+  // biome-ignore lint/suspicious/noExplicitAny: Los layouts aceptan props polimórficas según su SlotSchema
   component: ComponentType<any>;
   /** Ruta o URI de la imagen de previsualización */
   thumbnail?: string;

@@ -22,8 +22,7 @@ const badgeVariants: Record<string, string> = {
     'bg-[var(--slide-warning,#f59e0b)]/20 text-[var(--slide-warning,#f59e0b)] border-[var(--slide-warning,#f59e0b)]/40',
   error:
     'bg-[var(--slide-error,#ef4444)]/20 text-[var(--slide-error,#ef4444)] border-[var(--slide-error,#ef4444)]/40',
-  muted:
-    'bg-white/10 text-[var(--slide-text-muted,#94a3b8)] border-white/10',
+  muted: 'bg-white/10 text-[var(--slide-text-muted,#94a3b8)] border-white/10',
 };
 
 /**

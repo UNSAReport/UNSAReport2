@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { SlideBadge } from '../../primitives/SlideAccent';
-import { SlideSection } from '../../primitives/SlideSection';
+import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideSection } from '@/primitives/SlideSection';
 
 export interface HeroCenteredBoldProps {
   /** Etiqueta superior o categoría */
@@ -54,7 +54,11 @@ export function HeroCenteredBold({
           <div className="flex items-center justify-center gap-4 text-sm font-medium text-[var(--slide-accent-secondary,#D4AF37)] pt-4 border-t border-[var(--slide-border,rgba(255,255,255,0.08))] w-full max-w-md">
             {author && <span>{author}</span>}
             {author && date && <span>•</span>}
-            {date && <span className="text-[var(--slide-text-muted,#94a3b8)]">{date}</span>}
+            {date && (
+              <span className="text-[var(--slide-text-muted,#94a3b8)]">
+                {date}
+              </span>
+            )}
           </div>
         )}
 
