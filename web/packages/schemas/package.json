@@ -1,0 +1,26 @@
+{
+  "name": "@unsa/schemas",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./auth": "./src/auth.ts",
+    "./registry": "./src/registry.ts",
+    "./manifest": "./src/manifest.ts",
+    "./presentations": "./src/presentations.ts",
+    "./orgs": "./src/orgs.ts",
+    "./constants": "./src/constants.ts",
+    "./cli-api": "./src/cli-api.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@unsa/config": "workspace:*",
+    "typescript": "^7.0.2"
+  }
+}

@@ -4,6 +4,7 @@ tasks:
     deps:
       - auth:dev
       - registry:dev
+      - slides:dev
       - website:dev
 
   lint:
@@ -11,6 +12,7 @@ tasks:
     deps:
       - auth:lint
       - registry:lint
+      - slides:lint
       - tui:lint
       - tui:vet
       - website:lint
@@ -20,6 +22,7 @@ tasks:
     deps:
       - auth:typecheck
       - registry:typecheck
+      - slides:typecheck
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
@@ -28,18 +31,30 @@ tasks:
     description: 'Test everything (auth:test stays local-only: needs live OAuth, run via moon run auth:test)'
     deps:
       - registry:test
+      - slides:test
       - tui:test
+
+  db-migrate:
+    description: 'Run database migrations across all database-backed services'
+    deps:
+      - auth:db-migrate
+      - registry:db-migrate
+      - slides:db-migrate
+    options:
+      runInCI: false
 
   check:
     description: 'Lint and typecheck everything (no tests; use :test)'
     deps:
       - auth:lint
       - registry:lint
+      - slides:lint
       - tui:lint
       - tui:vet
       - website:lint
       - auth:typecheck
       - registry:typecheck
+      - slides:typecheck
       - website:typecheck
       - api:typecheck
       - schemas:typecheck

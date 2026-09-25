@@ -1,0 +1,75 @@
+http:
+  routers:
+    registry:
+      rule: "PathPrefix(`/api/registry`)"
+      entryPoints:
+        - web
+      priority: 10
+      middlewares:
+        - registry-strip
+      service: registry-service
+
+    slides:
+      rule: "PathPrefix(`/api/slides`)"
+      entryPoints:
+        - web
+      priority: 10
+      middlewares:
+        - slides-strip
+      service: slides-service
+
+    auth:
+      rule: "PathPrefix(`/api/auth`) || Path(`/.well-known/jwks.json`)"
+      entryPoints:
+        - web
+      priority: 10
+      middlewares:
+        - auth-strip
+      service: auth-service
+
+    website:
+      rule: "PathPrefix(`/`)"
+      entryPoints:
+        - web
+      priority: 1
+      service: website-service
+
+  middlewares:
+    registry-strip:
+      stripPrefix:
+        prefixes:
+          - /api/registry
+        forceSlash: false
+
+    auth-strip:
+      stripPrefix:
+        prefixes:
+          - /api/auth
+        forceSlash: false
+
+    slides-strip:
+      stripPrefix:
+        prefixes:
+          - /api/slides
+        forceSlash: false
+
+  services:
+    registry-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"
+
+    auth-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3000"
+
+    slides-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3002"
+
+    website-service:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3100"

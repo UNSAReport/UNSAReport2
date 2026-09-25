@@ -5,9 +5,9 @@ tasks:
     command: bash
     args:
       - -c
-      - 'set -a; source ../.env.${ENV:-dev}; source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run --hot src/index.ts'
     deps:
-      - root:infra-up
+      - db-migrate
     options:
       cache: false
       persistent: true
@@ -24,9 +24,16 @@ tasks:
       - src/db/migrate.ts
 
   test:
-    command: bun
+    command: bash
     args:
-      - test
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun test'
+    env:
+      DATABASE_URL: 'postgresql://idp:idppassword@localhost:5432/idp_db'
+      S3_ENDPOINT: 'http://localhost:8333'
+      S3_BUCKET: 'unsareport-registry'
+      S3_ACCESS_KEY: 'seaweedadmin'
+      S3_SECRET_KEY: 'seaweedadmin'
 
   typecheck:
     command: bun
@@ -41,10 +48,12 @@ tasks:
       - check:biome
 
   db-migrate:
-    command: bun
+    command: bash
     args:
-      - run
-      - db:migrate
+      - -c
+      - 'set -a; [ -f .env.${ENV:-dev} ] && source .env.${ENV:-dev}; exec bun run src/db/migrate.ts'
+    deps:
+      - root:infra-up
     options:
       cache: false
       runInCI: false

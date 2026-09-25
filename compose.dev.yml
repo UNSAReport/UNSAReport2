@@ -8,10 +8,6 @@ services:
   traefik:
     image: traefik:v3.3
     container_name: unsareport-traefik
-    # Bridge mode: the gateway reaches natively-run dev servers via
-    # host.docker.internal (Linux: host-gateway mapping below; Docker Desktop
-    # provides the name natively). Allow TCP 3000/3001/3100 from the Docker
-    # bridge subnet on the host firewall (see README.md firewall section).
     networks: [unsareport-dev]
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -25,7 +21,7 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
     volumes:
-      - ./traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./.dev-config/traefik-dynamic.yml:/etc/traefik/dynamic.yml:ro
   postgres-registry:
     image: postgres:16-alpine
     container_name: unsareport-postgres-registry
@@ -43,7 +39,23 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
+  postgres-slides:
+    image: postgres:16-alpine
+    container_name: unsareport-postgres-slides
+    environment:
+      POSTGRES_USER: slides
+      POSTGRES_PASSWORD: slidespassword
+      POSTGRES_DB: slides_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-slides:/var/lib/postgresql/data
+    networks: [unsareport-dev]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U slides -d slides_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
   postgres-auth:
     image: postgres:16-alpine
     container_name: unsareport-postgres-auth
@@ -62,21 +74,22 @@ services:
       timeout: 5s
       retries: 5
 
-  minio:
-    image: minio/minio:latest
-    container_name: unsareport-minio
+  seaweedfs:
+    image: chrislusf/seaweedfs:latest
+    container_name: unsareport-seaweedfs
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    command: server /data --console-address ":9001"
+      AWS_ACCESS_KEY_ID: seaweedadmin
+      AWS_SECRET_ACCESS_KEY: seaweedadmin
+      S3_BUCKET: unsareport-registry
+    command: mini -dir=/data
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8333:8333"
+      - "23646:23646"
     volumes:
-      - miniodata:/data
+      - seaweedfsdata:/data
     networks: [unsareport-dev]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ["CMD", "curl", "-f", "http://localhost:9333/dir/status"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -84,4 +97,5 @@ services:
 volumes:
   pgdata-registry:
   pgdata-auth:
-  miniodata:
+  pgdata-slides:
+  seaweedfsdata:

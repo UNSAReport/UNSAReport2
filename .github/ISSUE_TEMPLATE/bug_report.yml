@@ -1,0 +1,68 @@
+name: Reporte de error
+description: Reporta un problema, comportamiento inesperado o error en unsarep o en los servicios de UNSAReport.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por tomarte el tiempo de reportar un problema! Por favor, proporciona tantos detalles como sea posible para ayudarnos a reproducirlo y solucionarlo rápidamente.
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del error
+      description: Una descripción clara y concisa de cuál es el error.
+      placeholder: Al ejecutar `unsarep docs watch`, el proceso falla con...
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Pasos para reproducir
+      description: Pasos precisos para reproducir el comportamiento.
+      placeholder: |
+        1. Ejecuta 'unsarep docs init @unsareport/epis-lab --report lab-01'
+        2. Navega a 'lab-01'
+        3. Ejecuta 'unsarep docs build'
+        4. Observa el error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Comportamiento esperado
+      description: ¿Qué esperabas que sucediera en su lugar?
+  - type: dropdown
+    id: component
+    attributes:
+      label: Componente afectado
+      options:
+        - "CLI (unsarep docs)"
+        - "CLI (unsarep slides)"
+        - "CLI (unsarep registry / auth)"
+        - "Plataforma Web (unsareport.ynoacamino.tech)"
+        - "API del Registro de Paquetes"
+        - "Servicio de Autenticación / IdP"
+        - "Paquetes oficiales de Typst (@unsareport/*)"
+        - "Herramientas de desarrollo / CI"
+  - type: input
+    id: os
+    attributes:
+      label: Sistema operativo / Entorno
+      placeholder: "p. ej., Ubuntu 24.04, Arch Linux, macOS Sonoma, Windows 11 (WSL2)"
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versiones
+      description: Salida de `unsarep version` y `typst --version`.
+      placeholder: "unsarep version: v0.1.0, typst: 0.12.0"
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Registros de terminal / Salida de error
+      description: Por favor, copia y pega las trazas de error de la terminal o registros relevantes.
+      render: shell

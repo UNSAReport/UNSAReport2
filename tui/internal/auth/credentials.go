@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/charmbracelet/log"
 	"github.com/zalando/go-keyring"
 )
 
@@ -51,7 +52,6 @@ func defaultCredentialsPath() string {
 	return ""
 }
 
-
 func writeAtomicCredentials(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, config.PermDirPrivate); err != nil {
@@ -83,10 +83,12 @@ func (s *FileStore) Get() (*Credentials, error) {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("not logged in")
 		}
+		log.Error("credentials read failed", "path", s.Path, "err", err)
 		return nil, err
 	}
 	var c Credentials
 	if err := json.Unmarshal(b, &c); err != nil {
+		log.Warn("corrupt credentials file", "path", s.Path, "err", err)
 		return nil, fmt.Errorf("corrupt credentials file %s: %w", s.Path, err)
 	}
 	if c.PAT == "" {
@@ -100,17 +102,19 @@ func (s *FileStore) Set(c *Credentials) error {
 		return fmt.Errorf("empty credentials")
 	}
 	if !strings.HasPrefix(c.PAT, patPrefix) {
-		fmt.Fprintf(os.Stderr, "warning: PAT should start with %s\n", patPrefix)
+		log.Warn("PAT missing expected prefix", "path", s.Path)
 	}
 	if s.Path == "" {
 		return fmt.Errorf("credentials path unavailable")
 	}
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
+		log.Error("credentials marshal failed", "path", s.Path, "err", err)
 		return err
 	}
 	b = append(b, '\n')
 	if err := writeAtomicCredentials(s.Path, b, config.PermFilePrivate); err != nil {
+		log.Error("credentials write failed", "path", s.Path, "err", err)
 		return err
 	}
 	return nil
@@ -118,6 +122,7 @@ func (s *FileStore) Set(c *Credentials) error {
 
 func (s *FileStore) Clear() error {
 	if err := os.Remove(s.Path); err != nil && !os.IsNotExist(err) {
+		log.Error("credentials clear failed", "path", s.Path, "err", err)
 		return err
 	}
 	return nil
@@ -128,6 +133,7 @@ type KeyringStore struct{}
 func (k *KeyringStore) Get() (*Credentials, error) {
 	raw, err := keyring.Get(keyringService, keyringUser)
 	if err != nil {
+		log.Debug("keyring read failed", "err", err)
 		return nil, err
 	}
 	raw = strings.TrimSpace(raw)
@@ -136,6 +142,7 @@ func (k *KeyringStore) Get() (*Credentials, error) {
 	}
 	var c Credentials
 	if err := json.Unmarshal([]byte(raw), &c); err != nil {
+		log.Warn("corrupt keyring credentials", "err", err)
 		return nil, fmt.Errorf("corrupt keyring credentials: %w", err)
 	}
 	if c.PAT == "" {
@@ -149,13 +156,18 @@ func (k *KeyringStore) Set(c *Credentials) error {
 		return fmt.Errorf("empty credentials")
 	}
 	if !strings.HasPrefix(c.PAT, patPrefix) {
-		fmt.Fprintf(os.Stderr, "warning: PAT should start with %s\n", patPrefix)
+		log.Warn("PAT missing expected prefix")
 	}
 	b, err := json.Marshal(c)
 	if err != nil {
+		log.Error("credentials marshal failed", "err", err)
 		return err
 	}
-	return keyring.Set(keyringService, keyringUser, string(b))
+	if err := keyring.Set(keyringService, keyringUser, string(b)); err != nil {
+		log.Error("keyring write failed", "err", err)
+		return err
+	}
+	return nil
 }
 
 func (k *KeyringStore) Clear() error {
@@ -169,8 +181,61 @@ func (k *KeyringStore) Clear() error {
 	return nil
 }
 
+type HybridStore struct {
+	keyring Store
+	file    Store
+}
+
+func NewHybridStore() *HybridStore {
+	return &HybridStore{
+		keyring: &KeyringStore{},
+		file:    NewFileStore(),
+	}
+}
+
+func (h *HybridStore) Get() (*Credentials, error) {
+	if !IsHeadless() {
+		cred, err := h.keyring.Get()
+		if err == nil && cred != nil && cred.PAT != "" {
+			return cred, nil
+		}
+		log.Debug("keyring miss, falling back to file", "err", err)
+	}
+	return h.file.Get()
+}
+
+func (h *HybridStore) Set(c *Credentials) error {
+	if c == nil || c.PAT == "" {
+		return fmt.Errorf("empty credentials")
+	}
+	if IsHeadless() {
+		return h.file.Set(c)
+	}
+	err := h.keyring.Set(c)
+	if err != nil {
+		log.Warn("keyring write failed, falling back to file", "err", err)
+		return h.file.Set(c)
+	}
+	return nil
+}
+
+func (h *HybridStore) Clear() error {
+	errK := h.keyring.Clear()
+	errF := h.file.Clear()
+	if errK != nil {
+		log.Warn("keyring clear failed", "err", errK)
+	}
+	if errF != nil {
+		log.Warn("credentials clear failed", "err", errF)
+	}
+	if errK != nil && errF != nil {
+		return errK
+	}
+	return nil
+}
+
 func NewStore() Store {
-	return &KeyringStore{}
+	return NewHybridStore()
 }
 
 func GetTokenResolved(store Store) string {

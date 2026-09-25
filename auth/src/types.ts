@@ -5,9 +5,6 @@ export type {
   UserPayload,
 } from '@unsa/schemas/auth';
 
-/**
- * Represents standard user profile metadata returned by an OAuth provider.
- */
 export interface OAuthUserInfo {
   providerId: string;
   email: string;
@@ -15,9 +12,6 @@ export interface OAuthUserInfo {
   picture?: string;
 }
 
-/**
- * Interface contract defining methods required for an OAuth authentication provider.
- */
 export interface OAuthProvider {
   name: string;
   getAuthUrl: (state: string, codeVerifier?: string) => string;

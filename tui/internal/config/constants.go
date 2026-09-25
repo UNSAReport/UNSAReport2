@@ -5,52 +5,49 @@ import (
 	"time"
 )
 
-// Default URLs and endpoints
 const (
-	DefaultRegistryURL = "https://registry.unsareport.org"
-	DefaultAuthURL     = "https://auth.unsareport.org"
-	SchemaBaseURL      = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
-	DefaultCallbackHost = "127.0.0.1:0"
+	DefaultBaseURL        = "https://unsareport.ynoacamino.tech"
+	DefaultRegistryURL    = "https://unsareport.ynoacamino.tech/api/registry"
+	DefaultAuthURL        = "https://unsareport.ynoacamino.tech/api/auth"
+	DefaultSlidesURL      = "https://unsareport.ynoacamino.tech/api/slides"
+	DefaultWebsiteURL     = "https://unsareport.ynoacamino.tech"
+	SchemaBaseURL         = "https://raw.githubusercontent.com/UNSAReport/UNSAReport"
+	LoopbackHost          = "127.0.0.1"
+	LocalhostName         = "localhost"
+	DefaultCallbackHost   = LoopbackHost + ":0"
 	CallbackBaseURLPrefix = "http://"
 	CallbackPath          = "/callback"
 )
 
-// Version — set via ldflag -X github.com/UNSAReport/tui/internal/config.Version=...
 var Version = "dev"
 
-// Defaults for project config
 const (
-	DefaultPrompt         = "❯ "
-	DefaultColumns        = 120
-	DefaultRows           = 500
-	DefaultSrcDir         = "src"
-	DefaultSubmissionDir  = "submission"
-	DefaultReportFile     = "report.typ"
-	DefaultReportWord     = "Informe"
-	DefaultCodeWord       = "Código Fuente"
-	DefaultFileTemplate   = "{output_type}_{lab_number}"
+	DefaultPrompt        = "❯ "
+	DefaultColumns       = 120
+	DefaultRows          = 500
+	DefaultSrcDir        = "src"
+	DefaultSubmissionDir = "submission"
+	DefaultReportFile    = "report.typ"
+	DefaultReportWord    = "Informe"
+	DefaultCodeWord      = "Código Fuente"
+	DefaultFileTemplate  = "{output_type}_{lab_number}"
 )
 
-// Credentials / keyring
 const (
 	PATPrefix      = "unsareport_pat_"
 	KeyringService = "unsareport"
 	KeyringUser    = "pat"
 )
 
-// Limits and timeouts
 const (
-	DefaultRegistryLimit = 100
-)
-
-var (
-	AuthTimeout             = 10 * time.Second
-	RegistryTimeout         = 30 * time.Second
-	CallbackTimeout         = 5 * time.Minute
+	DefaultRegistryLimit      = 100
+	AuthTimeout               = 10 * time.Second
+	RegistryTimeout           = 30 * time.Second
+	CallbackTimeout           = 5 * time.Minute
 	CallbackReadHeaderTimeout = 5 * time.Second
+	CallbackShutdownTimeout   = 2 * time.Second
 )
 
-// File permissions
 const (
 	PermDirPrivate  = 0o700
 	PermFilePrivate = 0o600
@@ -58,10 +55,10 @@ const (
 	PermFilePublic  = 0o644
 )
 
-// Env var names — canonical
 const (
 	EnvRegistryURL     = "UNSAREP_REGISTRY_URL"
 	EnvIDPIssuer       = "UNSAREP_IDP_ISSUER"
+	EnvSlidesURL       = "UNSAREP_SLIDES_URL"
 	EnvToken           = "UNSAREP_TOKEN"
 	EnvTokenPath       = "UNSAREP_TOKEN_PATH"
 	EnvCredentialsPath = "UNSAREP_CREDENTIALS_PATH"
@@ -71,6 +68,9 @@ const (
 	EnvLocal           = "UNSAREP_LOCAL"
 	EnvFreezeFlags     = "UNSAREP_FREEZE_FLAGS"
 	EnvLocale          = "UNSAREP_LOCALE"
+	EnvReportDir       = "UNSAREP_REPORT_DIR"
+	EnvTypstEntry      = "UNSAREP_TYPST_ENTRY"
+	EnvConfigPrefix    = "UNSAREP_CONFIG_"
 	EnvXDGConfigHome   = "XDG_CONFIG_HOME"
 	EnvXDGCacheHome    = "XDG_CACHE_HOME"
 	EnvSSHConnection   = "SSH_CONNECTION"
@@ -81,24 +81,27 @@ const (
 	EnvLCMessages      = "LC_MESSAGES"
 )
 
-// XDG / file layout
 const (
-	AppDirName           = "unsareport"
-	ConfigFileName       = "unsareport.json"
-	XDGConfigFileName    = "config.json"
-	CredentialsFileName  = "credentials.json"
-	TokenFileName        = "token"
-	CacheFileName        = "registry.json"
-	LockFileName         = ".unsareport.lock"
+	AppDirName          = "unsareport"
+	ConfigFileName      = "unsareport.toml"
+	ConfigDirName       = "unsareport.d"
+	XDGConfigFileName   = "config.json"
+	CredentialsFileName = "credentials.json"
+	TokenFileName       = "token"
+	CacheFileName       = "registry.json"
+	LockFileName        = "unsareport.lock"
 )
 
-// Regexes (compiled)
+const (
+	ConfigVersion     = 1
+	DefaultTypstEntry = "main.typ"
+)
+
 var (
 	ReVar     = regexp.MustCompile(`\{(\w+)\}`)
 	ReIllegal = regexp.MustCompile(`[<>:"/\\|?*]`)
 )
 
-// TUI keys
 const (
 	Key1     = "1"
 	Key2     = "2"
@@ -112,7 +115,6 @@ const (
 	KeyEnter = "enter"
 )
 
-// Colors defaults
 const (
 	ColorPrompt  = "32"
 	ColorCommand = "36"
@@ -120,13 +122,12 @@ const (
 	ColorReset   = "0"
 )
 
-// Registry pagination
 const RegistryPackagesPath = "/v1/packages"
 
-// EnvNames exposes canonical env vars for docs/tests
 var EnvNames = []string{
 	EnvRegistryURL,
 	EnvIDPIssuer,
+	EnvSlidesURL,
 	EnvToken,
 	EnvTokenPath,
 	EnvCredentialsPath,

@@ -5,12 +5,13 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
-COPY website/apps/website/package.json ./website/apps/website/package.json
-COPY website/packages/api/package.json ./website/packages/api/package.json
-COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
-COPY website/packages/config/package.json ./website/packages/config/package.json
+COPY web/app/package.json ./web/app/package.json
+COPY web/packages/api/package.json ./web/packages/api/package.json
+COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
+COPY web/packages/config/package.json ./web/packages/config/package.json
 RUN bun install --frozen-lockfile --filter @unsa/registry
 
 FROM base AS build
@@ -18,18 +19,20 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/registry ./registry
 COPY package.json bun.lock ./
 COPY registry ./registry
-COPY website/packages ./website/packages
+COPY packages ./packages
+COPY web/packages ./web/packages
 WORKDIR /app/registry
 RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migrate.ts
 
 FROM base AS production-deps
 COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
-COPY website/apps/website/package.json ./website/apps/website/package.json
-COPY website/packages/api/package.json ./website/packages/api/package.json
-COPY website/packages/schemas/package.json ./website/packages/schemas/package.json
-COPY website/packages/config/package.json ./website/packages/config/package.json
+COPY web/app/package.json ./web/app/package.json
+COPY web/packages/api/package.json ./web/packages/api/package.json
+COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
+COPY web/packages/config/package.json ./web/packages/config/package.json
 RUN bun install --frozen-lockfile --production --filter @unsa/registry && bun pm cache rm
 
 FROM base AS release
@@ -37,6 +40,7 @@ ENV NODE_ENV=production
 ENV PORT=3001
 COPY --from=production-deps /app/node_modules ./node_modules
 COPY --from=production-deps /app/registry ./registry
+COPY --from=build /app/packages ./packages
 COPY --from=build /app/registry/dist ./dist
 COPY package.json ./
 COPY registry/src/db/migrations ./src/db/migrations

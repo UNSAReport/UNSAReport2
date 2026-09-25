@@ -8,7 +8,13 @@ import (
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/zalando/go-keyring"
 )
+
+func TestMain(m *testing.M) {
+	keyring.MockInit()
+	os.Exit(m.Run())
+}
 
 func TestFileStorePermAndAtomic(t *testing.T) {
 	tmp := t.TempDir()
@@ -47,26 +53,6 @@ func TestFileStorePermAndAtomic(t *testing.T) {
 	}
 }
 
-func TestGetTokenResolvedEnv(t *testing.T) {
-	tmp := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", tmp)
-	t.Setenv("UNSAREP_TOKEN", "env_pat_123")
-	_ = (&KeyringStore{}).Clear()
-	fs := NewFileStore()
-	_ = fs.Set(&Credentials{PAT: "unsareport_pat_file", CreatedAt: time.Now()})
-	got := GetTokenResolved(fs)
-	if got != "env_pat_123" {
-		t.Fatalf("got %q want env", got)
-	}
-	t.Setenv("UNSAREP_TOKEN", "")
-	_ = (&KeyringStore{}).Clear()
-	got = GetTokenResolved(fs)
-	if got != "unsareport_pat_file" {
-		t.Fatalf("got %q want file", got)
-	}
-	_ = fs.Clear()
-}
-
 func TestFileStoreClear(t *testing.T) {
 	tmp := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", tmp)
@@ -86,5 +72,31 @@ func TestFileStoreClear(t *testing.T) {
 	}
 	if err := fs.Clear(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestHybridStore(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", tmp)
+	t.Setenv("UNSAREP_TOKEN", "")
+	hs := NewHybridStore()
+	_ = hs.Clear()
+
+	cred := &Credentials{PAT: "unsareport_pat_hybrid", Email: "h@example.com", Name: "Hybrid", CreatedAt: time.Now()}
+	if err := hs.Set(cred); err != nil {
+		t.Fatal(err)
+	}
+	got, err := hs.Get()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.PAT != cred.PAT || got.Email != "h@example.com" {
+		t.Fatalf("got %+v", got)
+	}
+	if err := hs.Clear(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hs.Get(); err == nil {
+		t.Fatal("expected error after clear")
 	}
 }

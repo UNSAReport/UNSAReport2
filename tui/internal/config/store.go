@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,6 +12,7 @@ import (
 type XDGConfig struct {
 	APIURL      string `json:"apiUrl,omitempty"`
 	RegistryURL string `json:"registryUrl,omitempty"`
+	SlidesURL   string `json:"slidesUrl,omitempty"`
 	TokenPath   string `json:"tokenPath,omitempty"`
 	Locale      string `json:"locale,omitempty"`
 }
@@ -28,7 +30,7 @@ func xdgDir() string {
 	return ""
 }
 
-func xdgConfigPath() string { return filepath.Join(xdgDir(), XDGConfigFileName) }
+func xdgConfigPath() string    { return filepath.Join(xdgDir(), XDGConfigFileName) }
 func defaultTokenPath() string { return filepath.Join(xdgDir(), TokenFileName) }
 
 func writeAtomic(path string, data []byte, perm os.FileMode) error {
@@ -41,7 +43,6 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 		return err
 	}
 	if err := os.Rename(tmp, path); err != nil {
-		// Windows: Rename fails if target exists
 		_ = os.Remove(path)
 		if err2 := os.Rename(tmp, path); err2 != nil {
 			return err2
@@ -82,26 +83,76 @@ func SaveXDGConfig(cfg *XDGConfig) error {
 	return nil
 }
 
-func GetRegistryURL() string {
-	if v := os.Getenv(EnvRegistryURL); v != "" {
-		return v
+func ValidateURL(raw, name string) (string, error) {
+	trimmed := strings.TrimRight(strings.TrimSpace(raw), "/")
+	if trimmed == "" {
+		return "", fmt.Errorf("%s must not be empty", name)
 	}
-	cfg, _ := LoadXDGConfig()
-	if cfg != nil && cfg.RegistryURL != "" {
-		return cfg.RegistryURL
+	u, err := url.ParseRequestURI(trimmed)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return "", fmt.Errorf("invalid %s %q: must be a valid http or https URL", name, raw)
 	}
-	return DefaultRegistryURL
+	return trimmed, nil
 }
 
-func GetAuthURL() string {
-	if v := os.Getenv(EnvIDPIssuer); v != "" {
-		return v
+func ResolveRegistryURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvRegistryURL)); v != "" {
+		return ValidateURL(v, EnvRegistryURL)
 	}
-	cfg, _ := LoadXDGConfig()
-	if cfg != nil && cfg.APIURL != "" {
-		return cfg.APIURL
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.RegistryURL) != "" {
+		return ValidateURL(cfg.RegistryURL, "xdg config registryUrl")
 	}
-	return DefaultAuthURL
+	return ValidateURL(DefaultRegistryURL, "DefaultRegistryURL")
+}
+
+func ResolveSlidesURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvSlidesURL)); v != "" {
+		return ValidateURL(v, EnvSlidesURL)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.SlidesURL) != "" {
+		return ValidateURL(cfg.SlidesURL, "xdg config slidesUrl")
+	}
+	return ValidateURL(DefaultSlidesURL, "DefaultSlidesURL")
+}
+
+func ResolveAuthURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvIDPIssuer)); v != "" {
+		return ValidateURL(v, EnvIDPIssuer)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.APIURL) != "" {
+		return ValidateURL(cfg.APIURL, "xdg config apiUrl")
+	}
+	return ValidateURL(DefaultAuthURL, "DefaultAuthURL")
+}
+
+func ResolveWebsiteURL() (string, error) {
+	if v := strings.TrimSpace(os.Getenv(EnvWebsiteURL)); v != "" {
+		return ValidateURL(v, EnvWebsiteURL)
+	}
+	cfg, err := LoadXDGConfig()
+	if err == nil && cfg != nil && strings.TrimSpace(cfg.APIURL) != "" {
+		return ValidateURL(cfg.APIURL, "xdg config apiUrl")
+	}
+	return ValidateURL(DefaultWebsiteURL, "DefaultWebsiteURL")
+}
+
+func GetRegistryURL() (string, error) {
+	return ResolveRegistryURL()
+}
+
+func GetSlidesURL() (string, error) {
+	return ResolveSlidesURL()
+}
+
+func GetAuthURL() (string, error) {
+	return ResolveAuthURL()
+}
+
+func GetWebsiteURL() (string, error) {
+	return ResolveWebsiteURL()
 }
 
 func GetToken() string {
@@ -144,7 +195,6 @@ func SaveToken(token string) error {
 	return nil
 }
 
-
 func ClearToken() error {
 	cfg, _ := LoadXDGConfig()
 	path := defaultTokenPath()
@@ -174,7 +224,7 @@ func GetLocale() string {
 	return ""
 }
 
-func GetDest() string      { return os.Getenv(EnvDest) }
-func GetSession() string   { return os.Getenv(EnvSession) }
-func GetLocal() string     { return os.Getenv(EnvLocal) }
+func GetDest() string        { return os.Getenv(EnvDest) }
+func GetSession() string     { return os.Getenv(EnvSession) }
+func GetLocal() string       { return os.Getenv(EnvLocal) }
 func GetFreezeFlags() string { return os.Getenv(EnvFreezeFlags) }

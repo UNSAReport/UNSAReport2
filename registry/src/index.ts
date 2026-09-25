@@ -5,6 +5,7 @@ import { globalErrorHandler } from '@/middleware/error-handler';
 import adminRouter from '@/routes/admin';
 import downloadRouter from '@/routes/download';
 import packagesRouter from '@/routes/packages';
+import { scopesRouter } from '@/routes/scopes';
 import tagsRouter from '@/routes/tags';
 import type { HonoEnv } from '@/types';
 
@@ -21,7 +22,7 @@ app.use(
       ) {
         return origin;
       }
-      return config.allowedOrigins[0] || '*';
+      return undefined;
     },
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
@@ -33,15 +34,13 @@ app.onError(globalErrorHandler);
 
 const v1 = new Hono<HonoEnv>();
 v1.route('/packages', packagesRouter);
+v1.route('/scopes', scopesRouter);
 v1.route('/tags', tagsRouter);
 v1.route('/admin', adminRouter);
 v1.route('/', downloadRouter);
 
 app.route('/v1', v1);
 
-/**
- * Health check endpoint handler returning service operational status, current timestamp, and available API endpoints.
- */
 app.get('/health', (c) => {
   return c.json({
     status: 'ok',

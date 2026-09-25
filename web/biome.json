@@ -1,0 +1,19 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.12/schema.json",
+  "extends": "//",
+  "files": {
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/routeTree.gen.ts"]
+  },
+  "overrides": [
+    {
+      "includes": ["**/*.css"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noImportantStyles": "off"
+          }
+        }
+      }
+    }
+  ]
+}

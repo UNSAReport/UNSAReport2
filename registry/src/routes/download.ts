@@ -3,183 +3,251 @@ import { Hono } from 'hono';
 import { db } from '@/db';
 import { packageFiles, packages, packageVersions } from '@/db/schema';
 import { resolveDependencyTree } from '@/lib/dependency-resolver';
+import {
+  requestPackageName,
+  scopedNameRoute,
+  unscopedNameRoute,
+} from '@/lib/package-name';
 import { getPresignedUrl } from '@/lib/s3';
+import { normalizeArchivePath } from '@/lib/unsareport-toml';
 import { NotFoundError, ValidationError } from '@/middleware/error-handler';
 import type { DependencyResolveRequest, HonoEnv } from '@/types';
 
 const downloadRouter = new Hono<HonoEnv>();
 
-/**
- * Route handler for listing all files and their metadata within a specific package version.
- */
-downloadRouter.get('/:name/:version/files', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
+type Section = 'components' | 'templates';
 
-  const pkgList = await db
-    .select({ id: packages.id })
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+function parseSection(c: {
+  req: { query: (name: string) => string | undefined };
+}): Section {
+  const raw = c.req.query('section')?.trim().toLowerCase();
+  if (!raw || raw === 'components') return 'components';
+  if (raw === 'templates') return 'templates';
+  throw new ValidationError(
+    `Unknown section '${c.req.query('section')}'; expected 'components' or 'templates'`,
+    { field: 'section' },
+  );
+}
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+downloadRouter.on(
+  'GET',
+  [
+    unscopedNameRoute('', '/:version/files'),
+    scopedNameRoute('', '/:version/files'),
+  ],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
+    const section = parseSection(c);
 
-  const verList = await db
-    .select({ id: packageVersions.id, status: packageVersions.status })
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkgList[0].id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const pkgList = await db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const filesRows = await db
-    .select({
-      path: packageFiles.path,
-      size: packageFiles.size,
-      checksum: packageFiles.checksum,
-    })
-    .from(packageFiles)
-    .where(eq(packageFiles.versionId, verList[0].id));
+    const verList = await db
+      .select({ id: packageVersions.id, status: packageVersions.status })
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkgList[0].id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  return c.json({
-    package: name,
-    version,
-    files: filesRows,
-  });
-});
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-/**
- * Route handler for fetching or downloading a specific file within a package version using a presigned S3 URL.
- */
-downloadRouter.get('/:name/:version/files/*', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
-  const filePath = c.req.param('*');
+    const filesRows = await db
+      .select({
+        path: packageFiles.path,
+        section: packageFiles.section,
+        size: packageFiles.size,
+        checksum: packageFiles.checksum,
+      })
+      .from(packageFiles)
+      .where(
+        and(
+          eq(packageFiles.versionId, verList[0].id),
+          eq(packageFiles.section, section),
+        ),
+      );
 
-  if (!filePath) {
-    throw new ValidationError('File path is required');
-  }
-
-  const pkgList = await db
-    .select({ id: packages.id })
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
-
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
-
-  const verList = await db
-    .select({ id: packageVersions.id, status: packageVersions.status })
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkgList[0].id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
-
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
-
-  const cleanPath = filePath.replace(/^[/\\]+/, '');
-
-  const fileList = await db
-    .select({ s3Key: packageFiles.s3Key, checksum: packageFiles.checksum })
-    .from(packageFiles)
-    .where(
-      and(
-        eq(packageFiles.versionId, verList[0].id),
-        eq(packageFiles.path, cleanPath),
-      ),
-    )
-    .limit(1);
-
-  if (fileList.length === 0) {
-    throw new NotFoundError(
-      `File '${cleanPath}' not found in package '${name}' version '${version}'`,
-    );
-  }
-
-  const presignedUrl = await getPresignedUrl(fileList[0].s3Key);
-
-  const accept = c.req.header('Accept') || '';
-  if (accept.includes('application/json')) {
     return c.json({
-      url: presignedUrl,
-      checksum: fileList[0].checksum,
+      package: name,
+      version,
+      section,
+      files: filesRows,
     });
-  }
+  },
+);
 
-  return c.redirect(presignedUrl, 302);
-});
+downloadRouter.on(
+  'GET',
+  [
+    unscopedNameRoute('', '/:version/files/*'),
+    scopedNameRoute('', '/:version/files/*'),
+  ],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
+    const filePath = c.req.param('*');
+    const hasSectionParam = c.req.query('section') !== undefined;
+    const section = parseSection(c);
 
-/**
- * Route handler for generating a presigned download URL for a full package version zip archive.
- */
-downloadRouter.get('/:name/:version/archive', async (c) => {
-  const name = c.req.param('name').toLowerCase();
-  const version = c.req.param('version');
+    if (!filePath) {
+      throw new ValidationError('File path is required');
+    }
 
-  const pkgList = await db
-    .select({ id: packages.id })
-    .from(packages)
-    .where(eq(packages.name, name))
-    .limit(1);
+    const pkgList = await db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
 
-  if (pkgList.length === 0) {
-    throw new NotFoundError(`Package '${name}' not found`);
-  }
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
 
-  const verList = await db
-    .select({
-      id: packageVersions.id,
-      archiveS3Key: packageVersions.archiveS3Key,
-      status: packageVersions.status,
-    })
-    .from(packageVersions)
-    .where(
-      and(
-        eq(packageVersions.packageId, pkgList[0].id),
-        eq(packageVersions.version, version),
-      ),
-    )
-    .limit(1);
+    const verList = await db
+      .select({ id: packageVersions.id, status: packageVersions.status })
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkgList[0].id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
 
-  if (verList.length === 0) {
-    throw new NotFoundError(
-      `Version '${version}' not found for package '${name}'`,
-    );
-  }
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
 
-  const presignedUrl = await getPresignedUrl(verList[0].archiveS3Key);
+    const cleanPath = normalizeArchivePath(filePath);
+    if (!cleanPath) {
+      throw new ValidationError(
+        `File path '${filePath}' is not a valid relative path`,
+      );
+    }
 
-  return c.json({
-    package: name,
-    version,
-    archive_url: presignedUrl,
-  });
-});
+    const fileList = await db
+      .select({
+        s3Key: packageFiles.s3Key,
+        section: packageFiles.section,
+        checksum: packageFiles.checksum,
+      })
+      .from(packageFiles)
+      .where(
+        and(
+          eq(packageFiles.versionId, verList[0].id),
+          eq(packageFiles.path, cleanPath),
+        ),
+      )
+      .limit(1);
 
-/**
- * Route handler for resolving a complete tree of package dependencies given initial requirements and SemVer ranges.
- */
+    if (fileList.length === 0) {
+      throw new NotFoundError(
+        `File '${cleanPath}' not found in package '${name}' version '${version}'`,
+      );
+    }
+    if (hasSectionParam && fileList[0].section !== section) {
+      throw new NotFoundError(
+        `File '${cleanPath}' is not in section '${section}' of package '${name}' version '${version}'`,
+      );
+    }
+
+    const presignedUrl = await getPresignedUrl(fileList[0].s3Key);
+
+    const accept = c.req.header('Accept') || '';
+    if (accept.includes('application/json')) {
+      return c.json({
+        url: presignedUrl,
+        checksum: fileList[0].checksum,
+      });
+    }
+
+    return c.redirect(presignedUrl, 302);
+  },
+);
+
+downloadRouter.on(
+  'GET',
+  [
+    unscopedNameRoute('', '/:version/archive'),
+    scopedNameRoute('', '/:version/archive'),
+  ],
+  async (c) => {
+    const name = requestPackageName(c.req.param());
+    const version = c.req.param('version') ?? '';
+    const section = parseSection(c);
+
+    const pkgList = await db
+      .select({ id: packages.id })
+      .from(packages)
+      .where(eq(packages.name, name))
+      .limit(1);
+
+    if (pkgList.length === 0) {
+      throw new NotFoundError(`Package '${name}' not found`);
+    }
+
+    const verList = await db
+      .select({
+        id: packageVersions.id,
+        archiveS3Key: packageVersions.archiveS3Key,
+        componentsS3Key: packageVersions.componentsS3Key,
+        templatesS3Key: packageVersions.templatesS3Key,
+        status: packageVersions.status,
+      })
+      .from(packageVersions)
+      .where(
+        and(
+          eq(packageVersions.packageId, pkgList[0].id),
+          eq(packageVersions.version, version),
+        ),
+      )
+      .limit(1);
+
+    if (verList.length === 0) {
+      throw new NotFoundError(
+        `Version '${version}' not found for package '${name}'`,
+      );
+    }
+
+    const ver = verList[0];
+    const archiveKey =
+      section === 'templates'
+        ? ver.templatesS3Key
+        : (ver.componentsS3Key ?? ver.archiveS3Key);
+    if (!archiveKey) {
+      throw new NotFoundError(
+        `Section '${section}' has no archive for package '${name}' version '${version}'`,
+      );
+    }
+
+    const presignedUrl = await getPresignedUrl(archiveKey);
+
+    return c.json({
+      package: name,
+      version,
+      section,
+      archive_url: presignedUrl,
+    });
+  },
+);
+
 downloadRouter.post('/resolve', async (c) => {
   let body: DependencyResolveRequest;
   try {

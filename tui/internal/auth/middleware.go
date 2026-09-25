@@ -2,12 +2,14 @@ package auth
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"os"
 
 	"github.com/UNSAReport/tui/internal/config"
-	"github.com/charmbracelet/huh"
 )
+
+var ErrAuthRequired = errors.New("not authenticated — run 'unsarep auth login'")
+
 func RequireAuth(ctx context.Context, c *Client, prompt bool) (*Credentials, error) {
 	tok := ""
 	if v := os.Getenv(config.EnvToken); v != "" {
@@ -26,22 +28,6 @@ func RequireAuth(ctx context.Context, c *Client, prompt bool) (*Credentials, err
 		}
 		return &Credentials{PAT: tok}, nil
 	}
-	if !prompt {
-		return nil, fmt.Errorf("not authenticated — run 'unsarep login'")
-	}
-	var doLogin bool
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().Title("Not authenticated. Login now?").Value(&doLogin),
-	))
-	if err := form.Run(); err != nil {
-		return nil, err
-	}
-	if !doLogin {
-		return nil, fmt.Errorf("authentication required")
-	}
-	cred, err := c.Login(ctx, false)
-	if err != nil {
-		return nil, err
-	}
-	return cred, nil
+	_ = prompt
+	return nil, ErrAuthRequired
 }

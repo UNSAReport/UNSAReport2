@@ -1,0 +1,14 @@
+{
+  "extends": "../packages/config/react.json",
+  "compilerOptions": {
+    "composite": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*", "vite.config.ts"]
+}

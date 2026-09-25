@@ -1,0 +1,37 @@
+name: Solicitud de funcionalidad
+description: Propón una nueva funcionalidad, comando de CLI o mejora para UNSAReport.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ¡Gracias por sugerir una mejora para UNSAReport! Por favor, describe el caso de uso con claridad para que podamos entender la motivación detrás de la propuesta.
+  - type: textarea
+    id: summary
+    attributes:
+      label: Resumen de la funcionalidad
+      description: Una descripción concisa de la funcionalidad o mejora propuesta.
+      placeholder: Añadir soporte para diseños de portada personalizados en unsarep docs...
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problema o motivación
+      description: ¿Tu solicitud está relacionada con un problema o con un requisito académico o de curso específico?
+      placeholder: Actualmente, al redactar informes para el Curso X, necesitamos dar formato manualmente a...
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solución propuesta / Flujo de trabajo
+      description: Describe cómo visualizas el funcionamiento desde la perspectiva del usuario (p. ej., flags de CLI, opciones de configuración).
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativas consideradas
+      description: Cualquier solución alternativa o solución provisional que hayas evaluado.

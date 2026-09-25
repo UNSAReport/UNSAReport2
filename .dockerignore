@@ -3,9 +3,11 @@
 
 # deps (reinstalled in builder stages)
 node_modules/
+**/node_modules/
 
 # build output
 dist/
+**/dist/
 
 # moon cache
 .moon/cache/
@@ -15,6 +17,8 @@ dist/
 
 # generated / decrypted env (never baked into images)
 .env.dev
+**/.env.dev
+**/.env.*
 secrets/*.decrypted.env
 
 # go workspace cache

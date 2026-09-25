@@ -35,12 +35,20 @@ jobs:
           --health-retries 5
     env:
       DATABASE_URL: postgresql://idp:idppassword@localhost:5432/idp_db
+      S3_ENDPOINT: http://localhost:8333
+      S3_BUCKET: unsareport-registry
+      S3_ACCESS_KEY: seaweedadmin
+      S3_SECRET_KEY: seaweedadmin
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - run: 'moon ci :build :test :typecheck :lint'
 
@@ -55,6 +63,7 @@ jobs:
     outputs:
       auth: ${{ steps.filter.outputs.auth }}
       registry: ${{ steps.filter.outputs.registry }}
+      slides: ${{ steps.filter.outputs.slides }}
       website: ${{ steps.filter.outputs.website }}
     steps:
       - uses: actions/checkout@v4
@@ -65,16 +74,25 @@ jobs:
           filters: |
             auth:
               - 'auth/**'
+              - 'packages/**'
             registry:
               - 'registry/**'
+              - 'packages/**'
+            slides:
+              - 'slides/**'
+              - 'packages/**'
             website:
-              - 'website/**'
+              - 'web/**'
+              - 'packages/**'
 
   image-auth:
     name: Image auth
     needs: changes
     if: needs.changes.outputs.auth == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -96,7 +114,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/auth
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/auth
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -125,6 +143,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.registry == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -146,7 +167,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/registry
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/registry
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -170,11 +191,14 @@ jobs:
           provenance: true
           sbom: true
 
-  image-website:
-    name: Image website
+  image-slides:
+    name: Image slides
     needs: changes
-    if: needs.changes.outputs.website == 'true'
+    if: needs.changes.outputs.slides == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
 
@@ -196,7 +220,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/unsareport/website
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/slides
           tags: |
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
             type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -210,7 +234,60 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ./website/Dockerfile
+          file: ./slides/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  image-website:
+    name: Image website
+    needs: changes
+    if: needs.changes.outputs.website == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/unsareport/unsareport2/website
+          tags: |
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=ref,event=tag,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+            type=raw,value=latest-dev,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=sha,prefix=,format=short,enable=${{ github.ref == 'refs/heads/dev' }}
+            type=ref,event=pr,enable=${{ github.event_name == 'pull_request' }}
+          flavor: |
+            latest=false
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./web/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

@@ -1,17 +1,109 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
 	"net"
 	"net/http"
 	"net/url"
-	"os"
+	"strconv"
 	"time"
 
 	"github.com/UNSAReport/tui/internal/config"
+	"github.com/charmbracelet/log"
 )
+
+const callbackHTMLSuccess = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UNSAReport CLI Authorization</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .card {
+      background: #ffffff;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      max-width: 440px;
+      border: 1px solid #e2e8f0;
+    }
+    h2 {
+      margin-top: 0;
+      color: #16a34a;
+      font-size: 1.5rem;
+    }
+    p {
+      color: #475569;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>✓ Authorization Successful</h2>
+    <p>You can close this window and return to your terminal.</p>
+  </div>
+  <script>try { window.close(); } catch(e) {}</script>
+</body>
+</html>`
+
+const callbackHTMLCancelled = `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>UNSAReport CLI Authorization Cancelled</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    .card {
+      background: #ffffff;
+      padding: 2.5rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      max-width: 440px;
+      border: 1px solid #e2e8f0;
+    }
+    h2 {
+      margin-top: 0;
+      color: #dc2626;
+      font-size: 1.5rem;
+    }
+    p {
+      color: #475569;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>✕ Login Cancelled</h2>
+    <p>You can close this window and return to your terminal.</p>
+  </div>
+  <script>try { window.close(); } catch(e) {}</script>
+</body>
+</html>`
 
 type CallbackResult struct {
 	PAT   string
@@ -43,28 +135,77 @@ func NewCallbackServer(state string) *CallbackServer {
 func (s *CallbackServer) Start() (string, error) {
 	ln, err := net.Listen("tcp", config.DefaultCallbackHost)
 	if err != nil {
+		log.Error("callback server listen failed", "err", err)
 		return "", err
 	}
 	s.Listener = ln
 	mux := http.NewServeMux()
 	mux.HandleFunc(config.CallbackPath, s.handleCallback)
-	mux.HandleFunc("/", s.handleCallback)
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == config.CallbackPath || r.URL.Path == config.CallbackPath+"/" {
+			s.handleCallback(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	})
 	s.server = &http.Server{Handler: mux, ReadHeaderTimeout: config.CallbackReadHeaderTimeout}
-	go func() { _ = s.server.Serve(ln) }()
+	go func() {
+		if err := s.server.Serve(ln); err != nil && err != http.ErrServerClosed {
+			log.Error("callback server failed", "err", err)
+		}
+	}()
 	addr := ln.Addr().String()
 	u := config.CallbackBaseURLPrefix + addr + config.CallbackPath
+	log.Debug("callback server started", "addr", addr)
 	return u, nil
 }
 
 func (s *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request) {
+	log.Debug("callback received", "method", r.Method, "path", r.URL.Path)
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "*")
+	w.Header().Set("Access-Control-Allow-Private-Network", "true")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	if r.URL.Path != config.CallbackPath && r.URL.Path != config.CallbackPath+"/" {
+		http.NotFound(w, r)
+		return
+	}
+
 	q := r.URL.Query()
 	state := q.Get("state")
 	if s.State != "" && state != s.State {
+		log.Warn("callback invalid state")
 		http.Error(w, "invalid state", http.StatusBadRequest)
 		select {
 		case s.Done <- CallbackResult{Err: fmt.Errorf("invalid state: got %q want %q", state, s.State)}:
 		default:
-			fmt.Fprintf(os.Stderr, "callback channel full\n")
+			log.Warn("callback channel full")
+		}
+		return
+	}
+	if errStr := q.Get("error"); errStr != "" {
+		log.Info("callback login cancelled")
+		body := []byte(callbackHTMLCancelled)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+		w.Header().Set("Connection", "close")
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(body); err != nil {
+			log.Error("callback write failed", "err", err)
+		}
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		select {
+		case s.Done <- CallbackResult{Err: fmt.Errorf("login cancelled: %s", errStr), State: state}:
+		default:
+			log.Warn("callback channel full")
 		}
 		return
 	}
@@ -72,21 +213,38 @@ func (s *CallbackServer) handleCallback(w http.ResponseWriter, r *http.Request) 
 		PAT:   q.Get("pat"),
 		State: state,
 	}
+	log.Info("callback login received")
+	body := []byte(callbackHTMLSuccess)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write([]byte(`<!doctype html><html><body><script>window.close()</script><p>You can close this window. Return to the terminal.</p></body></html>`))
+	w.Header().Set("Content-Length", strconv.Itoa(len(body)))
+	w.Header().Set("Connection", "close")
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(body); err != nil {
+		log.Error("callback write failed", "err", err)
+	}
+	if f, ok := w.(http.Flusher); ok {
+		f.Flush()
+	}
 	select {
 	case s.Done <- res:
 	default:
-		fmt.Fprintf(os.Stderr, "callback channel full\n")
+		log.Warn("callback channel full")
 	}
 }
 
 func (s *CallbackServer) Close() {
+	log.Debug("callback server stopping")
 	if s.server != nil {
-		_ = s.server.Close()
+		ctx, cancel := context.WithTimeout(context.Background(), config.CallbackShutdownTimeout)
+		defer cancel()
+		if err := s.server.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
+			log.Error("callback shutdown failed", "err", err)
+		}
 	}
 	if s.Listener != nil {
-		_ = s.Listener.Close()
+		if err := s.Listener.Close(); err != nil {
+			log.Debug("callback listener close", "err", err)
+		}
 	}
 }
 

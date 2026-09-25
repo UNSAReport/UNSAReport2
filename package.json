@@ -3,13 +3,15 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "website/apps/*",
-    "website/packages/*",
+    "packages/*",
+    "web/app",
+    "web/packages/*",
     "auth",
-    "registry"
+    "registry",
+    "slides"
   ],
   "scripts": {
-    "dev": "moon run auth:dev registry:dev website:dev",
+    "dev": "moon run auth:dev registry:dev slides:dev website:dev",
     "check": "moon run :check",
     "infra:up": "moon run infra-up",
     "infra:down": "moon run infra-down"

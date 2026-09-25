@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'bun:test';
+import { signAccessToken, verifyAccessToken } from '@/lib/jwt';
 import {
   generateRSAKeyPair,
   getAllActivePublicKeys,
@@ -46,5 +47,34 @@ describe('RSA Key Management', () => {
     const activeKeys = await getAllActivePublicKeys();
     expect(activeKeys.some((k) => k.kid === newKey.kid)).toBe(true);
     expect(activeKeys.some((k) => k.kid === oldKey.kid)).toBe(false);
+  });
+
+  test('getOrGenerateActiveKey is idempotent across calls', async () => {
+    const first = await getOrGenerateActiveKey();
+    const second = await getOrGenerateActiveKey();
+    expect(first.kid).toBe(second.kid);
+  });
+
+  test('token signed before rotation still verifies with old key', async () => {
+    const before = await getOrGenerateActiveKey();
+    const token = await signAccessToken({
+      sub: '123e4567-e89b-12d3-a456-426614174000',
+      email: 'oldkey@unsareport.org',
+      name: 'Old Key Holder',
+    });
+    const rotated = await rotateKeys();
+    expect(rotated.kid).not.toBe(before.kid);
+    const verified = await verifyAccessToken(token);
+    expect(verified.sub).toBe('123e4567-e89b-12d3-a456-426614174000');
+    expect(verified.email).toBe('oldkey@unsareport.org');
+  });
+
+  test('double rotation leaves only the latest key active', async () => {
+    const first = await rotateKeys();
+    const second = await rotateKeys();
+    expect(second.kid).not.toBe(first.kid);
+    const active = await getAllActivePublicKeys();
+    expect(active.some((k) => k.kid === second.kid)).toBe(true);
+    expect(active.some((k) => k.kid === first.kid)).toBe(false);
   });
 });
