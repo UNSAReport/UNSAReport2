@@ -19,5 +19,8 @@ db-migrate env=ENV:
 dev env=ENV:
     ENV={{env}} moon run auth:dev registry:dev slides:dev website:dev
 
+build-tui version="":
+    VERSION={{version}} moon run tui:build-all
+
 compose env=ENV *args:
     ENV={{env}} docker compose -f "{{ROOT}}/compose.{{env}}.yml" {{args}}

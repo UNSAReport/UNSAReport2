@@ -58,3 +58,8 @@ tasks:
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+
+  build-tui:
+    description: 'Build all multiplatform binaries for unsarep TUI'
+    deps:
+      - tui:build-all

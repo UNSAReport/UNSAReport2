@@ -44,6 +44,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Track base branch
+        if: github.base_ref != ''
+        run: git branch --track ${{ github.base_ref }} origin/${{ github.base_ref }} || true
+
       - uses: moonrepo/setup-toolchain@v0
         with:
           auto-install: true
@@ -65,6 +69,7 @@ jobs:
       registry: ${{ steps.filter.outputs.registry }}
       slides: ${{ steps.filter.outputs.slides }}
       website: ${{ steps.filter.outputs.website }}
+      tui: ${{ steps.filter.outputs.tui }}
     steps:
       - uses: actions/checkout@v4
 
@@ -84,6 +89,8 @@ jobs:
             website:
               - 'web/**'
               - 'packages/**'
+            tui:
+              - 'tui/**'
 
   image-auth:
     name: Image auth
@@ -296,3 +303,64 @@ jobs:
           cache-to: type=gha,mode=max
           provenance: true
           sbom: true
+
+  check-tui:
+    name: Check TUI multiplatform builds
+    needs: changes
+    if: needs.changes.outputs.tui == 'true' && !startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Track base branch
+        if: github.base_ref != ''
+        run: git branch --track ${{ github.base_ref }} origin/${{ github.base_ref }} || true
+
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build multiplatform binaries and checksums
+        run: moon run tui:build-all
+
+  release-tui:
+    name: Release unsarep TUI binaries
+    needs: moon
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build multiplatform binaries and checksums
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: moon run tui:build-all
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            tui/dist/unsarep-linux-amd64 \
+            tui/dist/unsarep-linux-arm64 \
+            tui/dist/unsarep-darwin-amd64 \
+            tui/dist/unsarep-darwin-arm64 \
+            tui/dist/unsarep-windows-amd64.exe \
+            tui/dist/unsarep-windows-arm64.exe \
+            tui/dist/checksums.txt \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes
