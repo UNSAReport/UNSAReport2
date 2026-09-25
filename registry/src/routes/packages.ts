@@ -130,8 +130,34 @@ packagesRouter.get('/', optionalAuth, async (c) => {
         .innerJoin(tags, eq(packageTags.tagId, tags.id))
         .where(eq(packageTags.packageId, pkg.id));
 
+      const versionConditions = [eq(packageVersions.packageId, pkg.id)];
+      if (!isAdmin) {
+        versionConditions.push(eq(packageVersions.status, 'approved'));
+      }
+      const versionRows = await db
+        .select({ version: packageVersions.version })
+        .from(packageVersions)
+        .where(and(...versionConditions))
+        .orderBy(desc(packageVersions.createdAt));
+
+      const versionList = versionRows.map((v) => v.version);
+      let effectiveVersion = '';
+      if (
+        pkg.latestVersion !== null &&
+        pkg.latestVersion !== undefined &&
+        pkg.latestVersion !== ''
+      ) {
+        effectiveVersion = pkg.latestVersion;
+      } else if (versionList.length > 0) {
+        effectiveVersion = versionList[0];
+      } else {
+        effectiveVersion = '';
+      }
+
       return {
         ...pkg,
+        version: effectiveVersion,
+        versions: versionList,
         tags: tagRows.map((t) => t.name),
       };
     }),

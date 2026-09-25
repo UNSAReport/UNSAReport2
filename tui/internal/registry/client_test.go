@@ -137,3 +137,57 @@ func TestSharedMockRegistry(t *testing.T) {
 		t.Fatal("expected report.typ in templates")
 	}
 }
+
+func TestListPackages(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/packages" {
+			w.WriteHeader(404)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"packages": []map[string]any{
+				{
+					"name":        "@unsareport/epis-lab",
+					"description": "EPIS Lab Report",
+					"version":     "0.1.1",
+					"versions":    []string{"0.1.1", "0.1.0"},
+				},
+				{
+					"name":          "@unsareport/legacy-pkg",
+					"description":   "Legacy package",
+					"latestVersion": "1.2.3",
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	pkgs, err := c.ListPackages(context.Background())
+	if err != nil {
+		t.Fatalf("ListPackages failed: %v", err)
+	}
+	if len(pkgs) != 2 {
+		t.Fatalf("expected 2 packages, got %d", len(pkgs))
+	}
+
+	if pkgs[0].Name != "@unsareport/epis-lab" {
+		t.Errorf("expected @unsareport/epis-lab, got %q", pkgs[0].Name)
+	}
+	if pkgs[0].Version != "0.1.1" {
+		t.Errorf("expected version 0.1.1, got %q", pkgs[0].Version)
+	}
+	if len(pkgs[0].Versions) != 2 || pkgs[0].Versions[0] != "0.1.1" || pkgs[0].Versions[1] != "0.1.0" {
+		t.Errorf("expected versions [0.1.1, 0.1.0], got %v", pkgs[0].Versions)
+	}
+
+	if pkgs[1].Name != "@unsareport/legacy-pkg" {
+		t.Errorf("expected @unsareport/legacy-pkg, got %q", pkgs[1].Name)
+	}
+	if pkgs[1].Version != "1.2.3" {
+		t.Errorf("expected version 1.2.3 from latestVersion, got %q", pkgs[1].Version)
+	}
+	if len(pkgs[1].Versions) != 1 || pkgs[1].Versions[0] != "1.2.3" {
+		t.Errorf("expected versions [1.2.3], got %v", pkgs[1].Versions)
+	}
+}
