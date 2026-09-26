@@ -93,17 +93,21 @@
     "slides": {
       "name": "@unsa/slides",
       "dependencies": {
+        "@aws-sdk/client-s3": "^3.1118.0",
+        "@aws-sdk/s3-request-presigner": "^3.1118.0",
         "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
         "drizzle-orm": "^0.45.2",
         "hono": "^4.13.4",
         "jose": "^6.2.10",
+        "jszip": "^3.10.1",
         "postgres": "^3.4.9",
         "zod": "^4.4.3",
       },
       "devDependencies": {
         "@biomejs/biome": "^2.5.10",
         "@types/bun": "latest",
+        "@types/jszip": "^3.4.1",
         "@types/node": "^26.3.0",
         "drizzle-kit": "^0.31.10",
         "typescript": "^5.7.3",

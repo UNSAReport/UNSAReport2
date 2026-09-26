@@ -1,10 +1,13 @@
+import { createHash } from 'node:crypto';
 import {
+  type CliDeployRequest,
   CliDeployRequestSchema,
   type CliDeployResponse,
 } from '@unsa/schemas/cli-api';
 import { PresentationVisibilitySchema } from '@unsa/schemas/presentations';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
+import JSZip from 'jszip';
 import { z } from 'zod';
 import { config } from '@/config';
 import { db } from '@/db/index';
@@ -14,6 +17,7 @@ import {
   presentations,
   presentationVersions,
 } from '@/db/schema';
+import { deleteS3Prefix, getMimeType, uploadS3Object } from '@/lib/s3';
 import { requireAuth, requireSlidesRole } from '@/middleware/auth';
 import {
   ForbiddenError,
@@ -61,12 +65,91 @@ async function resolveOwner(
 
 presentationsRouter.post('/deploy', async (c) => {
   const user = c.get('user');
-  const body = await c.req.json().catch(() => ({}));
-  const parsed = CliDeployRequestSchema.safeParse(body);
-  if (!parsed.success) {
-    throw new ValidationError(parsed.error.message);
+  const contentType = c.req.header('content-type') || '';
+
+  let payload: CliDeployRequest;
+  let bundleBuffer: Buffer;
+
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await c.req.formData();
+    const bundleField = formData.get('bundle') || formData.get('file');
+
+    if (!bundleField) {
+      throw new ValidationError('Missing bundle file in multipart form data');
+    }
+
+    if (typeof bundleField === 'string') {
+      bundleBuffer = Buffer.from(bundleField, 'base64');
+    } else {
+      bundleBuffer = Buffer.from(await bundleField.arrayBuffer());
+    }
+
+    const metadataRaw = formData.get('metadata');
+    let metaObj: Record<string, unknown> = {};
+    if (typeof metadataRaw === 'string') {
+      try {
+        metaObj = JSON.parse(metadataRaw);
+      } catch {
+        throw new ValidationError('Invalid JSON in metadata field');
+      }
+    }
+
+    const manifestRaw = formData.get('manifest');
+    let manifestObj = metaObj.manifest;
+    if (manifestRaw) {
+      if (typeof manifestRaw === 'string') {
+        try {
+          manifestObj = JSON.parse(manifestRaw);
+        } catch {
+          throw new ValidationError('Invalid JSON in manifest field');
+        }
+      } else {
+        manifestObj = manifestRaw;
+      }
+    }
+
+    const slug = (formData.get('slug') as string) || (metaObj.slug as string);
+    const title =
+      (formData.get('title') as string) || (metaObj.title as string);
+    const description =
+      (formData.get('description') as string) ||
+      (metaObj.description as string);
+    const orgSlug =
+      (formData.get('orgSlug') as string) || (metaObj.orgSlug as string);
+    const visibility =
+      (formData.get('visibility') as string) || (metaObj.visibility as string);
+
+    const parsed = CliDeployRequestSchema.safeParse({
+      slug,
+      title,
+      description: description || undefined,
+      orgSlug: orgSlug || undefined,
+      visibility: visibility || 'private',
+      manifest: manifestObj,
+      bundle: bundleBuffer.toString('base64'),
+    });
+
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.message);
+    }
+    payload = parsed.data;
+  } else {
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = CliDeployRequestSchema.safeParse(body);
+    if (!parsed.success) {
+      throw new ValidationError(parsed.error.message);
+    }
+    payload = parsed.data;
+    bundleBuffer = Buffer.from(payload.bundle, 'base64');
   }
-  const payload = parsed.data;
+
+  if (bundleBuffer.length > config.maxArchiveBytes) {
+    throw new ValidationError(
+      `Bundle size (${bundleBuffer.length} bytes) exceeds maximum limit of ${config.maxArchiveBytes} bytes`,
+    );
+  }
+
+  const buildHash = createHash('sha256').update(bundleBuffer).digest('hex');
 
   const { ownerType, ownerId } = await resolveOwner(
     user?.id || '',
@@ -123,11 +206,42 @@ presentationsRouter.post('/deploy', async (c) => {
     nextVersion = 1;
   }
 
+  const s3Prefix = `presentations/${presentationId}/v${nextVersion}/`;
+
+  try {
+    const zip = await JSZip.loadAsync(bundleBuffer);
+    const filePaths = Object.keys(zip.files);
+    for (const filePath of filePaths) {
+      const entry = zip.files[filePath];
+      if (entry.dir) continue;
+      const cleanPath = filePath.replace(/^\/+/, '');
+      if (cleanPath.includes('..')) continue;
+
+      const fileBuffer = await entry.async('nodebuffer');
+      const mimeType = getMimeType(cleanPath);
+      await uploadS3Object(`${s3Prefix}${cleanPath}`, fileBuffer, mimeType);
+    }
+    await uploadS3Object(
+      `${s3Prefix}bundle.zip`,
+      bundleBuffer,
+      'application/zip',
+    );
+  } catch {
+    await uploadS3Object(
+      `${s3Prefix}bundle.zip`,
+      bundleBuffer,
+      'application/octet-stream',
+    );
+  }
+
   await db.insert(presentationVersions).values({
     presentationId,
     versionNumber: nextVersion,
     entrypointUrl: `/p/${payload.slug}`,
     manifest: payload.manifest as Record<string, unknown>,
+    bundleS3Prefix: s3Prefix,
+    bundleSizeBytes: bundleBuffer.length,
+    buildHash,
     deployedBy: user?.id || '',
   });
 
@@ -320,6 +434,7 @@ presentationsRouter.delete('/:id', async (c) => {
 
   await assertCanManage(userId, presentation.ownerType, presentation.ownerId);
 
+  await deleteS3Prefix(`presentations/${id}/`);
   await db.delete(presentations).where(eq(presentations.id, id));
 
   return c.json({ success: true, message: 'Presentation deleted' });

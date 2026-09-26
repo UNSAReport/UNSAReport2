@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { config } from '@/config';
 import { globalErrorHandler } from '@/middleware/error-handler';
+import embedRouter from '@/routes/embed';
 import orgsRouter from '@/routes/orgs';
 import presentationsRouter from '@/routes/presentations';
 import type { HonoEnv } from '@/types';
@@ -30,6 +31,8 @@ app.use(
 app.onError(globalErrorHandler);
 
 app.route('/presentations', presentationsRouter);
+app.route('/embed', embedRouter);
+app.route('/presentations/embed', embedRouter);
 app.route('/orgs', orgsRouter);
 
 app.get('/health', (c) => {

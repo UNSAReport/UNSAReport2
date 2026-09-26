@@ -7,6 +7,7 @@ import {
   timestamp,
   unique,
   uuid,
+  varchar,
 } from 'drizzle-orm/pg-core';
 
 export const organizations = pgTable('organizations', {
@@ -67,6 +68,9 @@ export const presentationVersions = pgTable(
     versionNumber: integer('version_number').notNull(),
     entrypointUrl: text('entrypoint_url').notNull(),
     manifest: jsonb('manifest').notNull(),
+    bundleS3Prefix: text('bundle_s3_prefix'),
+    bundleSizeBytes: integer('bundle_size_bytes'),
+    buildHash: varchar('build_hash', { length: 64 }),
     deployedBy: uuid('deployed_by').notNull(),
     deployedAt: timestamp('deployed_at', { withTimezone: true }).defaultNow(),
   },
