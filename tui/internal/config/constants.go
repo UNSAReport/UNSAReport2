@@ -28,6 +28,7 @@ const (
 	DefaultSrcDir        = "src"
 	DefaultSubmissionDir = "submission"
 	DefaultReportFile    = "report.typ"
+	DefaultReportPDF     = "report.pdf"
 	DefaultReportWord    = "Informe"
 	DefaultCodeWord      = "Código Fuente"
 	DefaultFileTemplate  = "{output_type}_{lab_number}"
@@ -41,11 +42,18 @@ const (
 
 const (
 	DefaultRegistryLimit      = 100
+	DefaultSearchLimit        = 50
+	RegistryCacheTTL          = 10 * time.Minute
 	AuthTimeout               = 10 * time.Second
 	RegistryTimeout           = 30 * time.Second
 	CallbackTimeout           = 5 * time.Minute
 	CallbackReadHeaderTimeout = 5 * time.Second
 	CallbackShutdownTimeout   = 2 * time.Second
+)
+
+const (
+	ActionSearchRegistry = "__search_registry__"
+	ActionManualPackage  = "__manual_package__"
 )
 
 const (

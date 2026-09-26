@@ -1445,7 +1445,7 @@ func Build(cwd, report string) error {
 	}
 	in := filepath.Join(reportDir, entry)
 	hookEnvAfter := []string{config.EnvReportDir + "=" + report, config.EnvTypstEntry + "=" + entry}
-	out := filepath.Join(reportDir, "report.pdf")
+	out := filepath.Join(reportDir, config.DefaultReportPDF)
 	cmd := exec.Command(bin, "compile", "--root", root, in, out)
 	cmd.Dir = root
 	cmd.Stdin = os.Stdin
@@ -1457,7 +1457,20 @@ func Build(cwd, report string) error {
 	return runHooks(root, "build", project.HookAfter, cfg, hookEnvAfter)
 }
 
-func Watch(cwd, report string) error {
+type WatchOptions struct {
+	Report string
+	Open   bool
+}
+
+func buildWatchArgs(root, in, out string, open bool) []string {
+	args := []string{"watch", "--root", root, in, out}
+	if open {
+		args = append(args, "--open")
+	}
+	return args
+}
+
+func Watch(cwd string, opt WatchOptions) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
 		return err
@@ -1466,14 +1479,15 @@ func Watch(cwd, report string) error {
 	if err != nil {
 		return err
 	}
-	reportDir := filepath.Join(root, report)
+	reportDir := filepath.Join(root, opt.Report)
 	entry, err := resolveTypstEntry(reportDir, cfg.Project.TypstEntry, promptLine)
 	if err != nil {
 		return err
 	}
 	in := filepath.Join(reportDir, entry)
-	out := filepath.Join(reportDir, "report.pdf")
-	cmd := exec.Command(bin, "watch", "--root", root, in, out)
+	out := filepath.Join(reportDir, config.DefaultReportPDF)
+	args := buildWatchArgs(root, in, out, opt.Open)
+	cmd := exec.Command(bin, args...)
 	cmd.Dir = root
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

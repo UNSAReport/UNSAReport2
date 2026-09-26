@@ -993,3 +993,28 @@ func TestUpdateInteractiveDiffReview(t *testing.T) {
 		t.Fatalf("expected file to be updated on 'y', got %q", string(content))
 	}
 }
+
+func TestBuildWatchArgs(t *testing.T) {
+	argsOpen := buildWatchArgs("/root", "/root/in.typ", "/root/out.pdf", true)
+	expectedOpen := []string{"watch", "--root", "/root", "/root/in.typ", "/root/out.pdf", "--open"}
+	if len(argsOpen) != len(expectedOpen) {
+		t.Fatalf("expected %d args with open, got %d: %v", len(expectedOpen), len(argsOpen), argsOpen)
+	}
+	for i := range argsOpen {
+		if argsOpen[i] != expectedOpen[i] {
+			t.Errorf("arg[%d] = %q, want %q", i, argsOpen[i], expectedOpen[i])
+		}
+	}
+
+	argsNoOpen := buildWatchArgs("/root", "/root/in.typ", "/root/out.pdf", false)
+	expectedNoOpen := []string{"watch", "--root", "/root", "/root/in.typ", "/root/out.pdf"}
+	if len(argsNoOpen) != len(expectedNoOpen) {
+		t.Fatalf("expected %d args without open, got %d: %v", len(expectedNoOpen), len(argsNoOpen), argsNoOpen)
+	}
+	for i := range argsNoOpen {
+		if argsNoOpen[i] != expectedNoOpen[i] {
+			t.Errorf("arg[%d] = %q, want %q", i, argsNoOpen[i], expectedNoOpen[i])
+		}
+	}
+}
+

@@ -99,3 +99,26 @@ func TestDocsUpdateCmdFlags(t *testing.T) {
 	}
 }
 
+func TestDocsWatchCmdFlags(t *testing.T) {
+	cmd := newDocsWatchCmd()
+	f := cmd.Flags().Lookup("open")
+	if f == nil {
+		t.Fatal("expected --open flag on watch command")
+	}
+	if f.DefValue != "true" {
+		t.Fatalf("expected --open default value to be 'true', got %q", f.DefValue)
+	}
+}
+
+func TestDocsInitCmdFlags(t *testing.T) {
+	cmd := newDocsInitCmd()
+	f := cmd.Flags().Lookup("search")
+	if f == nil {
+		t.Fatal("expected --search flag on init command")
+	}
+	if f.Shorthand != "s" {
+		t.Fatalf("expected -s shorthand for search, got %q", f.Shorthand)
+	}
+}
+
+
