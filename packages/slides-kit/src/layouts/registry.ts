@@ -1,6 +1,9 @@
 import { defaultLayouts } from '@/layouts/catalog';
 import { LayoutCategory, type LayoutDefinition } from '@/layouts/types';
 
+export type { LayoutDefinition };
+export { LayoutCategory };
+
 export interface LayoutFilter {
   category?: LayoutCategory;
   search?: string;
@@ -63,7 +66,7 @@ export class LayoutRegistry {
           l.id.toLowerCase().includes(term) ||
           l.name.toLowerCase().includes(term) ||
           l.description.toLowerCase().includes(term) ||
-          l.tags.some((t) => t.toLowerCase().includes(term)),
+          l.tags.some((t: string) => t.toLowerCase().includes(term)),
       );
     }
 

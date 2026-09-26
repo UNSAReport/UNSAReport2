@@ -29,6 +29,18 @@
       "types": "./src/renderer/DeckRenderer.tsx",
       "import": "./src/renderer/DeckRenderer.tsx"
     },
+    "./renderer/DeckRenderer": {
+      "types": "./src/renderer/DeckRenderer.tsx",
+      "import": "./src/renderer/DeckRenderer.tsx"
+    },
+    "./renderer/SlideRenderer": {
+      "types": "./src/renderer/SlideRenderer.tsx",
+      "import": "./src/renderer/SlideRenderer.tsx"
+    },
+    "./renderer/ThemeProvider": {
+      "types": "./src/renderer/ThemeProvider.tsx",
+      "import": "./src/renderer/ThemeProvider.tsx"
+    },
     "./primitives/*": {
       "types": "./src/primitives/*.tsx",
       "import": "./src/primitives/*.tsx"

@@ -297,10 +297,12 @@ presentationsRouter.get('/:id', async (c) => {
   const userId = user?.id || '';
   const id = c.req.param('id');
 
+  const isUuid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
   const [presentation] = await db
     .select()
     .from(presentations)
-    .where(eq(presentations.id, id))
+    .where(isUuid ? eq(presentations.id, id) : eq(presentations.slug, id))
     .limit(1);
 
   if (!presentation) {

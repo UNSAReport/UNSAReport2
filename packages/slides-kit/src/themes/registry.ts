@@ -2,6 +2,9 @@ import { defaultThemes } from '@/themes/catalog';
 import type { ThemeDefinition } from '@/themes/types';
 import { ThemeId } from '@/themes/types';
 
+export type { ThemeDefinition };
+export { ThemeId };
+
 /**
  * Registro dinámico de temas visuales para la plataforma de diapositivas.
  */

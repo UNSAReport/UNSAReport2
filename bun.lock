@@ -123,6 +123,7 @@
         "@unsa/api": "workspace:*",
         "@unsa/logger": "workspace:*",
         "@unsa/schemas": "workspace:*",
+        "@unsa/slides-kit": "workspace:*",
         "hono": "^4.13.4",
         "react": "^19.2.8",
         "react-dom": "^19.2.8",
