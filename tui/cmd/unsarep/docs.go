@@ -12,6 +12,7 @@ import (
 	"github.com/UNSAReport/tui/internal/docs"
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/project"
+	"github.com/UNSAReport/tui/internal/registry"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
@@ -35,7 +36,7 @@ func newDocsCmd() *cobra.Command {
 }
 
 func newDocsInitCmd() *cobra.Command {
-	var templateFlag, report string
+	var templateFlag, report, searchFlag string
 	var yesFlag, allFlag, noneFlag bool
 	cmd := &cobra.Command{
 		Use:   "init [template[@range]]",
@@ -53,22 +54,40 @@ func newDocsInitCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			ctx := context.Background()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
+			if searchFlag != "" && template == "" {
+				pkgs, sErr := client.SearchPackages(ctx, searchFlag, config.DefaultSearchLimit)
+				if sErr != nil {
+					return sErr
+				}
+				if len(pkgs) == 0 {
+					return fmt.Errorf("no packages found matching %q", searchFlag)
+				}
+				if !canPrompt() {
+					template = pkgs[0].Name
+				} else {
+					chosen, pErr := selectPackageFromList("Matching template packages", pkgs, client, ctx)
+					if pErr != nil {
+						return pErr
+					}
+					template = chosen
+				}
+			}
 			if template == "" {
 				if !canPrompt() {
 					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R] [--yes|--all|--none]")
 				}
+				chosen, pErr := promptSelectTemplate(ctx, client)
+				if pErr != nil {
+					return pErr
+				}
+				template = chosen
 				reportVal := report
 				form := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Template package").
-						Description("Name[@version-range] from the registry").
-						Value(&template).
-						Validate(func(s string) error {
-							if strings.TrimSpace(s) == "" {
-								return fmt.Errorf("template is required")
-							}
-							return nil
-						}),
 					huh.NewInput().
 						Title("Report dir").
 						Value(&reportVal),
@@ -86,7 +105,6 @@ func newDocsInitCmd() *cobra.Command {
 				yesFlag, allFlag, noneFlag = y, a, n
 			}
 			flags := selectFlags(yesFlag, allFlag, noneFlag)
-			ctx := context.Background()
 			cwd, _ := os.Getwd()
 			if err := docs.Init(ctx, cwd, docs.InitOptions{
 				Template: template,
@@ -101,11 +119,103 @@ func newDocsInitCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&templateFlag, "template", "", "Template package [name[@range]], same as positional")
+	cmd.Flags().StringVarP(&searchFlag, "search", "s", "", "Search query for template packages in registry")
 	cmd.Flags().StringVar(&report, "report", "t1", "Report dir")
 	cmd.Flags().BoolVarP(&yesFlag, "yes", "y", false, "Confirm file replacement and accept default commands without prompt")
 	cmd.Flags().BoolVar(&allFlag, "all", false, "Accept all commands and hooks without prompt")
 	cmd.Flags().BoolVar(&noneFlag, "none", false, "Skip commands and hooks without prompt")
 	return cmd
+}
+
+func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *registry.Client, ctx context.Context) (string, error) {
+	for {
+		var options []huh.Option[string]
+		options = append(options, huh.NewOption("Search registry by keyword...", config.ActionSearchRegistry))
+		options = append(options, huh.NewOption("Enter package name manually...", config.ActionManualPackage))
+
+		for _, p := range pkgs {
+			desc := p.Description
+			if desc != "" {
+				desc = " — " + desc
+			}
+			label := fmt.Sprintf("%s (v%s)%s", p.Name, p.Version, desc)
+			options = append(options, huh.NewOption(label, p.Name))
+		}
+
+		var selected string
+		form := huh.NewForm(huh.NewGroup(
+			huh.NewSelect[string]().
+				Title(title).
+				Description("Type to filter, or choose search / manual").
+				Filtering(true).
+				Options(options...).
+				Value(&selected),
+		))
+		if err := runForm(form); err != nil {
+			return "", err
+		}
+
+		switch selected {
+		case config.ActionSearchRegistry:
+			var query string
+			queryForm := huh.NewForm(huh.NewGroup(
+				huh.NewInput().
+					Title("Search packages").
+					Description("Enter search terms for registry packages").
+					Value(&query).
+					Validate(func(s string) error {
+						if strings.TrimSpace(s) == "" {
+							return fmt.Errorf("search query cannot be empty")
+						}
+						return nil
+					}),
+			))
+			if err := runForm(queryForm); err != nil {
+				return "", err
+			}
+			matched, err := client.SearchPackages(ctx, query, config.DefaultSearchLimit)
+			if err != nil {
+				return "", err
+			}
+			if len(matched) == 0 {
+				fmt.Printf("No packages matched %q.\n", query)
+				continue
+			}
+			pkgs = matched
+			title = fmt.Sprintf("Search results for %q", query)
+			continue
+
+		case config.ActionManualPackage:
+			var manual string
+			manualForm := huh.NewForm(huh.NewGroup(
+				huh.NewInput().
+					Title("Template package").
+					Description("Name[@version-range] from the registry").
+					Value(&manual).
+					Validate(func(s string) error {
+						if strings.TrimSpace(s) == "" {
+							return fmt.Errorf("template is required")
+						}
+						return nil
+					}),
+			))
+			if err := runForm(manualForm); err != nil {
+				return "", err
+			}
+			return manual, nil
+
+		default:
+			return selected, nil
+		}
+	}
+}
+
+func promptSelectTemplate(ctx context.Context, client *registry.Client) (string, error) {
+	pkgs, err := client.ListPackagesCached(ctx)
+	if err != nil {
+		return "", err
+	}
+	return selectPackageFromList("Select template package", pkgs, client, ctx)
 }
 
 func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
@@ -410,9 +520,10 @@ func newDocsBuildCmd() *cobra.Command {
 
 func newDocsWatchCmd() *cobra.Command {
 	var reportFlag string
+	var openFlag bool
 	cmd := &cobra.Command{
 		Use:   "watch [report-dir]",
-		Short: "typst watch with managed --root",
+		Short: "typst watch with managed --root and default viewer",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			report, err := resolveReport(cmd, args, reportFlag)
@@ -420,10 +531,14 @@ func newDocsWatchCmd() *cobra.Command {
 				return err
 			}
 			cwd, _ := os.Getwd()
-			return docs.Watch(cwd, report)
+			return docs.Watch(cwd, docs.WatchOptions{
+				Report: report,
+				Open:   openFlag,
+			})
 		},
 	}
 	cmd.Flags().StringVar(&reportFlag, "report", "", "Report dir, same as positional")
+	cmd.Flags().BoolVar(&openFlag, "open", true, "Open the PDF file with the system default viewer after compilation")
 	return cmd
 }
 

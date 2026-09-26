@@ -13,6 +13,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/UNSAReport/tui/internal/auth"
 	"github.com/UNSAReport/tui/internal/config"
@@ -126,6 +127,108 @@ func (c *Client) ListPackages(ctx context.Context) ([]PackageInfo, error) {
 		return nil, err
 	}
 	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s%s?limit=%d", base, config.RegistryPackagesPath, config.DefaultRegistryLimit), nil)
+	if err != nil {
+		return nil, fmt.Errorf("registry unavailable: %w", err)
+	}
+	req.Header.Set("User-Agent", "unsarep-tui")
+	c.setAuth(req)
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		log.Error("registry request failed", "err", err, "path", req.URL.Path)
+		return nil, fmt.Errorf("registry unreachable at %s: %w", base, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		log.Warn("registry request failed", "status", resp.StatusCode, "path", req.URL.Path)
+		return nil, fmt.Errorf("registry error at %s: status %d", base, resp.StatusCode)
+	}
+	var out struct {
+		Packages []PackageInfo `json:"packages"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("registry unavailable: decode %w", err)
+	}
+	return out.Packages, nil
+}
+
+type RegistryCache struct {
+	Timestamp time.Time     `json:"timestamp"`
+	Packages  []PackageInfo `json:"packages"`
+}
+
+func (c *Client) GetCachedPackages() ([]PackageInfo, bool) {
+	if c.CachePath == "" {
+		return nil, false
+	}
+	data, err := os.ReadFile(c.CachePath)
+	if err != nil {
+		return nil, false
+	}
+	var cache RegistryCache
+	if err := json.Unmarshal(data, &cache); err != nil {
+		return nil, false
+	}
+	if time.Since(cache.Timestamp) > config.RegistryCacheTTL {
+		return nil, false
+	}
+	return cache.Packages, true
+}
+
+func (c *Client) SaveCachedPackages(pkgs []PackageInfo) error {
+	if c.CachePath == "" {
+		return nil
+	}
+	dir := filepath.Dir(c.CachePath)
+	if err := os.MkdirAll(dir, config.PermDirPrivate); err != nil {
+		return fmt.Errorf("create cache dir: %w", err)
+	}
+	cache := RegistryCache{
+		Timestamp: time.Now(),
+		Packages:  pkgs,
+	}
+	data, err := json.MarshalIndent(cache, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal cache: %w", err)
+	}
+	tmpFile := c.CachePath + ".tmp"
+	if err := os.WriteFile(tmpFile, data, config.PermFilePrivate); err != nil {
+		return fmt.Errorf("write tmp cache: %w", err)
+	}
+	if err := os.Rename(tmpFile, c.CachePath); err != nil {
+		_ = os.Remove(tmpFile)
+		return fmt.Errorf("rename cache: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) ListPackagesCached(ctx context.Context) ([]PackageInfo, error) {
+	if cached, ok := c.GetCachedPackages(); ok {
+		return cached, nil
+	}
+	pkgs, err := c.ListPackages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_ = c.SaveCachedPackages(pkgs)
+	return pkgs, nil
+}
+
+func (c *Client) SearchPackages(ctx context.Context, query string, limit int) ([]PackageInfo, error) {
+	base, err := c.base()
+	if err != nil {
+		return nil, err
+	}
+	if limit <= 0 {
+		limit = config.DefaultSearchLimit
+	}
+	q := strings.TrimSpace(query)
+	var endpoint string
+	if q != "" {
+		endpoint = fmt.Sprintf("%s%s?q=%s&limit=%d", base, config.RegistryPackagesPath, url.QueryEscape(q), limit)
+	} else {
+		endpoint = fmt.Sprintf("%s%s?limit=%d", base, config.RegistryPackagesPath, limit)
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("registry unavailable: %w", err)
 	}
