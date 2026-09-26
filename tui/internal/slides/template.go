@@ -24,16 +24,126 @@ func StarterTemplate(projectName string) []TemplateFile {
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "unsarep slides dev",
-    "deploy": "unsarep slides deploy"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
   },
   "dependencies": {
-    "@revealjs/react": "^0.2.1",
+    "@unsa/slides-kit": "workspace:*",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "reveal.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
   }
 }
+`,
+		},
+		{
+			Path: "deck.config.ts",
+			Content: `import { defineConfig } from '@unsa/slides-kit';
+
+export default defineConfig({
+  title: '` + projectName + `',
+  slug: '` + slug + `',
+  theme: 'unsa-dark',
+  visibility: 'private',
+  slides: [
+    {
+      layout: 'hero-centered-bold',
+      tag: 'Presentación',
+      title: '` + projectName + `',
+      subtitle: 'Creado con unsarep slides y @unsa/slides-kit',
+      author: 'Autor',
+      date: '2026',
+    },
+    {
+      layout: 'split-comparison-cards',
+      tag: 'Comparativa',
+      title: 'Arquitectura Modular',
+      left: {
+        title: 'Tradicional',
+        badge: 'Antes',
+        items: ['Diseño estático', 'Acoplamiento rígido', 'Dificultad de actualización'],
+      },
+      right: {
+        title: 'UNSA Slides',
+        badge: 'Recomendado',
+        items: ['110 layouts puros', 'Tokens temáticos intercambiables', 'Despliegue ágil en la nube'],
+      },
+    },
+    {
+      layout: 'bento-4-featured-left',
+      tag: 'Capacidades',
+      title: 'Ecosistema de Presentaciones',
+      featured: {
+        stat: '110',
+        label: 'Layouts Oficiales',
+        description: 'Componentes estructurales diseñados para ingeniería y academia.',
+      },
+      cards: [
+        { title: 'Familias', stat: '9 familias', status: 'optimal' },
+        { title: 'Temas', stat: '3 oficiales', status: 'optimal' },
+        { title: 'Embed Iframe', stat: 'Sandboxed', status: 'optimal' },
+      ],
+    },
+    {
+      layout: 'closing-qa-centered',
+      title: '¿Preguntas?',
+      subtitle: 'Gracias por su atención',
+      contactInfo: 'contacto@unsa.edu.pe',
+    },
+  ],
+});
+`,
+		},
+		{
+			Path: "vite.config.ts",
+			Content: `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 4000,
+  },
+  build: {
+    outDir: 'dist',
+  },
+});
+`,
+		},
+		{
+			Path: "index.html",
+			Content: `<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>` + projectName + `</title>
+  </head>
+  <body class="m-0 p-0 overflow-hidden bg-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`,
+		},
+		{
+			Path: "src/main.tsx",
+			Content: `import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { DeckRenderer } from '@unsa/slides-kit/renderer';
+import deckConfig from '../deck.config';
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <DeckRenderer deck={deckConfig} />
+  </React.StrictMode>,
+);
 `,
 		},
 		{
@@ -56,14 +166,28 @@ func StarterTemplate(projectName string) []TemplateFile {
     "width": 1280,
     "height": 720,
     "transition": "slide",
-    "theme": "black"
+    "theme": "unsa-dark"
   },
   "slides": [
     {
-      "id": "intro",
+      "id": "hero",
       "index": 0,
-      "title": "Welcome to UNSA Slides",
-      "notes": "Welcome slide introducing the topic."
+      "title": "` + projectName + `"
+    },
+    {
+      "id": "comparison",
+      "index": 1,
+      "title": "Arquitectura Modular"
+    },
+    {
+      "id": "bento",
+      "index": 2,
+      "title": "Ecosistema de Presentaciones"
+    },
+    {
+      "id": "closing",
+      "index": 3,
+      "title": "¿Preguntas?"
     }
   ]
 }
@@ -109,7 +233,7 @@ export function Presentation() {
 func readmeMD(projectName string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "# %s\n\n", projectName)
-	b.WriteString("Presentation project created with `unsarep slides`.\n\n")
-	b.WriteString("## Development\n\n```bash\n# Preview locally\nunsarep slides dev\n\n# Deploy to Cloud\nunsarep slides deploy\n```\n")
+	b.WriteString("Presentation project created with `unsarep slides` and `@unsa/slides-kit`.\n\n")
+	b.WriteString("## Development\n\n```bash\n# Preview locally with live reload\nunsarep slides dev\n\n# Deploy to Cloud\nunsarep slides deploy\n```\n")
 	return b.String()
 }

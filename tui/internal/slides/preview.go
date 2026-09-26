@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
 
 func previewHTML(title string) string {
 	return `<!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -27,9 +28,9 @@ func previewHTML(title string) string {
         <p class="text-xl text-slate-400">UNSA Slides Local Preview</p>
       </section>
       <section>
-        <h2 class="text-3xl font-semibold mb-4">Local Preview Mode</h2>
-        <p class="text-lg text-slate-300">Edit your slides and reload to see updates.</p>
-        <p class="mt-4 text-sm text-cyan-400">Run 'unsarep slides deploy' when ready to publish to Cloud.</p>
+        <h2 class="text-3xl font-semibold mb-4">Modo de Vista Previa Local</h2>
+        <p class="text-lg text-slate-300">Edita deck.config.ts o tus componentes para ver los cambios.</p>
+        <p class="mt-4 text-sm text-cyan-400">Ejecuta 'unsarep slides deploy' cuando estés listo para publicar.</p>
       </section>
     </div>
   </div>
@@ -74,4 +75,39 @@ func ServePreview(addr, dir, title string) error {
 		http.ServeFile(w, r, full)
 	})
 	return http.ListenAndServe(addr, mux)
+}
+
+func StartDev(dir string, port int) error {
+	pkgPath := filepath.Join(dir, "package.json")
+	if _, err := os.Stat(pkgPath); err == nil {
+		runner := ""
+		if _, err := exec.LookPath("bun"); err == nil {
+			runner = "bun"
+		} else if _, err := exec.LookPath("npx"); err == nil {
+			runner = "npx"
+		}
+
+		if runner != "" {
+			var cmd *exec.Cmd
+			if runner == "bun" {
+				cmd = exec.Command("bun", "run", "dev", "--port", fmt.Sprintf("%d", port))
+			} else {
+				cmd = exec.Command("npx", "vite", "--port", fmt.Sprintf("%d", port))
+			}
+			cmd.Dir = dir
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			cmd.Stdin = os.Stdin
+			if err := cmd.Run(); err == nil {
+				return nil
+			}
+		}
+	}
+
+	addr := fmt.Sprintf("127.0.0.1:%d", port)
+	title := "UNSA Slides Preview"
+	if cfg, err := LoadProjectConfig(dir); err == nil && cfg.Title != "" {
+		title = cfg.Title
+	}
+	return ServePreview(addr, dir, title)
 }

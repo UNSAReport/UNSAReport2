@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
 
 	"github.com/charmbracelet/log"
@@ -20,6 +22,7 @@ type DeployRequest struct {
 	Visibility  string         `json:"visibility,omitempty"`
 	Manifest    map[string]any `json:"manifest"`
 	Bundle      string         `json:"bundle"`
+	ZipBytes    []byte         `json:"-"`
 }
 
 type DeployResponse struct {
@@ -107,10 +110,79 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 }
 
 func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (*DeployResponse, error) {
+	if len(req.ZipBytes) > 0 {
+		return c.DeployMultipart(ctx, token, req, req.ZipBytes)
+	}
 	var out DeployResponse
 	if err := c.doJSON(ctx, "POST", "/presentations/deploy", token, req, &out); err != nil {
 		return nil, err
 	}
+	return &out, nil
+}
+
+func (c *Client) DeployMultipart(ctx context.Context, token string, req *DeployRequest, zipBytes []byte) (*DeployResponse, error) {
+	bodyBuf := new(bytes.Buffer)
+	writer := multipart.NewWriter(bodyBuf)
+
+	filePart, err := writer.CreateFormFile("bundle", "bundle.zip")
+	if err != nil {
+		return nil, fmt.Errorf("create bundle form field: %w", err)
+	}
+	if _, err := io.Copy(filePart, bytes.NewReader(zipBytes)); err != nil {
+		return nil, fmt.Errorf("write bundle data: %w", err)
+	}
+
+	_ = writer.WriteField("slug", req.Slug)
+	_ = writer.WriteField("title", req.Title)
+	if req.Description != "" {
+		_ = writer.WriteField("description", req.Description)
+	}
+	if req.OrgSlug != "" {
+		_ = writer.WriteField("orgSlug", req.OrgSlug)
+	}
+	if req.Visibility != "" {
+		_ = writer.WriteField("visibility", req.Visibility)
+	}
+	if req.Manifest != nil {
+		if manifestBytes, err := json.Marshal(req.Manifest); err == nil {
+			_ = writer.WriteField("manifest", string(manifestBytes))
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close multipart writer: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/presentations/deploy", bodyBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+	httpReq.Header.Set("User-Agent", "unsarep-tui")
+	c.setAuth(httpReq, token)
+
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		log.Error("slides deploy request failed", "err", err)
+		return nil, fmt.Errorf("slides service unreachable at %s: %w", c.BaseURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warn("slides deploy failed", "status", resp.StatusCode)
+		var apiErr ErrorResponse
+		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {
+			return nil, fmt.Errorf("slides service error (%d %s): %s", resp.StatusCode, apiErr.Error, apiErr.Message)
+		}
+		return nil, fmt.Errorf("slides service error: %s", resp.Status)
+	}
+
+	var out DeployResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode slides deploy response: %w", err)
+	}
+
 	return &out, nil
 }
 
