@@ -45,7 +45,7 @@ El repositorio organiza sus servicios y librerías compartidas en los siguientes
 | [`registry/`](registry) | Registro de Paquetes | Bun, Hono, Postgres, SeaweedFS | API del registro para publicar, resolver y descargar paquetes Typst |
 | [`auth/`](auth) | Proveedor de Identidad (IdP) | Bun, Hono, Postgres | Servicio de autenticación OAuth2 / OIDC y administración de tokens PAT |
 | [`slides/`](slides) | Servicio de Diapositivas | Bun, Hono, Postgres | Backend para creación y despliegue de presentaciones interactivas |
-| [`packages/`](packages) | Librerías compartidas | TypeScript, Bun | Paquetes compartidos del monorepo (ej. `@unsa/logger`) |
+| [`packages/`](packages) | Librerías compartidas | TypeScript, Bun | Paquetes compartidos del monorepo (`@unsa/slides-kit`, `@unsa/logger`) |
 
 ### Requisitos del entorno de desarrollo
 
@@ -119,6 +119,27 @@ sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$
 sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3100 protocol=tcp accept"
 sudo firewall-cmd --reload
 ```
+
+#### 5. Desarrollo del módulo de diapositivas (Slides)
+
+El ecosistema de diapositivas de UNSAReport está compuesto por:
+- **`packages/slides-kit`**: Kit oficial de layouts, temas visuales, primitivas y renderizador basado en Reveal.js.
+  - **Convención de Layouts**: Los 110 layouts deben ser **estrictamente estructurales**. No se deben incluir clases ni estilos de colores hardcodeados (como `bg-slate-900`, `text-white`), ya que la paleta cromática es controlada exclusivamente por los temas a través del `ThemeProvider` y variables CSS (`var(--slide-bg)`, `var(--slide-text)`, etc.).
+  - **Sin Barrel Files**: Por diseño y rendimiento del bundler, **no** se permiten archivos `index.ts` que re-exporten componentes en masa. Cada familia y módulo se importa o registra explícitamente (`./src/layouts/registry.ts`, `./src/themes/registry.ts`, etc.).
+  - **Importaciones Absolutas**: Todas las importaciones internas deben emplear el alias de ruta `@/*` (ej. `@/layouts/types`). Las importaciones relativas (`./` o `../`) están expresamente prohibidas por las reglas de Biome.
+- **`slides/`**: Microservicio backend para autorización, almacenamiento y servicio de presentaciones.
+  - Gestiona metadatos con Drizzle ORM sobre PostgreSQL.
+  - Almacena bundles comprimidos y archivos estáticos en SeaweedFS (S3).
+  - Sirve diapositivas en `/embed/:id/v:version/*` con verificación de políticas de visibilidad (`public`, `unlisted`, `private`, `org`).
+- **`tui/`**: CLI oficial `unsarep` con subcomandos `slides`:
+  - `unsarep slides init <nombre>`: Inicializa un proyecto configurado con Vite y `@unsa/slides-kit`.
+  - `unsarep slides dev`: Servidor de previsualización local con HMR.
+  - `unsarep slides layouts` y `unsarep slides themes`: Exploración y catálogo de componentes en terminal.
+  - `unsarep slides link` y `unsarep slides deploy`: Empaquetado zip y subida multipart a S3.
+- **`web/`**: Plataforma web:
+  - `/presentations`: Dashboard con filtrado por visibilidad y organización.
+  - `/presentations/$slug`: Visor institucional con iframe sandboxed y notas de orador.
+  - `/presentations/catalog`: Showcase interactivo de los 110 layouts y 3 temas.
 
 ---
 

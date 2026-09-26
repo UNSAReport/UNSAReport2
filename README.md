@@ -134,22 +134,25 @@ unsarep docs build lab-01
 | `unsarep docs check` | Valida la configuración, la integridad del lockfile y las dependencias |
 | `unsarep docs run <alias>` | Ejecuta scripts y alias definidos en el proyecto (ej. `unsarep docs run submit`) |
 
-<!--
 ### Creación de diapositivas (`unsarep slides`)
 
-Crea y visualiza presentaciones interactivas:
+Crea, previsualiza y publica presentaciones interactivas institucionales:
 
 ```bash
-# Crear la estructura de una nueva presentación
+# Crear la estructura de una nueva presentación con el kit oficial
 unsarep slides init mi-presentacion
 
-# Iniciar el servidor local de desarrollo con recarga en vivo
-unsarep slides dev mi-presentacion
+# Explorar el catálogo de 110 layouts y 3 temas oficiales
+unsarep slides layouts --category bento
+unsarep slides themes
+
+# Iniciar el servidor local de desarrollo con recarga en vivo (HMR)
+cd mi-presentacion && unsarep slides dev
 
 # Vincular y desplegar la presentación en la plataforma en la nube
 unsarep slides link
 unsarep slides deploy
-```-->
+```
 
 ---
 

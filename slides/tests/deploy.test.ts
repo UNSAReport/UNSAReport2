@@ -24,20 +24,23 @@ mock.module('@/lib/auth', () => ({
 
 mock.module('@/lib/s3', () => ({
   uploadS3Object: async (key: string) => key,
-  getS3Object: async () => ({
+  getS3Object: async (key: string) => ({
     body: new Uint8Array([
       60, 104, 49, 62, 72, 101, 108, 108, 111, 60, 47, 104, 49, 62,
     ]),
-    contentType: 'text/html; charset=utf-8',
+    contentType: key?.endsWith('.js')
+      ? 'application/javascript; charset=utf-8'
+      : 'text/html; charset=utf-8',
   }),
   deleteS3Object: async () => {},
   deleteS3Prefix: async () => {},
   getPresignedUrl: async (key: string) => `http://localhost/s3/${key}`,
   ensureBucketExists: async () => {},
-  getMimeType: (path: string) =>
-    path.endsWith('.html')
-      ? 'text/html; charset=utf-8'
-      : 'application/octet-stream',
+  getMimeType: (path: string) => {
+    if (path.endsWith('.html')) return 'text/html; charset=utf-8';
+    if (path.endsWith('.js')) return 'application/javascript; charset=utf-8';
+    return 'application/octet-stream';
+  },
 }));
 
 mock.module('@/db/index', () => {

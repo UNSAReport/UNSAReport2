@@ -108,6 +108,16 @@ async function checkAccess(
   }
 }
 
+function extractSubpath(path: string, versionNumber: number): string {
+  const vPrefix = `/v${versionNumber}/`;
+  const plainPrefix = `/${versionNumber}/`;
+  const vIdx = path.indexOf(vPrefix);
+  if (vIdx !== -1) return path.slice(vIdx + vPrefix.length);
+  const plainIdx = path.indexOf(plainPrefix);
+  if (plainIdx !== -1) return path.slice(plainIdx + plainPrefix.length);
+  return '';
+}
+
 async function handleEmbed(c: Context<HonoEnv>) {
   const paramId = c.req.param('id');
   if (!paramId) {
@@ -120,7 +130,8 @@ async function handleEmbed(c: Context<HonoEnv>) {
     throw new ValidationError(`Invalid version number "${rawVersion}"`);
   }
 
-  const rawSubpath = c.req.param('*');
+  const rawSubpath =
+    extractSubpath(c.req.path, versionNumber) || c.req.param('*');
   let filePath = rawSubpath ? rawSubpath.trim() : 'index.html';
   if (!filePath || filePath.endsWith('/')) {
     filePath = `${filePath}index.html`;

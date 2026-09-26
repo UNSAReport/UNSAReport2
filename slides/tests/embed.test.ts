@@ -37,7 +37,9 @@ mock.module('@/lib/s3', () => ({
       body: new Uint8Array([
         60, 104, 49, 62, 72, 101, 108, 108, 111, 60, 47, 104, 49, 62,
       ]),
-      contentType: 'text/html; charset=utf-8',
+      contentType: key.endsWith('.js')
+        ? 'application/javascript; charset=utf-8'
+        : 'text/html; charset=utf-8',
     };
   },
   deleteS3Object: async () => {},
@@ -55,24 +57,35 @@ mock.module('@/lib/s3', () => ({
 
 let mockPresentations: Record<string, unknown>[] = [];
 let mockVersions: Record<string, unknown>[] = [];
+let mockOrgMembers: Record<string, unknown>[] = [];
 
 mock.module('@/db/index', () => {
   const db = {
     select: () => ({
-      from: (table: Record<string, unknown> | unknown) => ({
-        where: () => ({
-          limit: () => {
-            const tableName =
-              typeof table === 'object' && table !== null
-                ? (table as Record<symbol, unknown>)[Symbol.for('drizzle:Name')]
-                : '';
-            if (tableName === 'presentation_versions') {
-              return Promise.resolve(mockVersions);
-            }
-            return Promise.resolve(mockPresentations);
+      from: (table: Record<string, unknown> | unknown) => {
+        const getResult = () => {
+          const tableName =
+            typeof table === 'object' && table !== null
+              ? (table as Record<symbol, unknown>)[Symbol.for('drizzle:Name')]
+              : '';
+          if (tableName === 'presentation_versions') {
+            return mockVersions;
+          }
+          if (tableName === 'org_members') {
+            return mockOrgMembers;
+          }
+          return mockPresentations;
+        };
+        return {
+          where: () => {
+            const res = getResult();
+            const promise = Promise.resolve(res);
+            return Object.assign(promise, {
+              limit: () => Promise.resolve(res),
+            });
           },
-        }),
-      }),
+        };
+      },
     }),
   };
   return { db };
@@ -199,6 +212,106 @@ describe('GET /embed/:id/v:version/*', () => {
     const res = await app.fetch(
       new Request(
         `http://localhost/embed/${PRIVATE_PRES_ID}/v1/index.html?token=valid-owner-token`,
+      ),
+    );
+    expect(res.status).toBe(200);
+  });
+
+  it('rejects access with 403 when user is not the owner of a private presentation', async () => {
+    mockPresentations = [
+      {
+        id: PRIVATE_PRES_ID,
+        slug: 'private-deck',
+        title: 'Private Deck',
+        ownerType: 'user',
+        ownerId: TEST_USER_ID,
+        visibility: 'private',
+      },
+    ];
+    mockVersions = [
+      {
+        id: 'ver-1',
+        presentationId: PRIVATE_PRES_ID,
+        versionNumber: 1,
+        bundleS3Prefix: `presentations/${PRIVATE_PRES_ID}/v1/`,
+      },
+    ];
+
+    const res = await app.fetch(
+      new Request(
+        `http://localhost/embed/${PRIVATE_PRES_ID}/v1/index.html?token=valid-stranger-token`,
+      ),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('rejects access with 403 when user without role/membership accesses org presentation', async () => {
+    const ORG_PRES_ID = 'a41d9440-eca6-4812-8521-dea0ded5c003';
+    const ORG_ID = '33333333-3333-4333-8333-333333333333';
+
+    mockPresentations = [
+      {
+        id: ORG_PRES_ID,
+        slug: 'org-deck',
+        title: 'Org Deck',
+        ownerType: 'organization',
+        ownerId: ORG_ID,
+        visibility: 'org',
+      },
+    ];
+    mockVersions = [
+      {
+        id: 'ver-1',
+        presentationId: ORG_PRES_ID,
+        versionNumber: 1,
+        bundleS3Prefix: `presentations/${ORG_PRES_ID}/v1/`,
+      },
+    ];
+    // No org membership for stranger
+    mockOrgMembers = [];
+
+    const res = await app.fetch(
+      new Request(
+        `http://localhost/embed/${ORG_PRES_ID}/v1/index.html?token=valid-stranger-token`,
+      ),
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('allows access with 200 when user is a member of the organization', async () => {
+    const ORG_PRES_ID = 'a41d9440-eca6-4812-8521-dea0ded5c003';
+    const ORG_ID = '33333333-3333-4333-8333-333333333333';
+
+    mockPresentations = [
+      {
+        id: ORG_PRES_ID,
+        slug: 'org-deck',
+        title: 'Org Deck',
+        ownerType: 'organization',
+        ownerId: ORG_ID,
+        visibility: 'org',
+      },
+    ];
+    mockVersions = [
+      {
+        id: 'ver-1',
+        presentationId: ORG_PRES_ID,
+        versionNumber: 1,
+        bundleS3Prefix: `presentations/${ORG_PRES_ID}/v1/`,
+      },
+    ];
+    // Membership exists for user
+    mockOrgMembers = [
+      {
+        orgId: ORG_ID,
+        userId: OTHER_USER_ID,
+        role: 'member',
+      },
+    ];
+
+    const res = await app.fetch(
+      new Request(
+        `http://localhost/embed/${ORG_PRES_ID}/v1/index.html?token=valid-stranger-token`,
       ),
     );
     expect(res.status).toBe(200);
