@@ -38,27 +38,23 @@ export function HeroCenteredBold({
         )}
 
         <h1
-          className="text-6xl font-black tracking-tight text-[var(--slide-text,#f1f5f9)] mb-6 leading-tight"
+          className="text-6xl font-black tracking-tight mb-6 leading-tight"
           style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
         >
           {title}
         </h1>
 
         {subtitle && (
-          <p className="text-2xl text-[var(--slide-text-muted,#94a3b8)] mb-8 font-normal leading-relaxed max-w-2xl">
+          <p className="text-2xl opacity-80 mb-8 font-normal leading-relaxed max-w-2xl">
             {subtitle}
           </p>
         )}
 
         {(author || date) && (
-          <div className="flex items-center justify-center gap-4 text-sm font-medium text-[var(--slide-accent-secondary,#D4AF37)] pt-4 border-t border-[var(--slide-border,rgba(255,255,255,0.08))] w-full max-w-md">
+          <div className="flex items-center justify-center gap-4 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full max-w-md">
             {author && <span>{author}</span>}
             {author && date && <span>•</span>}
-            {date && (
-              <span className="text-[var(--slide-text-muted,#94a3b8)]">
-                {date}
-              </span>
-            )}
+            {date && <span className="opacity-70">{date}</span>}
           </div>
         )}
 

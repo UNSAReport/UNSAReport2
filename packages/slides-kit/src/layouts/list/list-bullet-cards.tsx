@@ -36,14 +36,12 @@ export function ListBulletCards({
             className="p-6 justify-start"
           >
             <div className="flex items-start gap-4">
-              <span className="w-8 h-8 rounded-lg bg-[var(--slide-accent,#800020)] text-[var(--slide-accent-secondary,#D4AF37)] font-bold flex items-center justify-center shrink-0 text-sm">
+              <span className="w-8 h-8 rounded-lg border border-current font-bold flex items-center justify-center shrink-0 text-sm opacity-80">
                 {item.icon || '→'}
               </span>
               <div>
-                <h4 className="text-xl font-bold text-[var(--slide-text,#f1f5f9)] mb-2">
-                  {item.title}
-                </h4>
-                <p className="text-sm text-[var(--slide-text-muted,#94a3b8)] leading-relaxed">
+                <h4 className="text-xl font-bold mb-2">{item.title}</h4>
+                <p className="text-sm opacity-75 leading-relaxed">
                   {item.description}
                 </p>
               </div>

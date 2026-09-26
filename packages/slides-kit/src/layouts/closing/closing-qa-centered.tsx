@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
 import { SlideSection } from '@/primitives/SlideSection';
@@ -7,68 +8,66 @@ export interface ClosingQACenteredProps {
   title?: string;
   subtitle?: string;
   contactEmail?: string;
-  contactUrl?: string;
-  extraInfo?: string;
+  contactSpeaker?: string;
+  organization?: string;
+  children?: ReactNode;
 }
 
 /**
- * Layout de cierre con llamada a preguntas (Q&A), agradecimiento y tarjetas de contacto institucional.
+ * Diapositiva final para sesión de preguntas y respuestas (Q&A) y cierre formal.
  */
 export function ClosingQACentered({
   tag = 'Fin de la Presentación',
   title = '¿Preguntas o Comentarios?',
-  subtitle = 'Muchas gracias por su atención y participación activa.',
+  subtitle = 'Agradecemos su atención y abrimos el espacio para el debate académico.',
   contactEmail,
-  contactUrl,
-  extraInfo,
+  contactSpeaker,
+  organization = 'Universidad Nacional de San Agustín',
+  children,
 }: ClosingQACenteredProps) {
   return (
     <SlideSection withGradientBar={true}>
       <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto my-auto px-6">
-        <div className="mb-6">
-          <SlideBadge variant="secondary">{tag}</SlideBadge>
-        </div>
+        {tag && (
+          <div className="mb-6">
+            <SlideBadge variant="accent">{tag}</SlideBadge>
+          </div>
+        )}
 
         <h2
-          className="text-6xl font-black text-[var(--slide-text,#f1f5f9)] mb-4 tracking-tight leading-tight"
+          className="text-6xl font-black mb-4 tracking-tight leading-tight"
           style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
         >
           {title}
         </h2>
 
-        <p className="text-xl text-[var(--slide-text-muted,#94a3b8)] mb-8">
-          {subtitle}
-        </p>
+        <p className="text-xl opacity-80 mb-8">{subtitle}</p>
 
-        {(contactEmail || contactUrl || extraInfo) && (
-          <SlideCard variant="outlined" className="p-6 w-full max-w-lg">
-            <div className="flex flex-col gap-2 text-sm text-[var(--slide-text,#f1f5f9)]">
+        {(contactEmail || contactSpeaker) && (
+          <SlideCard variant="default" className="p-6 w-full max-w-md">
+            <div className="flex flex-col gap-2 text-sm">
+              {contactSpeaker && (
+                <div>
+                  <span className="font-semibold">Expositor: </span>
+                  <span>{contactSpeaker}</span>
+                </div>
+              )}
               {contactEmail && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-[var(--slide-accent-secondary,#D4AF37)] font-semibold">
-                    Contacto:
-                  </span>
-                  <span>{contactEmail}</span>
+                <div>
+                  <span className="font-semibold">Contacto: </span>
+                  <span className="font-mono opacity-80">{contactEmail}</span>
                 </div>
               )}
-              {contactUrl && (
-                <div className="flex items-center justify-center gap-2">
-                  <span className="text-[var(--slide-accent-secondary,#D4AF37)] font-semibold">
-                    Repositorio / Web:
-                  </span>
-                  <span className="text-[var(--slide-text-muted,#94a3b8)]">
-                    {contactUrl}
-                  </span>
-                </div>
-              )}
-              {extraInfo && (
-                <p className="text-xs text-[var(--slide-text-muted,#94a3b8)] mt-2 pt-2 border-t border-white/10">
-                  {extraInfo}
+              {organization && (
+                <p className="text-xs opacity-60 mt-2 pt-2 border-t border-current/10">
+                  {organization}
                 </p>
               )}
             </div>
           </SlideCard>
         )}
+
+        {children}
       </div>
     </SlideSection>
   );

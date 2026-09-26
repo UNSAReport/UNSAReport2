@@ -45,9 +45,19 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
       expect(categories).toContain(LayoutCategory.CLOSING);
     });
 
-    it('registra los 9 layouts fundacionales iniciales', () => {
+    it('registra los 110 layouts oficiales distribuidos en las 9 familias', () => {
       const layouts = listLayouts();
-      expect(layouts.length).toBeGreaterThanOrEqual(9);
+      expect(layouts.length).toBe(110);
+
+      expect(listLayouts({ category: LayoutCategory.HERO }).length).toBe(10);
+      expect(listLayouts({ category: LayoutCategory.SPLIT }).length).toBe(15);
+      expect(listLayouts({ category: LayoutCategory.BENTO }).length).toBe(20);
+      expect(listLayouts({ category: LayoutCategory.STATS }).length).toBe(15);
+      expect(listLayouts({ category: LayoutCategory.PROCESS }).length).toBe(15);
+      expect(listLayouts({ category: LayoutCategory.CODE }).length).toBe(10);
+      expect(listLayouts({ category: LayoutCategory.LIST }).length).toBe(10);
+      expect(listLayouts({ category: LayoutCategory.QUOTE }).length).toBe(8);
+      expect(listLayouts({ category: LayoutCategory.CLOSING }).length).toBe(7);
 
       const hero = getLayout('hero-centered-bold');
       expect(hero).toBeDefined();
@@ -64,15 +74,13 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
 
     it('permite filtrar layouts por categoría y búsqueda textual', () => {
       const bentoLayouts = listLayouts({ category: LayoutCategory.BENTO });
-      expect(bentoLayouts.length).toBeGreaterThanOrEqual(1);
+      expect(bentoLayouts.length).toBe(20);
       expect(
         bentoLayouts.every((l) => l.category === LayoutCategory.BENTO),
       ).toBe(true);
 
       const searchResults = listLayouts({ search: 'dashboard' });
-      expect(searchResults.some((l) => l.id === 'bento-4-featured-left')).toBe(
-        true,
-      );
+      expect(searchResults.some((l) => l.id === 'bento-dashboard')).toBe(true);
     });
 
     it('permite registrar layouts personalizados en caliente', () => {

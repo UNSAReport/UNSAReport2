@@ -4,9 +4,8 @@
     "composite": true,
     "outDir": "dist",
     "rootDir": "src",
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
     "jsx": "react-jsx",
     "types": ["bun", "node"]

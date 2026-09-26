@@ -37,15 +37,13 @@ export function HeroKPIBanner({
             </div>
           )}
           <h1
-            className="text-5xl font-black text-[var(--slide-text,#f1f5f9)] mb-4 max-w-4xl leading-tight"
+            className="text-5xl font-black mb-4 max-w-4xl leading-tight"
             style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
           >
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xl text-[var(--slide-text-muted,#94a3b8)] max-w-2xl">
-              {subtitle}
-            </p>
+            <p className="text-xl opacity-80 max-w-2xl">{subtitle}</p>
           )}
         </div>
 
@@ -54,19 +52,15 @@ export function HeroKPIBanner({
           className="p-8 my-6 flex-row items-center justify-between"
         >
           <div>
-            <div className="text-xs uppercase font-mono tracking-wider text-[var(--slide-text-muted,#94a3b8)] mb-1">
+            <div className="text-xs uppercase font-mono tracking-wider opacity-60 mb-1">
               Indicador Principal
             </div>
-            <div className="text-2xl font-bold text-[var(--slide-text,#f1f5f9)]">
-              {kpiLabel}
-            </div>
+            <div className="text-2xl font-bold">{kpiLabel}</div>
           </div>
-          <div className="text-6xl font-black text-[var(--slide-accent-secondary,#D4AF37)]">
-            {kpiNumber}
-          </div>
+          <div className="text-6xl font-black">{kpiNumber}</div>
         </SlideCard>
 
-        <div className="flex justify-between items-center text-xs text-[var(--slide-text-muted,#94a3b8)] pt-4 border-t border-white/10">
+        <div className="flex justify-between items-center text-xs opacity-60 pt-4 border-t border-current/10">
           <div>{author && <span>Expositor: {author}</span>}</div>
           <div>{date && <span>{date}</span>}</div>
         </div>

@@ -13,7 +13,7 @@ export interface HeroFullImageProps {
 }
 
 /**
- * Portada a pantalla completa con imagen fotográfica de fondo y overlay oscuro de alto contraste.
+ * Portada a pantalla completa con imagen de fondo y overlay de contraste estructural.
  */
 export function HeroFullImage({
   tag,
@@ -26,7 +26,7 @@ export function HeroFullImage({
   children,
 }: HeroFullImageProps) {
   return (
-    <div className="relative w-full h-full flex flex-col justify-between p-12 text-white overflow-hidden">
+    <div className="relative w-full h-full flex flex-col justify-between p-12 overflow-hidden">
       {/* Imagen de fondo */}
       <img
         src={imageUrl}
@@ -34,9 +34,9 @@ export function HeroFullImage({
         className="absolute inset-0 w-full h-full object-cover z-0"
       />
 
-      {/* Capa oscura de contraste */}
+      {/* Capa de contraste estructural que usa el fondo del tema */}
       <div
-        className="absolute inset-0 bg-[#0b0f19] z-0"
+        className="absolute inset-0 bg-[var(--slide-bg)] z-0"
         style={{ opacity: overlayOpacity }}
       />
 
@@ -47,18 +47,18 @@ export function HeroFullImage({
 
       {/* Contenido central */}
       <div className="relative z-10 max-w-4xl my-auto">
-        <h1 className="text-6xl font-black tracking-tight mb-6 leading-tight drop-shadow-lg">
+        <h1 className="text-6xl font-black tracking-tight mb-6 leading-tight drop-shadow-md">
           {title}
         </h1>
         {subtitle && (
-          <p className="text-2xl text-slate-200/90 leading-relaxed max-w-2xl drop-shadow">
+          <p className="text-2xl opacity-85 leading-relaxed max-w-2xl drop-shadow-sm">
             {subtitle}
           </p>
         )}
       </div>
 
       {/* Footer */}
-      <div className="relative z-10 flex justify-between items-center text-sm font-medium text-slate-300 pt-4 border-t border-white/20">
+      <div className="relative z-10 flex justify-between items-center text-sm font-medium opacity-80 pt-4 border-t border-current/20">
         {author && <span>{author}</span>}
         {date && <span>{date}</span>}
       </div>

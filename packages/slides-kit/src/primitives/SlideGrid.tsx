@@ -3,6 +3,8 @@ import type { CSSProperties, ReactNode } from 'react';
 export interface SlideGridProps {
   /** Número de columnas (1 a 12) */
   cols?: 1 | 2 | 3 | 4 | 5 | 6 | 12;
+  /** Alias para cols */
+  columns?: 1 | 2 | 3 | 4 | 5 | 6 | 12;
   /** Espaciado entre celdas (en rem o pixels) */
   gap?: string | number;
   /** Elementos hijos */
@@ -28,12 +30,14 @@ const colClasses: Record<number, string> = {
  */
 export function SlideGrid({
   cols = 2,
+  columns,
   gap = '1.5rem',
   children,
   className = '',
   style = {},
 }: SlideGridProps) {
-  const colClass = colClasses[cols] || 'grid-cols-2';
+  const finalCols = columns ?? cols;
+  const colClass = colClasses[finalCols] || 'grid-cols-2';
 
   return (
     <div

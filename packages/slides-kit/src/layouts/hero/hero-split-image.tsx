@@ -40,25 +40,21 @@ export function HeroSplitImage({
               </div>
             )}
             <h1
-              className="text-5xl font-black tracking-tight text-[var(--slide-text,#f1f5f9)] mb-4 leading-tight"
+              className="text-5xl font-black tracking-tight mb-4 leading-tight"
               style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
             >
               {title}
             </h1>
             {subtitle && (
-              <p className="text-xl text-[var(--slide-text-muted,#94a3b8)] mb-6 leading-relaxed">
+              <p className="text-xl opacity-80 mb-6 leading-relaxed">
                 {subtitle}
               </p>
             )}
             {(author || date) && (
-              <div className="flex items-center gap-3 text-sm text-[var(--slide-accent-secondary,#D4AF37)] font-medium pt-4 border-t border-[var(--slide-border,rgba(255,255,255,0.1))] w-full">
+              <div className="flex items-center gap-3 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full">
                 {author && <span>{author}</span>}
                 {author && date && <span>•</span>}
-                {date && (
-                  <span className="text-[var(--slide-text-muted,#94a3b8)]">
-                    {date}
-                  </span>
-                )}
+                {date && <span className="opacity-70">{date}</span>}
               </div>
             )}
             {children}
@@ -66,7 +62,7 @@ export function HeroSplitImage({
         }
         right={
           <div className="h-full flex items-center justify-center">
-            <div className="w-full h-80 rounded-[var(--slide-radius,12px)] overflow-hidden border border-[var(--slide-border,rgba(255,255,255,0.1))] shadow-2xl">
+            <div className="w-full h-80 rounded-[var(--slide-radius,12px)] overflow-hidden border border-current/10 shadow-2xl">
               <img
                 src={imageUrl}
                 alt={imageAlt}

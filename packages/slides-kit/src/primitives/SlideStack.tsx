@@ -5,6 +5,8 @@ export interface SlideStackProps {
   direction?: 'vertical' | 'horizontal';
   /** Espaciado entre elementos */
   gap?: string | number;
+  /** Alias para gap */
+  spacing?: string | number;
   /** Alineación en el eje transversal */
   align?: 'start' | 'center' | 'end' | 'stretch';
   /** Justificación en el eje principal */
@@ -37,7 +39,8 @@ const justifyClasses = {
  */
 export function SlideStack({
   direction = 'vertical',
-  gap = '1rem',
+  gap,
+  spacing = '1rem',
   align = 'stretch',
   justify = 'start',
   children,
@@ -45,11 +48,12 @@ export function SlideStack({
   style = {},
 }: SlideStackProps) {
   const dirClass = direction === 'vertical' ? 'flex-col' : 'flex-row';
+  const finalGap = gap ?? spacing;
 
   return (
     <div
       className={`flex ${dirClass} ${alignClasses[align]} ${justifyClasses[justify]} w-full ${className}`}
-      style={{ gap, ...style }}
+      style={{ gap: finalGap, ...style }}
     >
       {children}
     </div>

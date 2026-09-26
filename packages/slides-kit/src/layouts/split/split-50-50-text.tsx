@@ -14,7 +14,7 @@ export interface Split5050TextProps {
 }
 
 /**
- * Layout de dos columnas 50/50 balanceadas para comparaciones de texto o conceptos.
+ * Layout de dos columnas 50/50 balanceadas para comparaciones estructurales de conceptos.
  */
 export function Split5050Text({
   tag,
@@ -32,10 +32,8 @@ export function Split5050Text({
         gap="2rem"
         left={
           <SlideCard className="h-full justify-start p-8">
-            <h3 className="text-2xl font-bold mb-4 text-[var(--slide-accent-secondary,#D4AF37)]">
-              {leftTitle}
-            </h3>
-            <div className="text-base text-[var(--slide-text,#f1f5f9)] leading-relaxed">
+            <h3 className="text-2xl font-bold mb-4">{leftTitle}</h3>
+            <div className="text-base leading-relaxed opacity-90">
               {typeof leftContent === 'string' ? (
                 <p className="whitespace-pre-line">{leftContent}</p>
               ) : (
@@ -46,10 +44,8 @@ export function Split5050Text({
         }
         right={
           <SlideCard className="h-full justify-start p-8">
-            <h3 className="text-2xl font-bold mb-4 text-[var(--slide-accent,#800020)]">
-              {rightTitle}
-            </h3>
-            <div className="text-base text-[var(--slide-text,#f1f5f9)] leading-relaxed">
+            <h3 className="text-2xl font-bold mb-4">{rightTitle}</h3>
+            <div className="text-base leading-relaxed opacity-90">
               {typeof rightContent === 'string' ? (
                 <p className="whitespace-pre-line">{rightContent}</p>
               ) : (
