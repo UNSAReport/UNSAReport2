@@ -23,7 +23,7 @@ export const CliDeployResponseSchema = z.object({
   presentationId: z.string().uuid(),
   slug: z.string(),
   version: z.number(),
-  url: z.string().url(),
+  url: z.url(),
   message: z.string(),
 });
 

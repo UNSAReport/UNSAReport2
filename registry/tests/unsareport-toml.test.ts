@@ -117,6 +117,91 @@ files = ["tsconfig.json"]
     expect(doc.scope?.files).toEqual(['tsconfig.json']);
   });
 
+  it('validates a scope document with [workspace]', () => {
+    const wsScopeToml = `
+[project]
+config_version = 1
+
+[workspace]
+packages = ["*"]
+
+[scope]
+name = "@unsareport"
+description = "Official scope with workspace"
+files = ["tsconfig.json"]
+`;
+    const doc = validateUnsareportToml(parseUnsareportToml(wsScopeToml));
+    expect(doc.project.configVersion).toBe(1);
+    expect(doc.workspace?.packages).toEqual(['*']);
+    expect(doc.scope?.name).toBe('@unsareport');
+    expect(doc.scope?.files).toEqual(['tsconfig.json']);
+  });
+
+  it('validates a standalone [workspace] document', () => {
+    const wsToml = `
+[project]
+config_version = 1
+
+[workspace]
+members = ["packages/*"]
+`;
+    const doc = validateUnsareportToml(parseUnsareportToml(wsToml));
+    expect(doc.project.configVersion).toBe(1);
+    expect(doc.workspace?.members).toEqual(['packages/*']);
+  });
+
+  it('rejects invalid [workspace] configurations', () => {
+    const invalidWs = `
+[project]
+config_version = 1
+
+[workspace]
+packages = "not-an-array"
+`;
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(invalidWs)),
+    ).toThrow(ValidationError);
+  });
+
+  it('validates package document with [root-files]', () => {
+    const rootFilesToml = `
+[project]
+config_version = 1
+
+[package]
+name = "@testscope/cardo"
+version = "1.0.0"
+
+[root-files]
+files = ["tsconfig.unsareport.json"]
+
+[components]
+files = ["lib.typ"]
+`;
+    const doc = validateUnsareportToml(parseUnsareportToml(rootFilesToml));
+    expect(doc.project.configVersion).toBe(1);
+    expect(doc.name).toBe('@testscope/cardo');
+    expect(doc.rootFiles?.files).toEqual(['tsconfig.unsareport.json']);
+  });
+
+  it('rejects [root-files] in scope without [package]', () => {
+    const scopeRootFiles = `
+[project]
+config_version = 1
+
+[scope]
+name = "@testscope"
+description = "Scope with root-files"
+files = ["lib.typ"]
+
+[root-files]
+files = ["tsconfig.unsareport.json"]
+`;
+    expect(() =>
+      validateUnsareportToml(parseUnsareportToml(scopeRootFiles)),
+    ).toThrow(ValidationError);
+  });
+
   it('requires [project] config_version = 1', () => {
     const missingProject = `
 [package]

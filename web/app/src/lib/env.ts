@@ -1,17 +1,17 @@
 import { z } from 'zod';
 
 const serverEnvSchema = z.object({
-  IDP_ISSUER: z.string().url().default('http://localhost:9876/api/auth'),
-  IDP_JWKS_URL: z.string().url().optional(),
-  REGISTRY_URL: z.string().url().default('http://localhost:9876/api/registry'),
-  SLIDES_URL: z.string().url().default('http://localhost:9876/api/slides'),
-  BASE_URL: z.string().url().default('http://localhost:9876'),
-  CLIENT_REDIRECT_URL: z.string().url().default('http://localhost:9876'),
+  IDP_ISSUER: z.url().default('http://localhost:9876/api/auth'),
+  IDP_JWKS_URL: z.url().optional(),
+  REGISTRY_URL: z.url().default('http://localhost:9876/api/registry'),
+  SLIDES_URL: z.url().default('http://localhost:9876/api/slides'),
+  BASE_URL: z.url().default('http://localhost:9876'),
+  CLIENT_REDIRECT_URL: z.url().default('http://localhost:9876'),
   PORT: z.coerce.number().default(3100),
 });
 
 const clientEnvSchema = z.object({
-  BASE_URL: z.string().url().default('http://localhost:9876'),
+  BASE_URL: z.url().default('http://localhost:9876'),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

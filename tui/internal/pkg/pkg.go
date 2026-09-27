@@ -20,20 +20,24 @@ type ProjectDef struct {
 	TypstEntry    string `toml:"typst_entry,omitempty"`
 }
 
+type WorkspaceDef = project.WorkspaceDef
 type ScopeDef = project.ScopeDef
 type PackageDef = project.PackageDecl
 type ComponentsDef = project.ComponentsDef
 type TemplatesDef = project.TemplatesDef
+type RootFilesDef = project.RootFilesDef
 type CommandDef = project.CommandDef
 type ConfigSchemaEntry = project.ConfigSchemaEntry
 
 type PkgToml struct {
-	Project      ProjectDef                   `toml:"project"`
-	Scope        *ScopeDef                    `toml:"scope,omitempty"`
-	Package      PackageDef                   `toml:"package"`
-	Dependencies map[string]string            `toml:"dependencies,omitempty"`
-	Components   ComponentsDef                `toml:"components"`
-	Templates    TemplatesDef                 `toml:"templates"`
+	Project      ProjectDef                    `toml:"project"`
+	Workspace    *WorkspaceDef                 `toml:"workspace,omitempty"`
+	Scope        *ScopeDef                     `toml:"scope,omitempty"`
+	Package      PackageDef                    `toml:"package"`
+	Dependencies map[string]string             `toml:"dependencies,omitempty"`
+	Components   ComponentsDef                 `toml:"components"`
+	Templates    TemplatesDef                  `toml:"templates"`
+	RootFiles    *RootFilesDef                 `toml:"root-files,omitempty"`
 	Commands     map[string]CommandDef         `toml:"commands,omitempty"`
 	Hooks        map[string]project.HookTiming `toml:"hooks,omitempty"`
 	ConfigSchema map[string]ConfigSchemaEntry  `toml:"config-schema,omitempty"`
@@ -89,7 +93,7 @@ func Validate(p PkgToml) error {
 		if !scopeRe.MatchString(sn) {
 			return fmt.Errorf("invalid [scope] name %q (want @scope, e.g. @unsareport)", p.Scope.Name)
 		}
-		if len(p.Scope.Files) == 0 {
+		if len(p.Scope.Files) == 0 && p.Workspace == nil {
 			return fmt.Errorf("[scope] files must list at least one glob")
 		}
 		for _, g := range p.Scope.Files {
@@ -99,8 +103,35 @@ func Validate(p PkgToml) error {
 		}
 	}
 
-	if p.Package.Name == "" && p.Scope == nil {
-		return fmt.Errorf("%s requires a [package] or [scope] table", config.ConfigFileName)
+	if p.RootFiles != nil {
+		if p.Package.Name == "" {
+			return fmt.Errorf("[root-files] is only allowed in packages, not scopes")
+		}
+		if len(p.RootFiles.Files) == 0 {
+			return fmt.Errorf("[root-files] files must list at least one glob")
+		}
+		for _, g := range p.RootFiles.Files {
+			if strings.TrimSpace(g) == "" || strings.HasPrefix(g, "/") || g == ".." || strings.HasPrefix(g, "../") || strings.Contains(g, "\\") {
+				return fmt.Errorf("invalid [root-files] glob %q", g)
+			}
+		}
+	}
+
+	if p.Package.Name == "" && p.Scope == nil && p.Workspace == nil {
+		return fmt.Errorf("%s requires a [package], [scope], or [workspace] table", config.ConfigFileName)
+	}
+
+	if p.Workspace != nil {
+		for _, m := range p.Workspace.Members {
+			if strings.TrimSpace(m) == "" || strings.HasPrefix(m, "/") || strings.Contains(m, "\\") || m == ".." || strings.HasPrefix(m, "../") {
+				return fmt.Errorf("invalid [workspace] members pattern %q", m)
+			}
+		}
+		for _, pkgPattern := range p.Workspace.Packages {
+			if strings.TrimSpace(pkgPattern) == "" || strings.HasPrefix(pkgPattern, "/") || strings.Contains(pkgPattern, "\\") || pkgPattern == ".." || strings.HasPrefix(pkgPattern, "../") {
+				return fmt.Errorf("invalid [workspace] packages pattern %q", pkgPattern)
+			}
+		}
 	}
 
 	if p.Package.Name != "" {

@@ -73,6 +73,10 @@ type TemplatesDef struct {
 	Files []string `toml:"files"`
 }
 
+type RootFilesDef struct {
+	Files []string `toml:"files"`
+}
+
 type CommandDef struct {
 	Description string     `toml:"description"`
 	Commands    OSCommands `toml:"commands"`
@@ -101,6 +105,7 @@ type SpecConfig struct {
 	Package       *PackageDecl                 `toml:"package,omitempty"`
 	Components    *ComponentsDef               `toml:"components,omitempty"`
 	Templates     *TemplatesDef                `toml:"templates,omitempty"`
+	RootFiles     *RootFilesDef                `toml:"root-files,omitempty"`
 	Commands      map[string]CommandDef        `toml:"commands,omitempty"`
 	ConfigSchema  map[string]ConfigSchemaEntry `toml:"config-schema,omitempty"`
 	Scripts       map[string]ScriptDef         `toml:"scripts"`

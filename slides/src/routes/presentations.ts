@@ -254,7 +254,7 @@ const updateSchema = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).nullable().optional(),
   visibility: PresentationVisibilitySchema.optional(),
-  thumbnailUrl: z.string().url().nullable().optional(),
+  thumbnailUrl: z.url().nullable().optional(),
 });
 
 presentationsRouter.patch('/:id', async (c) => {

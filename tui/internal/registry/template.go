@@ -16,7 +16,6 @@ import (
 	"github.com/UNSAReport/tui/internal/scripts"
 )
 
-// TemplateTarget describes a resolved package template entry ready for compilation.
 type TemplateTarget struct {
 	WorkspaceRoot string
 	PkgDir        string
@@ -28,7 +27,6 @@ type TemplateTarget struct {
 	OutputPath    string
 }
 
-// DiscoveredTemplate represents a discovered template candidate in a workspace.
 type DiscoveredTemplate struct {
 	Name        string
 	Dir         string
@@ -36,27 +34,22 @@ type DiscoveredTemplate struct {
 	EntryPath   string
 }
 
-// BuildOptions configures template compilation.
 type BuildOptions struct {
 	Target  string
 	Output  string
 	NoHooks bool
 }
 
-// WatchOptions configures template live-watching.
 type WatchOptions struct {
 	Target string
 	Open   bool
 }
 
-// BuildResult contains information about the completed template compilation.
 type BuildResult struct {
 	Target     *TemplateTarget
 	OutputPath string
 }
 
-// FindWorkspaceRoot locates the root of a synced package workspace by searching
-// upwards for the components/.unsarep-sync.json marker file or a synced components directory.
 func FindWorkspaceRoot(start string) (string, error) {
 	abs, err := filepath.Abs(start)
 	if err != nil {
@@ -80,7 +73,6 @@ func FindWorkspaceRoot(start string) (string, error) {
 	}
 }
 
-// ListTemplatePackages discovers all packages within the workspace that declare templates.
 func ListTemplatePackages(wsRoot string) ([]DiscoveredTemplate, error) {
 	pkgs, _, err := discoverWorkspace(wsRoot)
 	if err != nil {
@@ -156,8 +148,6 @@ func resolvePackageTemplateEntry(pkgDir string, decl pkg.PkgToml) (string, error
 	return "", fmt.Errorf("no %s file found in package %s", config.ExtTypst, pkgDir)
 }
 
-// ResolveTemplateTarget resolves a target identifier (package name, folder, or typst file)
-// to a fully populated TemplateTarget ready for compilation.
 func ResolveTemplateTarget(wsRoot, target string, cwd string) (*TemplateTarget, error) {
 	pkgs, _, err := discoverWorkspace(wsRoot)
 	if err != nil {
@@ -384,8 +374,6 @@ func runPackageHooks(wsRoot string, when string, target *TemplateTarget) error {
 	return nil
 }
 
-// BuildTemplate compiles the resolved template using Typst with workspace --root,
-// running pre- and post-build package hooks.
 func BuildTemplate(ctx context.Context, wsRoot string, opts BuildOptions, cwd string) (*BuildResult, error) {
 	target, err := ResolveTemplateTarget(wsRoot, opts.Target, cwd)
 	if err != nil {
@@ -441,7 +429,6 @@ func BuildTemplate(ctx context.Context, wsRoot string, opts BuildOptions, cwd st
 	}, nil
 }
 
-// WatchTemplate executes typst watch with --root set to the workspace root.
 func WatchTemplate(ctx context.Context, wsRoot string, opts WatchOptions, cwd string) error {
 	target, err := ResolveTemplateTarget(wsRoot, opts.Target, cwd)
 	if err != nil {
