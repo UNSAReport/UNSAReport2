@@ -70,7 +70,7 @@ Validates package manifest (`unsareport.toml`), bundles components, and uploads 
 | `mode` | No | `auto` | Execution mode: `auto`, `package` (single package), or `scope` (scope monorepo). |
 | `packages-dir` | No | `packages` | Subdirectory containing packages when running in `scope` mode. |
 | `registry-url` | No | `https://unsareport.ynoacamino.tech` | Base URL of the target UNSAReport package registry. |
-| `version` | No | `latest` | Version of `unsarep` CLI to install from GitHub Releases if not already available in runner `PATH`. |
+| `version` | No | `latest` | Version of `unsarep` CLI to install (`latest`, `dev`, `v...`). When invoked via `@dev`, `latest` automatically builds `dev` from source. |
 | `check` | No | `true` | Whether to execute `unsarep registry check` before publishing. |
 | `dry-run` | No | `false` | If `true`, validates package integrity without uploading to registry. Useful for Pull Request CI workflows. |
 | `cache` | No | `true` | Whether to automatically cache and skip unchanged packages across workflow runs. |
@@ -101,7 +101,7 @@ Downloads the precompiled `unsarep` CLI binary, verifies its sha256 checksum aga
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `version` | No | `latest` | Tag or version to install (`latest`, `v0.1.0`, etc.). |
+| `version` | No | `latest` | Tag or version to install (`latest`, `dev`, `v0.1.0`, etc.). When invoked via `@dev`, `latest` automatically builds `dev` from source. |
 
 ### Outputs
 

@@ -4,6 +4,7 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 readonly PUBLISH_SCRIPT="${PROJECT_ROOT}/actions/publish/publish.sh"
+readonly INSTALL_SCRIPT="${PROJECT_ROOT}/actions/setup/install.sh"
 readonly FIXTURES_DIR="${PROJECT_ROOT}/actions/test/fixtures"
 readonly VALID_TOKEN="unsareport_pat_11112222333344445555666677778888"
 readonly TEST_TEMP_BASE="${PROJECT_ROOT}/actions/test/.tmp"
@@ -188,5 +189,62 @@ if ! grep -q "skipped-count=1" "${TEST_OUTPUT_SCOPE_3}"; then
   exit 1
 fi
 echo "PASS: Partial change detection verified: pkg-a processed, pkg-b skipped."
+
+echo "--> Test 5: install.sh build dev CLI from source"
+INSTALL_TEST_DIR="${TEST_TEMP_BASE}/install-dev-bin"
+mkdir -p "${INSTALL_TEST_DIR}"
+INSTALL_OUTPUT="${TEST_TEMP_BASE}/install-output.txt"
+
+RUNNER_OS="Linux" RUNNER_ARCH="X64" RUNNER_TEMP="${INSTALL_TEST_DIR}" GITHUB_OUTPUT="${INSTALL_OUTPUT}" \
+bash "${INSTALL_SCRIPT}" dev
+
+if [ ! -f "${INSTALL_TEST_DIR}/unsarep" ]; then
+  echo "FAIL: Expected unsarep executable in ${INSTALL_TEST_DIR}"
+  exit 1
+fi
+if ! grep -q "cli-version=unsarep dev" "${INSTALL_OUTPUT}"; then
+  echo "FAIL: Expected cli-version=unsarep dev in ${INSTALL_OUTPUT}"
+  exit 1
+fi
+echo "PASS: install.sh dev successfully compiled CLI from source."
+
+echo "--> Test 6: Scope manifest with [workspace] table"
+WS_SCOPE="${TEST_TEMP_BASE}/ws-scope"
+cp -r "${FIXTURES_DIR}/sample-scope" "${WS_SCOPE}"
+cat << 'WS_EOF' > "${WS_SCOPE}/unsareport.toml"
+[project]
+config_version = 1
+
+[workspace]
+packages = ["packages/*"]
+
+[scope]
+name = "@testscope"
+description = "Scope fixture with workspace declaration"
+files = ["README.md"]
+WS_EOF
+
+WS_OUTPUT="${TEST_TEMP_BASE}/output-ws-scope.txt"
+WS_CACHE="${TEST_TEMP_BASE}/cache-ws-scope"
+mkdir -p "${WS_CACHE}"
+
+INPUT_TOKEN="${VALID_TOKEN}" \
+INPUT_DIR="${WS_SCOPE}" \
+INPUT_MODE="scope" \
+INPUT_DRY_RUN="true" \
+INPUT_CACHE="false" \
+CACHE_DIR="${WS_CACHE}" \
+GITHUB_OUTPUT="${WS_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}"
+
+if ! grep -q "scope-name=@testscope" "${WS_OUTPUT}"; then
+  echo "FAIL: Expected scope-name=@testscope in ${WS_OUTPUT}"
+  exit 1
+fi
+if ! grep -q "published-count=2" "${WS_OUTPUT}"; then
+  echo "FAIL: Expected published-count=2 for scope with [workspace]"
+  exit 1
+fi
+echo "PASS: Scope manifest with [workspace] processed and packages evaluated successfully."
 
 echo "=== All publish tests passed successfully! ==="
