@@ -20,40 +20,12 @@ type ProjectDef struct {
 	TypstEntry    string `toml:"typst_entry,omitempty"`
 }
 
-type ScopeDef struct {
-	Name        string   `toml:"name"`
-	Description string   `toml:"description,omitempty"`
-	Files       []string `toml:"files"`
-}
-
-type PackageDef struct {
-	Name          string   `toml:"name"`
-	Version       string   `toml:"version"`
-	Description   string   `toml:"description,omitempty"`
-	DisplayName   string   `toml:"displayName,omitempty"`
-	Tags          []string `toml:"tags,omitempty"`
-	CommandPrefix string   `toml:"command_prefix,omitempty"`
-}
-
-type ComponentsDef struct {
-	Files []string `toml:"files"`
-}
-
-type TemplatesDef struct {
-	Files []string `toml:"files"`
-}
-
-type CommandDef struct {
-	Description string             `toml:"description"`
-	Commands    project.OSCommands `toml:"commands"`
-}
-
-type ConfigSchemaEntry struct {
-	Type     string `toml:"type"`
-	Required bool   `toml:"required"`
-	Default  any    `toml:"default,omitempty"`
-	Doc      string `toml:"doc,omitempty"`
-}
+type ScopeDef = project.ScopeDef
+type PackageDef = project.PackageDecl
+type ComponentsDef = project.ComponentsDef
+type TemplatesDef = project.TemplatesDef
+type CommandDef = project.CommandDef
+type ConfigSchemaEntry = project.ConfigSchemaEntry
 
 type PkgToml struct {
 	Project      ProjectDef                   `toml:"project"`

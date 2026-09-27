@@ -61,6 +61,9 @@ func checkReports(root string, cfg project.SpecConfig) []Finding {
 		if name == "components" || name == "unsareport.d" || strings.HasPrefix(name, ".") {
 			continue
 		}
+		if _, sErr := os.Stat(filepath.Join(root, name, config.ConfigFileName)); sErr == nil {
+			continue
+		}
 		rel, _ := filepath.Rel(root, filepath.Join(root, name))
 		if strings.Contains(rel, string(os.PathSeparator)) {
 			continue
@@ -86,6 +89,12 @@ func hasNestedReport(dir, entry string) (bool, error) {
 			return nil
 		}
 		if d.IsDir() {
+			if d.Name() == "template" || d.Name() == "components" || strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			if _, sErr := os.Stat(filepath.Join(p, config.ConfigFileName)); sErr == nil {
+				return filepath.SkipDir
+			}
 			rel, _ := filepath.Rel(dir, p)
 			if strings.Contains(rel, string(os.PathSeparator)) {
 				if _, err := os.Stat(filepath.Join(p, entry)); err == nil {
