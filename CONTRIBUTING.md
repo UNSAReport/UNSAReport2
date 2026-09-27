@@ -141,6 +141,8 @@ El ecosistema de diapositivas de UNSAReport está compuesto por:
   - `/presentations/$slug`: Visor institucional con iframe sandboxed y notas de orador.
   - `/presentations/catalog`: Showcase interactivo de los 110 layouts y 3 temas.
 
+Para consultar los diagramas de arquitectura detallados, estructura de archivos y flujos de registro, revisa la [Guía de Arquitectura de Slides](docs/slides.md) y la documentación de [`@unsa/slides-kit`](packages/slides-kit/README.md).
+
 ---
 
 ## Pruebas y calidad de código

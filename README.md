@@ -154,6 +154,8 @@ unsarep slides link
 unsarep slides deploy
 ```
 
+Para más detalles sobre la arquitectura modular, estructura de archivos y diagramas de flujo de diapositivas, consulta la [Guía de Arquitectura de Slides](docs/slides.md).
+
 ---
 
 ## Plataforma Web y Publicación de Paquetes
