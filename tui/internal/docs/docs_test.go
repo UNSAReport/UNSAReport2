@@ -1018,3 +1018,40 @@ func TestBuildWatchArgs(t *testing.T) {
 	}
 }
 
+func TestTypstEntryToPDF(t *testing.T) {
+	validCases := []struct {
+		entry    string
+		expected string
+	}{
+		{"report.typ", "report.pdf"},
+		{"main.typ", "main.pdf"},
+		{"lab-01.typ", "lab-01.pdf"},
+		{"subdir/report.typ", "subdir/report.pdf"},
+	}
+
+	for _, tc := range validCases {
+		got, err := typstEntryToPDF(tc.entry)
+		if err != nil {
+			t.Fatalf("typstEntryToPDF(%q) returned unexpected error: %v", tc.entry, err)
+		}
+		if got != tc.expected {
+			t.Errorf("typstEntryToPDF(%q) = %q, want %q", tc.entry, got, tc.expected)
+		}
+	}
+
+	invalidCases := []string{
+		"",
+		"report.pdf",
+		"report.txt",
+		"main",
+		".typ",
+	}
+
+	for _, entry := range invalidCases {
+		got, err := typstEntryToPDF(entry)
+		if err == nil {
+			t.Errorf("typstEntryToPDF(%q) expected error, got %q", entry, got)
+		}
+	}
+}
+

@@ -1445,7 +1445,11 @@ func Build(cwd, report string) error {
 	}
 	in := filepath.Join(reportDir, entry)
 	hookEnvAfter := []string{config.EnvReportDir + "=" + report, config.EnvTypstEntry + "=" + entry}
-	out := filepath.Join(reportDir, config.DefaultReportPDF)
+	outPDF, err := typstEntryToPDF(entry)
+	if err != nil {
+		return err
+	}
+	out := filepath.Join(reportDir, outPDF)
 	cmd := exec.Command(bin, "compile", "--root", root, in, out)
 	cmd.Dir = root
 	cmd.Stdin = os.Stdin
@@ -1470,6 +1474,17 @@ func buildWatchArgs(root, in, out string, open bool) []string {
 	return args
 }
 
+func typstEntryToPDF(entry string) (string, error) {
+	if !strings.HasSuffix(entry, config.ExtTypst) {
+		return "", fmt.Errorf("typst entry %q does not have %s extension", entry, config.ExtTypst)
+	}
+	base := strings.TrimSuffix(entry, config.ExtTypst)
+	if base == "" {
+		return "", fmt.Errorf("typst entry %q has empty base name", entry)
+	}
+	return base + config.ExtPDF, nil
+}
+
 func Watch(cwd string, opt WatchOptions) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
@@ -1485,7 +1500,11 @@ func Watch(cwd string, opt WatchOptions) error {
 		return err
 	}
 	in := filepath.Join(reportDir, entry)
-	out := filepath.Join(reportDir, config.DefaultReportPDF)
+	outPDF, err := typstEntryToPDF(entry)
+	if err != nil {
+		return err
+	}
+	out := filepath.Join(reportDir, outPDF)
 	args := buildWatchArgs(root, in, out, opt.Open)
 	cmd := exec.Command(bin, args...)
 	cmd.Dir = root

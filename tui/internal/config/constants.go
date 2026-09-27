@@ -32,6 +32,8 @@ const (
 	DefaultReportWord    = "Informe"
 	DefaultCodeWord      = "Código Fuente"
 	DefaultFileTemplate  = "{output_type}_{lab_number}"
+	ExtTypst             = ".typ"
+	ExtPDF               = ".pdf"
 )
 
 const (
