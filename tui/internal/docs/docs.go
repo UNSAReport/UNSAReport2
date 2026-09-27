@@ -1422,6 +1422,64 @@ func resolveTypstEntry(reportDir, configured string, prompt func(string) (string
 	}
 }
 
+func enrichConfigForTarget(root, reportDir string, cfg *project.SpecConfig, hookEnv *[]string) {
+	cur := reportDir
+	for cur != root && cur != filepath.Dir(cur) {
+		manifestPath := filepath.Join(cur, config.ConfigFileName)
+		if _, err := os.Stat(manifestPath); err == nil {
+			pkgCfg, pErr := project.Load(manifestPath)
+			if pErr == nil {
+				for a, s := range pkgCfg.Scripts {
+					if _, exists := cfg.Scripts[a]; !exists {
+						cfg.Scripts[a] = s
+					}
+				}
+				for std, timing := range pkgCfg.Hooks {
+					if _, exists := cfg.Hooks[std]; !exists {
+						cfg.Hooks[std] = timing
+					}
+				}
+				prefix := ""
+				if pkgCfg.Package != nil && pkgCfg.Package.CommandPrefix != "" {
+					prefix = project.SanitizeEnvPart(pkgCfg.Package.CommandPrefix)
+				} else if pkgCfg.Package != nil {
+					prefix = project.SanitizeEnvPart(pkgCfg.Package.Name)
+				}
+				if prefix != "" && pkgCfg.ConfigSchema != nil {
+					for k, schema := range pkgCfg.ConfigSchema {
+						if schema.Default != nil {
+							envKey := config.EnvConfigPrefix + prefix + "_" + project.SanitizeEnvPart(k)
+							envVal := fmt.Sprintf("%v", schema.Default)
+							*hookEnv = append(*hookEnv, envKey+"="+envVal)
+						}
+					}
+				}
+			}
+			break
+		}
+		cur = filepath.Dir(cur)
+	}
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = in.Close() }()
+
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = out.Close() }()
+
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
+	return out.Close()
+}
+
 func Build(cwd, report string) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
@@ -1430,7 +1488,9 @@ func Build(cwd, report string) error {
 	if err := runCheck(root); err != nil {
 		return err
 	}
+	reportDir := filepath.Join(root, report)
 	hookEnvBefore := []string{config.EnvReportDir + "=" + report}
+	enrichConfigForTarget(root, reportDir, &cfg, &hookEnvBefore)
 	if err := runHooks(root, "build", project.HookBefore, cfg, hookEnvBefore); err != nil {
 		return err
 	}
@@ -1438,13 +1498,13 @@ func Build(cwd, report string) error {
 	if err != nil {
 		return err
 	}
-	reportDir := filepath.Join(root, report)
 	entry, err := resolveTypstEntry(reportDir, cfg.Project.TypstEntry, promptLine)
 	if err != nil {
 		return err
 	}
 	in := filepath.Join(reportDir, entry)
 	hookEnvAfter := []string{config.EnvReportDir + "=" + report, config.EnvTypstEntry + "=" + entry}
+	enrichConfigForTarget(root, reportDir, &cfg, &hookEnvAfter)
 	outPDF, err := typstEntryToPDF(entry)
 	if err != nil {
 		return err
@@ -1457,6 +1517,12 @@ func Build(cwd, report string) error {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("typst compile failed: %w", err)
+	}
+	reportPdf := filepath.Join(reportDir, config.DefaultReportPDF)
+	if out != reportPdf {
+		if _, statErr := os.Stat(reportPdf); os.IsNotExist(statErr) {
+			_ = copyFile(out, reportPdf)
+		}
 	}
 	return runHooks(root, "build", project.HookAfter, cfg, hookEnvAfter)
 }

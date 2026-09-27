@@ -121,4 +121,31 @@ func TestDocsInitCmdFlags(t *testing.T) {
 	}
 }
 
+func TestRegistryBuildCmdFlags(t *testing.T) {
+	cmd := newRegistryBuildCmd()
+	if f := cmd.Flags().Lookup("target"); f == nil {
+		t.Fatal("expected --target flag on registry build command")
+	}
+	if f := cmd.Flags().Lookup("output"); f == nil {
+		t.Fatal("expected --output flag on registry build command")
+	} else if f.Shorthand != "o" {
+		t.Fatalf("expected -o shorthand for output, got %q", f.Shorthand)
+	}
+	if f := cmd.Flags().Lookup("no-hooks"); f == nil {
+		t.Fatal("expected --no-hooks flag on registry build command")
+	}
+}
+
+func TestRegistryWatchCmdFlags(t *testing.T) {
+	cmd := newRegistryWatchCmd()
+	if f := cmd.Flags().Lookup("target"); f == nil {
+		t.Fatal("expected --target flag on registry watch command")
+	}
+	if f := cmd.Flags().Lookup("open"); f == nil {
+		t.Fatal("expected --open flag on registry watch command")
+	} else if f.DefValue != "true" {
+		t.Fatalf("expected --open default value to be 'true', got %q", f.DefValue)
+	}
+}
+
 
