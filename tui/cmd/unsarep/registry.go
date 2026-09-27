@@ -29,6 +29,7 @@ func newRegistryCmd() *cobra.Command {
 		newRegistryCheckCmd(),
 		newRegistryListCmd(),
 		newRegistryScopeCmd(),
+		newRegistrySyncCmd(),
 	)
 	return cmd
 }
@@ -263,5 +264,58 @@ func newRegistryListCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVar(&limit, "limit", config.DefaultRegistryLimit, "Max packages to show (server caps at 100)")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "JSON output")
+	return cmd
+}
+
+func newRegistrySyncCmd() *cobra.Command {
+	var opt registry.SyncOptions
+	var localDirs []string
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "sync [dir]",
+		Short: "Synchronize local components directory for package development and testing",
+		Long: `sync inspects unsareport.toml files in the workspace, links local packages
+and scopes into a root components/ directory using relative symlinks, and downloads
+external dependencies from the registry (or links them from --local paths).`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := "."
+			if len(args) > 0 {
+				dir = args[0]
+			}
+			opt.LocalDirs = localDirs
+			ctx := context.Background()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
+			res, err := registry.SyncWorkspace(ctx, client, dir, opt)
+			if err != nil {
+				return err
+			}
+			if opt.Clean {
+				printOK("components directory cleaned.")
+				return nil
+			}
+			if jsonOut {
+				b, _ := json.MarshalIndent(res, "", "  ")
+				fmt.Println(string(b))
+				return nil
+			}
+			t := table.New().
+				Border(lipgloss.RoundedBorder()).
+				Headers("PACKAGE", "VERSION", "SOURCE", "TARGET/PATH")
+			for _, p := range res.Packages {
+				t.Row(p.Name, p.Version, p.Source, p.Path)
+			}
+			fmt.Println(t)
+			printOK("components synchronized successfully (%d package(s)).", len(res.Packages))
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&opt.Clean, "clean", false, "Remove the generated components directory")
+	cmd.Flags().BoolVar(&opt.Check, "check", false, "Verify dependency resolution without modifying files")
+	cmd.Flags().StringSliceVar(&localDirs, "local", nil, "Path(s) to sibling local package repositories")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output results in JSON format")
 	return cmd
 }
