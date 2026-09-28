@@ -49,14 +49,18 @@ export function ListChecklist({
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid cols={2} gap="1.5rem" className="my-auto">
-        {items.map((item) => (
+      <SlideGrid
+        cols={2}
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0 overflow-hidden"
+      >
+        {items.slice(0, 6).map((item) => (
           <SlideCard
             key={`check-${item.task}`}
             variant="default"
-            className="p-5 flex-row items-center justify-between"
+            className="p-5 flex-row items-center justify-between gap-4 min-w-0 min-h-0 overflow-hidden"
           >
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 min-w-0 flex-1 overflow-hidden">
               <span className="w-6 h-6 rounded border border-current flex items-center justify-center text-xs font-bold shrink-0">
                 {item.status === 'completed'
                   ? '✓'
@@ -64,14 +68,14 @@ export function ListChecklist({
                     ? '◐'
                     : '○'}
               </span>
-              <div>
+              <div className="min-w-0 flex-1 overflow-hidden">
                 <span
-                  className={`text-base font-medium ${item.status === 'completed' ? 'line-through opacity-70' : ''}`}
+                  className={`text-base font-medium line-clamp-1 break-words min-w-0 block ${item.status === 'completed' ? 'line-through opacity-70' : ''}`}
                 >
                   {item.task}
                 </span>
                 {item.assignedTo && (
-                  <span className="text-xs opacity-60 block mt-0.5 font-mono">
+                  <span className="text-xs opacity-60 block mt-0.5 font-mono truncate">
                     Resp: {item.assignedTo}
                   </span>
                 )}

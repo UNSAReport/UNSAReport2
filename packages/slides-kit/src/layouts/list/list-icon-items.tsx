@@ -28,20 +28,26 @@ export function ListIconItems({
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid cols={cols as 2 | 3} gap="1.5rem">
-        {items.map((item, idx) => (
+      <SlideGrid
+        cols={cols as 2 | 3}
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0 overflow-hidden"
+      >
+        {items.slice(0, 6).map((item, idx) => (
           <SlideCard
             key={`icon-item-${item.title || idx}`}
             variant="default"
-            className="p-6"
+            className="p-6 min-h-0 min-w-0 overflow-hidden justify-start"
           >
-            <div className="flex items-center gap-4 mb-3">
+            <div className="flex items-center gap-4 mb-3 min-w-0">
               <span className="w-10 h-10 rounded-full border border-current flex items-center justify-center text-lg font-bold shrink-0 opacity-80">
                 {item.icon}
               </span>
-              <h4 className="text-xl font-bold">{item.title}</h4>
+              <h4 className="text-xl font-bold break-words min-w-0 line-clamp-2">
+                {item.title}
+              </h4>
             </div>
-            <p className="text-sm opacity-75 leading-relaxed">
+            <p className="text-sm opacity-75 leading-relaxed break-words min-w-0 line-clamp-3">
               {item.description}
             </p>
           </SlideCard>
