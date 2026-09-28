@@ -247,4 +247,65 @@ if ! grep -q "published-count=2" "${WS_OUTPUT}"; then
 fi
 echo "PASS: Scope manifest with [workspace] processed and packages evaluated successfully."
 
+echo "--> Test 7: Dry-run without token should succeed"
+NO_TOKEN_OUTPUT="${TEST_TEMP_BASE}/output-no-token.txt"
+NO_TOKEN_CACHE="${TEST_TEMP_BASE}/cache-no-token"
+mkdir -p "${NO_TOKEN_CACHE}"
+
+INPUT_TOKEN="" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_DRY_RUN="true" \
+INPUT_CACHE="false" \
+CACHE_DIR="${NO_TOKEN_CACHE}" \
+GITHUB_OUTPUT="${NO_TOKEN_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}"
+
+if ! grep -q "published-count=1" "${NO_TOKEN_OUTPUT}"; then
+  echo "FAIL: Expected published-count=1 when dry-running without token"
+  exit 1
+fi
+echo "PASS: Dry-run without token succeeded."
+
+echo "--> Test 8: Placeholder token with dry-run=false auto-converts to dry-run"
+DUMMY_OUTPUT="${TEST_TEMP_BASE}/output-dummy-token.txt"
+DUMMY_CACHE="${TEST_TEMP_BASE}/cache-dummy-token"
+mkdir -p "${DUMMY_CACHE}"
+
+INPUT_TOKEN="unsareport_pat_00000000000000000000000000000000" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_DRY_RUN="false" \
+INPUT_CACHE="false" \
+CACHE_DIR="${DUMMY_CACHE}" \
+GITHUB_OUTPUT="${DUMMY_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}"
+
+if ! grep -q "published-count=1" "${DUMMY_OUTPUT}"; then
+  echo "FAIL: Expected published-count=1 when running with placeholder token"
+  exit 1
+fi
+echo "PASS: Placeholder token auto-converted to dry-run and succeeded."
+
+echo "--> Test 9: Registry URL normalization from bare origin"
+NORM_OUTPUT="${TEST_TEMP_BASE}/output-norm-url.txt"
+NORM_CACHE="${TEST_TEMP_BASE}/cache-norm-url"
+mkdir -p "${NORM_CACHE}"
+
+INPUT_TOKEN="${VALID_TOKEN}" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_REGISTRY_URL="https://unsareport.ynoacamino.tech" \
+INPUT_DRY_RUN="true" \
+INPUT_CACHE="false" \
+CACHE_DIR="${NORM_CACHE}" \
+GITHUB_OUTPUT="${NORM_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}"
+
+if ! grep -q "published-count=1" "${NORM_OUTPUT}"; then
+  echo "FAIL: Expected published-count=1 with bare origin registry URL"
+  exit 1
+fi
+echo "PASS: Registry URL normalization succeeded."
+
 echo "=== All publish tests passed successfully! ==="
