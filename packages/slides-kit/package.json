@@ -50,6 +50,7 @@
   ],
   "scripts": {
     "build": "bun build src/config.ts src/layouts/registry.ts src/themes/registry.ts src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && tsc --declaration --emitDeclarationOnly --outDir dist",
+    "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit"
   },

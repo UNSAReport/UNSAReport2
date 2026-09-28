@@ -1,6 +1,18 @@
 language: typescript
 
 tasks:
+  build:
+    command: bun
+    args:
+      - run
+      - build
+
+  test:
+    command: bun
+    args:
+      - run
+      - test
+
   typecheck:
     command: bun
     args:

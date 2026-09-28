@@ -17,7 +17,7 @@ function aliasResolverPlugin(): Plugin {
     resolveId(id, importer) {
       if (id.startsWith('@/')) {
         const subpath = id.slice(2);
-        if (importer && importer.includes('packages/slides-kit')) {
+        if (importer?.includes('packages/slides-kit')) {
           const resolved = path.join(slidesKitSrc, subpath);
           return this.resolve(resolved, importer, { skipSelf: true });
         }

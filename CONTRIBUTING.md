@@ -49,51 +49,61 @@ El repositorio organiza sus servicios y librerías compartidas en los siguientes
 
 ### Requisitos del entorno de desarrollo
 
-- [Bun](https://bun.sh/) (última versión estable) - Para servicios de backend y frontend en TypeScript. 
+- [Bun](https://bun.sh/) (1.2 o superior, recomendado 1.3+) - Gestor de paquetes y runtime para TypeScript/JavaScript.
 - [Go](https://go.dev/) (1.24 o superior) - Para desarrollar y compilar `unsarep`.
 - [Docker](https://docs.docker.com/) y Docker Compose - Para bases de datos PostgreSQL locales, almacenamiento S3 SeaweedFS y Traefik.
-- [Moon](https://moonrepo.dev/) - Orquestador de tareas y compilación del monorepo.
-- [Just](https://github.com/casey/just) - Ejecutor de comandos para tareas de ciclo de vida del proyecto.
+- *(No se requiere instalar `just` ni `moon` globalmente)*: Las tareas del monorepo se ejecutan mediante `bun run <comando>`, utilizando `@moonrepo/cli` instalado como dependencia del espacio de trabajo.
 - *(Opcional)* [Nix](https://nixos.org/) - Proporciona un entorno reproducible sin instalación manual:
   ```bash
   nix develop
   ```
 
+> [!TIP]
+> Para una referencia exhaustiva de comandos, puertos y resolución de problemas, consulta la [Guía de Desarrollo del Monorepo](docs/development-guide.md).
+
 ### Guía paso a paso
 
-#### 1. Desencriptar y materializar variables de entorno
-El repositorio utiliza entornos parametrizados. Ejecuta `just decrypt <env>` para generar los archivos `.env.<ENV>` en la raíz y en cada subservicio (`auth/`, `registry/`, `slides/`, `web/`, `tui/`):
+#### 1. Instalar dependencias y materializar variables de entorno
+Instala los paquetes del monorepo y ejecuta `bun run decrypt` para generar los archivos `.env.<ENV>` (por defecto `dev`) en la raíz y en cada subservicio (`auth/`, `registry/`, `slides/`, `web/`, `tui/`):
 
 ```bash
-just decrypt dev
+bun install
+bun run decrypt
 ```
 
 - **Valores base**: Se materializan automáticamente desde `.env.example` y `<servicio>/.env.example`.
-- **SOPS (automático)**: Los secretos cifrados son para uso del equipo de desarrollo oficial. Si no tienes acceso, se generarán valores de ejemplo.
+- **SOPS (automático)**: Los secretos cifrados son para uso del equipo de desarrollo oficial. Si no tienes acceso a las llaves, se omitirán limpiamente y se usarán las configuraciones de desarrollo por defecto.
 - **Sobrescrituras locales**: Crea `.env.dev.override` (raíz) o `<servicio>/.env.dev.override` para ajustes personales.
 
 #### 2. Iniciar infraestructura local y ejecutar migraciones
 Inicia las bases de datos PostgreSQL, el servicio S3 SeaweedFS y el gateway inverso Traefik: 
 
 ```bash
-just infra-up dev
+bun run infra:up
 ```
 
 Aplica las migraciones de base de datos en todos los servicios que las requieren (`auth`, `registry`, `slides`):
 
 ```bash
-just db-migrate dev
+bun run db:migrate
 ```
 
 #### 3. Iniciar servidores de desarrollo
 Inicia todos los servicios de la aplicación de manera nativa con recarga en vivo:
 
 ```bash
-just dev dev
+bun run dev
 ```
 
+También puedes iniciar servicios de manera aislada según tu tarea actual:
+- `bun run dev:web`: Inicia la aplicación web
+- `bun run dev:slides`: Inicia el microservicio de diapositivas
+- `bun run dev:registry`: Inicia el registro de paquetes Typst
+- `bun run dev:auth`: Inicia el proveedor de identidad
+- `bun run dev:tui`: Ejecuta el CLI `unsarep` con `go run`
+
 - Entrada principal del Gateway (Traefik): `http://localhost:9876`
-- Aplicación Web: Enrutada mediante Traefik hacia `web/app`
+- Aplicación Web: `http://localhost:3100` (o enrutada mediante Traefik)
 
 #### 4. Firewall en Linux y enrutamiento del bridge de Docker 
 Traefik opera en modo red bridge de Docker y reenvía tráfico a los servicios locales mediante `host.docker.internal`. En distribuciones Linux con firewalls estrictos (UFW o Firewalld), permite la comunicación desde la subred del contenedor hacia los puertos del host:
@@ -154,12 +164,12 @@ Antes de enviar un pull request, verifica que todos los linters, validadores de 
 Ejecuta la comprobación integral del espacio de trabajo:
 
 ```bash
-moon run check
+bun run check
 ```
 
 Esta tarea ejecuta:
 - `biome` en el código TypeScript/JavaScript (`web`, `auth`, `registry`, `slides`, `packages`).
-- `golangci-lint` y `go vet` en el CLI en Go (`tui/`).
+- `golangci-lint` (si está disponible) y `go vet` en el CLI en Go (`tui/`).
 - El compilador de TypeScript (`tsc --noEmit`) en todos los proyectos TS.
 
 ### Ejecución de pruebas
@@ -167,15 +177,16 @@ Esta tarea ejecuta:
 Ejecuta las suites de pruebas unitarias:
 
 ```bash
-moon run test
+bun run test
 ```
 
 Para probar servicios individuales:
 ```bash
-moon run tui:test
-moon run registry:test
-moon run slides:test
-moon run auth:test 
+bun run test:slides    # Pruebas del microservicio de diapositivas
+bun run test:kit       # Pruebas unitarias de layouts y temas de slides-kit
+bun run test:registry  # Pruebas de la API del registro de paquetes
+bun run test:auth      # Pruebas de autenticación y roles
+bun run test:tui       # Pruebas del CLI en Go
 ```
 
 ---
@@ -189,7 +200,7 @@ moon run auth:test
    git checkout -b feat/nombre-funcionalidad
    ```
 2. **Mensajes de commit**: Emplea el estándar de conventional commits (ej. `feat(tui): agregar flag de debounce para watch`, `fix(registry): corregir error de scope no encontrado`).
-3. **Validación local**: Asegúrate de que `moon run check` y `moon run test` finalicen sin errores.
+3. **Validación local**: Asegúrate de que `bun run check` y `bun run test` finalicen sin errores.
 4. **Crea la PR**: Sube tu rama a GitHub y abre la pull request. Completa la plantilla de pull request vinculando las issues resueltas (`Fixes #123`).
 5. **Revisión de código**: Responde a los comentarios de revisión. Una vez aprobado y pasadas las pruebas de CI, un mantenedor incorporará los cambios.
 

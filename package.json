@@ -11,10 +11,29 @@
     "slides"
   ],
   "scripts": {
-    "dev": "moon run auth:dev registry:dev slides:dev website:dev",
-    "check": "moon run :check",
+    "dev": "moon run dev",
+    "dev:web": "moon run website:dev",
+    "dev:slides": "moon run slides:dev",
+    "dev:registry": "moon run registry:dev",
+    "dev:auth": "moon run auth:dev",
+    "dev:tui": "moon run tui:dev",
+    "decrypt": "moon run decrypt",
     "infra:up": "moon run infra-up",
-    "infra:down": "moon run infra-down"
+    "infra:down": "moon run infra-down",
+    "db:migrate": "moon run db-migrate",
+    "build": "moon run build",
+    "build:tui": "moon run tui:build",
+    "build:tui:all": "moon run tui:build-all",
+    "build:slides-kit": "moon run slides-kit:build",
+    "check": "moon run check",
+    "lint": "moon run lint",
+    "typecheck": "moon run typecheck",
+    "test": "moon run test",
+    "test:slides": "moon run slides:test",
+    "test:registry": "moon run registry:test",
+    "test:auth": "moon run auth:test",
+    "test:tui": "moon run tui:test",
+    "test:kit": "moon run slides-kit:test"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

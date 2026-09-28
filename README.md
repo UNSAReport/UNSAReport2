@@ -184,7 +184,7 @@ unsarep registry publish ./mi-paquete
 
 - **Reportar un error**: Abre una issue con nuestra [Plantilla de reporte de errores](https://github.com/UNSAReport/UNSAReport2/issues/new?template=bug_report.yml).
 - **Solicitar una funcionalidad**: Envía una solicitud con nuestra [Plantilla de sugerencias](https://github.com/UNSAReport/UNSAReport2/issues/new?template=feature_request.yml).
-- **Configuración para desarrolladores y pull requests**: Consulta la guía técnica en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar los microservicios locales, ejecutar pruebas y enviar contribuciones.
+- **Configuración para desarrolladores y pull requests**: Consulta la [Guía de Desarrollo del Monorepo](docs/development-guide.md) y las pautas en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar la infraestructura, ejecutar pruebas y enviar contribuciones.
 
 ---
 
