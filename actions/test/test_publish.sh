@@ -8,12 +8,46 @@ readonly INSTALL_SCRIPT="${PROJECT_ROOT}/actions/setup/install.sh"
 readonly FIXTURES_DIR="${PROJECT_ROOT}/actions/test/fixtures"
 readonly VALID_TOKEN="unsareport_pat_11112222333344445555666677778888"
 readonly TEST_TEMP_BASE="${PROJECT_ROOT}/actions/test/.tmp"
+readonly MOCK_PORT_MATCH=9877
+readonly MOCK_PORT_DIFF=9878
+readonly MOCK_PORT_DRY=9879
+readonly MOCK_SERVER_READY_MAX_ATTEMPTS=50
+readonly MOCK_SERVER_READY_SLEEP_SEC="0.05"
 
+if ! command -v bun >/dev/null 2>&1; then
+  echo "FAIL: 'bun' command is required in PATH to run publish tests." >&2
+  exit 1
+fi
+
+ACTIVE_MOCK_PIDS=()
 cleanup() {
+  for pid in "${ACTIVE_MOCK_PIDS[@]:-}"; do
+    if [ -n "${pid}" ]; then
+      kill "${pid}" 2>/dev/null || true
+    fi
+  done
   rm -rf "${TEST_TEMP_BASE}"
 }
 trap cleanup EXIT
 mkdir -p "${TEST_TEMP_BASE}"
+
+wait_for_mock_server() {
+  local port="$1"
+  local log_file="$2"
+  local attempts=0
+  while [ "${attempts}" -lt "${MOCK_SERVER_READY_MAX_ATTEMPTS}" ]; do
+    if curl -s "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep "${MOCK_SERVER_READY_SLEEP_SEC}"
+    attempts=$((attempts + 1))
+  done
+  echo "FAIL: Mock server failed to listen on port ${port} within timeout." >&2
+  if [ -f "${log_file}" ]; then
+    cat "${log_file}" >&2
+  fi
+  return 1
+}
 
 echo "=== Running Action Publish Test Suite ==="
 
@@ -312,12 +346,15 @@ echo "--> Test 10: Remote version exists with matching content skips publish"
 REMOTE_EXISTS_OUTPUT="${TEST_TEMP_BASE}/output-remote-exists.txt"
 REMOTE_EXISTS_CACHE="${TEST_TEMP_BASE}/cache-remote-exists"
 mkdir -p "${REMOTE_EXISTS_CACHE}"
+MOCK_LOG_10="${TEST_TEMP_BASE}/mock-server-${MOCK_PORT_MATCH}.log"
 
-# Start tiny mock registry responding 200 with matching file checksum
 bun -e '
   const s = Bun.serve({
-    port: 9877,
+    port: '"${MOCK_PORT_MATCH}"',
     fetch(req) {
+      if (req.url.endsWith("/health")) {
+        return new Response("OK", { status: 200 });
+      }
       if (req.url.includes("/v1/packages/")) {
         return new Response(JSON.stringify({
           version: "0.1.0",
@@ -331,15 +368,16 @@ bun -e '
     }
   });
   setInterval(() => {}, 1000);
-' >/dev/null 2>&1 &
+' >"${MOCK_LOG_10}" 2>&1 &
 MOCK_SERVER_PID=$!
+ACTIVE_MOCK_PIDS+=("${MOCK_SERVER_PID}")
 
-sleep 0.2
+wait_for_mock_server "${MOCK_PORT_MATCH}" "${MOCK_LOG_10}"
 
 INPUT_TOKEN="${VALID_TOKEN}" \
 INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
 INPUT_MODE="package" \
-INPUT_REGISTRY_URL="http://127.0.0.1:9877" \
+INPUT_REGISTRY_URL="http://127.0.0.1:${MOCK_PORT_MATCH}" \
 INPUT_DRY_RUN="false" \
 INPUT_CACHE="false" \
 CACHE_DIR="${REMOTE_EXISTS_CACHE}" \
@@ -362,12 +400,15 @@ echo "--> Test 11: Remote version exists with DIFFERENT content fails fast"
 REMOTE_DIFF_OUTPUT="${TEST_TEMP_BASE}/output-remote-diff.txt"
 REMOTE_DIFF_CACHE="${TEST_TEMP_BASE}/cache-remote-diff"
 mkdir -p "${REMOTE_DIFF_CACHE}"
+MOCK_LOG_11="${TEST_TEMP_BASE}/mock-server-${MOCK_PORT_DIFF}.log"
 
-# Start mock registry responding 200 with non-matching checksum
 bun -e '
   const s = Bun.serve({
-    port: 9878,
+    port: '"${MOCK_PORT_DIFF}"',
     fetch(req) {
+      if (req.url.endsWith("/health")) {
+        return new Response("OK", { status: 200 });
+      }
       if (req.url.includes("/v1/packages/")) {
         return new Response(JSON.stringify({
           version: "0.1.0",
@@ -381,16 +422,17 @@ bun -e '
     }
   });
   setInterval(() => {}, 1000);
-' >/dev/null 2>&1 &
+' >"${MOCK_LOG_11}" 2>&1 &
 MOCK_SERVER_PID_2=$!
+ACTIVE_MOCK_PIDS+=("${MOCK_SERVER_PID_2}")
 
-sleep 0.2
+wait_for_mock_server "${MOCK_PORT_DIFF}" "${MOCK_LOG_11}"
 
 test_11_failed=0
 INPUT_TOKEN="${VALID_TOKEN}" \
 INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
 INPUT_MODE="package" \
-INPUT_REGISTRY_URL="http://127.0.0.1:9878" \
+INPUT_REGISTRY_URL="http://127.0.0.1:${MOCK_PORT_DIFF}" \
 INPUT_DRY_RUN="false" \
 INPUT_CACHE="false" \
 CACHE_DIR="${REMOTE_DIFF_CACHE}" \
@@ -407,10 +449,15 @@ echo "PASS: Remote version with checksum mismatch failed fast as expected."
 
 echo "--> Test 12: Dry-run with remote checksum mismatch also fails fast"
 test_12_failed=0
+MOCK_LOG_12="${TEST_TEMP_BASE}/mock-server-${MOCK_PORT_DRY}.log"
+
 bun -e '
   const s = Bun.serve({
-    port: 9879,
+    port: '"${MOCK_PORT_DRY}"',
     fetch(req) {
+      if (req.url.endsWith("/health")) {
+        return new Response("OK", { status: 200 });
+      }
       if (req.url.includes("/v1/packages/")) {
         return new Response(JSON.stringify({
           version: "0.1.0",
@@ -424,15 +471,16 @@ bun -e '
     }
   });
   setInterval(() => {}, 1000);
-' >/dev/null 2>&1 &
+' >"${MOCK_LOG_12}" 2>&1 &
 MOCK_SERVER_PID_3=$!
+ACTIVE_MOCK_PIDS+=("${MOCK_SERVER_PID_3}")
 
-sleep 0.2
+wait_for_mock_server "${MOCK_PORT_DRY}" "${MOCK_LOG_12}"
 
 INPUT_TOKEN="${VALID_TOKEN}" \
 INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
 INPUT_MODE="package" \
-INPUT_REGISTRY_URL="http://127.0.0.1:9879" \
+INPUT_REGISTRY_URL="http://127.0.0.1:${MOCK_PORT_DRY}" \
 INPUT_DRY_RUN="true" \
 INPUT_CACHE="false" \
 CACHE_DIR="${TEST_TEMP_BASE}/cache-dry-mismatch" \

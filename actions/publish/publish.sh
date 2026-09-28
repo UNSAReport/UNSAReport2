@@ -114,6 +114,10 @@ extract_manifest_val() {
 readonly HTTP_STATUS_OK="200"
 readonly HTTP_STATUS_NOT_FOUND="404"
 readonly HTTP_STATUS_CONFLICT="409"
+readonly HTTP_STATUS_NETWORK_ERROR="000"
+readonly REGISTRY_CONNECT_TIMEOUT_SEC="10"
+readonly REGISTRY_MAX_TIME_SEC="30"
+readonly REGISTRY_RETRY_COUNT="3"
 readonly VERIFY_STATUS_MATCH=0
 readonly VERIFY_STATUS_NOT_FOUND=1
 readonly VERIFY_STATUS_MISMATCH=2
@@ -127,8 +131,21 @@ verify_remote_package_content() {
 
   local resp_file
   resp_file=$(mktemp)
+  local raw_status
+  raw_status=$(curl -s \
+    --connect-timeout "${REGISTRY_CONNECT_TIMEOUT_SEC}" \
+    --max-time "${REGISTRY_MAX_TIME_SEC}" \
+    --retry "${REGISTRY_RETRY_COUNT}" \
+    -o "${resp_file}" \
+    -w "%{http_code}" \
+    "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || true)
   local status_code
-  status_code=$(curl -s -o "${resp_file}" -w "%{http_code}" "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || echo "000")
+  status_code=$(echo "${raw_status}" | tr -d '[:space:]')
+  if [ -z "${status_code}" ]; then
+    status_code="${HTTP_STATUS_NETWORK_ERROR}"
+  elif [ ${#status_code} -gt 3 ]; then
+    status_code="${status_code: -3}"
+  fi
 
   if [ "${status_code}" = "${HTTP_STATUS_NOT_FOUND}" ]; then
     rm -f "${resp_file}"
