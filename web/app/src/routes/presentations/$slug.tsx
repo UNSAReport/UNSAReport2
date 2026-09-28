@@ -194,7 +194,7 @@ function PresentationViewer() {
           ref={iframeRef}
           src={embedSrc}
           title={presentation.title}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           className="absolute inset-0 w-full h-full border-0"
           referrerPolicy="no-referrer"
         />
@@ -327,7 +327,7 @@ function PresentationViewer() {
           ref={iframeRef}
           src={embedSrc}
           title={presentation.title}
-          sandbox="allow-scripts"
+          sandbox="allow-scripts allow-same-origin"
           className="absolute inset-0 w-full h-full border-0"
           referrerPolicy="no-referrer"
         />

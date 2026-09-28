@@ -176,12 +176,28 @@ async function handleEmbed(c: Context<HonoEnv>) {
       ? 'public, max-age=0, must-revalidate'
       : 'public, max-age=31536000, immutable';
 
-    return new Response(Buffer.from(s3Object.body), {
+    // Rewrite root-absolute asset refs so the bundle works when served from
+    // the versioned embed prefix (/embed/<id>/vN/...) instead of the domain
+    // root. Vite emits href/src="/assets/..." and public-dir refs like
+    // "/img.png"; inside the iframe those would 404 at the host origin.
+    // "./" keeps them relative to the embed version directory (auth for
+    // sub-assets travels via the session cookie through the web proxy).
+    let body: Buffer = Buffer.from(s3Object.body);
+    if (isHtml) {
+      const html = body.toString('utf-8');
+      const rewritten = html.replaceAll(
+        /((?:src|href)=["'])\/(assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp4|webm|pdf|json|txt|xml))/gi,
+        '$1./$2',
+      );
+      body = Buffer.from(rewritten);
+    }
+
+    return new Response(new Uint8Array(body), {
       status: 200,
       headers: {
         'Content-Type': contentType,
         'Cache-Control': cacheControl,
-        'Content-Length': String(s3Object.body.length),
+        'Content-Length': String(body.length),
         'X-Content-Type-Options': 'nosniff',
       },
     });
