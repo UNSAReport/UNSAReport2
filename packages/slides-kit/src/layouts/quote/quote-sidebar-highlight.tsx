@@ -26,30 +26,33 @@ export function QuoteSidebarHighlight({
     <SlideSection tag={tag} title={title}>
       <SlideSplit
         ratio="40-60"
-        gap="3rem"
-        className="my-auto"
+        gap="1.5rem"
+        className="flex-1 min-h-0"
+        style={{ gridTemplateColumns: 'minmax(0,2fr) minmax(0,3fr)' }}
         left={
           <SlideCard
             variant="glow"
-            className="p-8 justify-between h-full border-l-4 border-l-current"
+            className="p-6 justify-between h-full min-h-0 min-w-0 overflow-hidden border-l-4 border-l-current"
           >
-            <div>
-              <span className="text-6xl font-serif opacity-30 select-none block mb-2">
+            <div className="min-w-0 min-h-0 overflow-hidden">
+              <span className="text-4xl font-serif opacity-30 select-none block mb-2 leading-none">
                 “
               </span>
-              <blockquote className="text-xl italic leading-relaxed mb-6">
+              <blockquote className="text-lg italic leading-relaxed mb-6 break-words line-clamp-[6] min-w-0">
                 {quote}
               </blockquote>
             </div>
-            <div className="pt-4 border-t border-current/10">
-              <div className="font-bold text-sm">{author}</div>
-              {role && <div className="text-xs opacity-60">{role}</div>}
+            <div className="pt-4 border-t border-current/10 min-w-0">
+              <div className="font-bold text-sm truncate">{author}</div>
+              {role && (
+                <div className="text-xs opacity-60 truncate">{role}</div>
+              )}
             </div>
           </SlideCard>
         }
         right={
-          <div className="flex flex-col justify-center h-full text-base opacity-90 leading-relaxed">
-            <p>{contextText}</p>
+          <div className="flex flex-col justify-center h-full min-h-0 min-w-0 overflow-hidden text-base opacity-90 leading-relaxed">
+            <p className="break-words line-clamp-[8] min-w-0">{contextText}</p>
           </div>
         }
       />

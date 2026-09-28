@@ -32,22 +32,26 @@ export function QuoteDialogue({
       <SlideSplit
         ratio="50-50"
         gap="2.5rem"
-        className="my-auto"
+        className="flex-1 min-h-0 min-w-0 overflow-hidden"
         left={
           <SlideCard
             variant="elevated"
-            className="p-8 justify-between h-full border-l-4 border-l-current"
+            className="p-8 justify-between h-full min-h-0 min-w-0 overflow-hidden border-l-4 border-l-current"
           >
-            <div>
-              <div className="flex items-center gap-3 mb-4">
-                <SlideBadge variant="accent">Postura A</SlideBadge>
-                <span className="font-bold text-lg">{speakerA.name}</span>
+            <div className="min-w-0 overflow-hidden">
+              <div className="flex items-center gap-3 mb-4 min-w-0">
+                <span className="shrink-0">
+                  <SlideBadge variant="accent">Postura A</SlideBadge>
+                </span>
+                <span className="font-bold text-lg min-w-0 break-words line-clamp-1 overflow-hidden">
+                  {speakerA.name}
+                </span>
               </div>
-              <blockquote className="text-xl italic leading-relaxed">
+              <blockquote className="text-xl italic leading-relaxed min-w-0 break-words line-clamp-6 overflow-hidden">
                 “{speakerA.quote}”
               </blockquote>
             </div>
-            <div className="text-xs opacity-60 mt-4 font-mono">
+            <div className="text-xs opacity-60 mt-4 font-mono shrink-0 min-w-0 break-words line-clamp-2 overflow-hidden">
               {speakerA.role}
             </div>
           </SlideCard>
@@ -55,18 +59,22 @@ export function QuoteDialogue({
         right={
           <SlideCard
             variant="elevated"
-            className="p-8 justify-between h-full border-r-4 border-r-current"
+            className="p-8 justify-between h-full min-h-0 min-w-0 overflow-hidden border-r-4 border-r-current"
           >
-            <div>
-              <div className="flex items-center justify-end gap-3 mb-4">
-                <span className="font-bold text-lg">{speakerB.name}</span>
-                <SlideBadge variant="secondary">Postura B</SlideBadge>
+            <div className="min-w-0 overflow-hidden">
+              <div className="flex items-center justify-end gap-3 mb-4 min-w-0">
+                <span className="font-bold text-lg min-w-0 break-words line-clamp-1 overflow-hidden text-right">
+                  {speakerB.name}
+                </span>
+                <span className="shrink-0">
+                  <SlideBadge variant="secondary">Postura B</SlideBadge>
+                </span>
               </div>
-              <blockquote className="text-xl italic leading-relaxed">
+              <blockquote className="text-xl italic leading-relaxed min-w-0 break-words line-clamp-6 overflow-hidden">
                 “{speakerB.quote}”
               </blockquote>
             </div>
-            <div className="text-xs opacity-60 mt-4 font-mono text-right">
+            <div className="text-xs opacity-60 mt-4 font-mono text-right shrink-0 min-w-0 break-words line-clamp-2 overflow-hidden">
               {speakerB.role}
             </div>
           </SlideCard>

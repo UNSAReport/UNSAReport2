@@ -26,27 +26,34 @@ export function QuoteMultiSource({
 }: QuoteMultiSourceProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="my-auto w-full">
-        <SlideGrid columns={quotes.length > 2 ? 3 : 2} gap="2rem">
-          {quotes.map((item, idx) => (
+      <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col justify-center overflow-hidden">
+        <SlideGrid
+          columns={quotes.length > 2 ? 3 : 2}
+          gap="1.5rem"
+          className="min-h-0 overflow-hidden"
+          style={{
+            gridTemplateColumns: `repeat(${quotes.length > 2 ? 3 : 2}, minmax(0, 1fr))`,
+          }}
+        >
+          {quotes.slice(0, 6).map((item, idx) => (
             <SlideCard
               key={`multi-quote-${item.author || idx}`}
               variant="default"
-              className="p-8 justify-between h-full border-t-2 border-t-current"
+              className="p-8 justify-between h-full min-h-0 min-w-0 overflow-hidden border-t-2 border-t-current"
             >
-              <div>
-                <span className="text-5xl font-serif opacity-30 select-none block mb-2">
+              <div className="min-w-0 overflow-hidden">
+                <span className="text-5xl font-serif opacity-30 select-none block mb-2 shrink-0">
                   “
                 </span>
-                <blockquote className="text-lg md:text-xl italic leading-relaxed mb-6">
+                <blockquote className="text-lg md:text-xl italic leading-relaxed mb-6 min-w-0 break-words line-clamp-6 overflow-hidden">
                   {item.quote}
                 </blockquote>
               </div>
-              <div className="pt-4 border-t border-current/10">
-                <cite className="not-italic font-bold text-base block">
+              <div className="pt-4 border-t border-current/10 shrink-0 min-w-0">
+                <cite className="not-italic font-bold text-base block min-w-0 break-words line-clamp-1 overflow-hidden">
                   {item.author}
                 </cite>
-                <span className="text-xs opacity-60 block font-mono mt-1">
+                <span className="text-xs opacity-60 block font-mono mt-1 min-w-0 break-words line-clamp-1 overflow-hidden">
                   {item.source}
                 </span>
               </div>
