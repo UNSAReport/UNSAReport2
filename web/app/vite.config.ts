@@ -43,6 +43,16 @@ export default defineConfig({
         target: slidesTarget,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/slides/, ''),
+        configure: (proxy) => {
+          proxy.on('proxyReq', (proxyReq, req) => {
+            const cookie = (req.headers?.cookie as string | undefined) ?? '';
+            const match = cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+            const token = match ? decodeURIComponent(match[1]) : '';
+            if (token && !proxyReq.hasHeader('authorization')) {
+              proxyReq.setHeader('authorization', `Bearer ${token}`);
+            }
+          });
+        },
       },
     },
   },

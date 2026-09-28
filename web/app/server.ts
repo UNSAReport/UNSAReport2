@@ -28,6 +28,14 @@ Bun.serve({
       const target = new URL(stripped + url.search, targetBase);
       const headers = new Headers(req.headers);
       headers.delete('host');
+      // The browser sends the web session cookie (HttpOnly, invisible to JS);
+      // the slides service expects a Bearer token, so translate it here.
+      if (!headers.has('authorization')) {
+        const cookie = headers.get('cookie') ?? '';
+        const match = cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+        const token = match ? decodeURIComponent(match[1]) : '';
+        if (token) headers.set('authorization', `Bearer ${token}`);
+      }
       const init: RequestInit = {
         method: req.method,
         headers,
