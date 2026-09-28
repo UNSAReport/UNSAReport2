@@ -13,6 +13,7 @@ import (
 	"github.com/UNSAReport/tui/internal/lock"
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/UNSAReport/tui/internal/registry"
+	"github.com/UNSAReport/tui/internal/ui"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
 )
@@ -97,16 +98,8 @@ func newDocsInitCmd() *cobra.Command {
 				}
 				report = reportVal
 			}
-			if !yesFlag && !allFlag && !noneFlag && canPrompt() {
-				if strings.EqualFold(template, config.TemplateBlank) {
-					noneFlag = true
-				} else {
-					y, a, n, perr := promptMode(cmd)
-					if perr != nil {
-						return perr
-					}
-					yesFlag, allFlag, noneFlag = y, a, n
-				}
+			if strings.EqualFold(template, config.TemplateBlank) {
+				noneFlag = true
 			}
 			flags := selectFlags(yesFlag, allFlag, noneFlag)
 			cwd, _ := os.Getwd()
@@ -223,35 +216,6 @@ func promptSelectTemplate(ctx context.Context, client *registry.Client) (string,
 	return selectPackageFromList("Select template package", pkgs, client, ctx)
 }
 
-func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
-	var mode string
-	form := huh.NewForm(huh.NewGroup(
-		huh.NewSelect[string]().
-			Title("Component selection").
-			Description("Choose how to configure commands, hooks, and files:").
-			Options(
-				huh.NewOption("Interactive setup (customize commands, hooks & files)", "ask"),
-				huh.NewOption("Defaults only (--yes) — install recommended scripts", "yes"),
-				huh.NewOption("Defaults and all (--all) — install all package features", "all"),
-				huh.NewOption("None (--none) — package files only", "none"),
-			).
-			Value(&mode),
-	))
-	if err := runForm(form); err != nil {
-		return false, false, false, err
-	}
-	switch mode {
-	case "ask":
-		return false, false, false, nil
-	case "yes":
-		return true, false, false, nil
-	case "all":
-		return false, true, false, nil
-	case "none":
-		return false, false, true, nil
-	}
-	return false, false, false, usagef(cmd, "select one of interactive, --yes, --all, --none")
-}
 func newDocsAddCmd() *cobra.Command {
 	var pkgFlag string
 	var yes, all, none bool
@@ -271,7 +235,6 @@ func newDocsAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fromForm := pkg == ""
 			if pkg == "" {
 				if !canPrompt() {
 					return usagef(cmd, "usage: unsarep docs add <pkg>@<ver-req> [--yes|--all|--none]")
@@ -289,12 +252,6 @@ func newDocsAddCmd() *cobra.Command {
 						}),
 				))
 				if err := runForm(form); err != nil {
-					return err
-				}
-			}
-			if fromForm && !yes && !all && !none {
-				yes, all, none, err = promptMode(cmd)
-				if err != nil {
 					return err
 				}
 			}
@@ -430,21 +387,24 @@ func newDocsRemoveCmd() *cobra.Command {
 					return fmt.Errorf("no packages installed in %s", cwd)
 				}
 				cfg, _ := project.Load(filepath.Join(cwd, config.ConfigFileName))
+				var directPkgs []string
 				options := make([]huh.Option[string], 0, len(l.Pkg))
 				for _, p := range l.Pkg {
 					depType := "dependency"
 					if _, isDirect := cfg.Dependencies[p.Name]; isDirect {
 						depType = "direct"
+						directPkgs = append(directPkgs, p.Name)
 					}
 					label := fmt.Sprintf("%s (v%s, %s)", p.Name, p.Version, depType)
 					options = append(options, huh.NewOption(label, p.Name))
 				}
 				var selectedPkgs []string
 				selectForm := huh.NewForm(huh.NewGroup(
-					huh.NewMultiSelect[string]().
+					ui.NewMultiSelect[string]().
 						Title("Select Packages to Remove").
-						Description("Check one or more packages to uninstall:").
+						Description("Check one or more packages to uninstall (a: all, d: direct defaults, n: none):").
 						Options(options...).
+						Defaults(directPkgs...).
 						Value(&selectedPkgs),
 				))
 				if err := runForm(selectForm); err != nil {
