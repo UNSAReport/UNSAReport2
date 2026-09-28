@@ -14,9 +14,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/BurntSushi/toml"
 	"github.com/Masterminds/semver/v3"
+	"github.com/charmbracelet/huh"
 	"github.com/UNSAReport/tui/internal/check"
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/lock"
@@ -31,6 +33,8 @@ const (
 	WarnConflictingFiles = "Warning: The following files already exist and will be replaced:"
 	ErrInitCancelled     = "init cancelled"
 	ErrNonTTYRequiresYes = "init aborted: conflicting files exist; rerun with --yes to overwrite"
+	RootFileOptionNone   = "none"
+	MaxPreviewLines      = 40
 )
 
 func isTTY() bool {
@@ -85,12 +89,330 @@ func parseNameRange(arg string) (name, rng string) {
 	return arg, "*"
 }
 
-func installComponentTree(ctx context.Context, root, name, version string) (pkg.PkgToml, error) {
-	visited := map[string]bool{name: true}
-	return installComponentTreeRecursive(ctx, root, name, version, visited)
+type RootFileCandidate struct {
+	Path    string
+	Package string
+	Content []byte
 }
 
-func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool) (pkg.PkgToml, error) {
+type RootFileConflict struct {
+	Path       string
+	Candidates []RootFileCandidate
+}
+
+type RootFileResolution struct {
+	ApprovedSingles []string
+	SelectedWinners map[string]string
+}
+
+type RootFileResolver func(singles []RootFileCandidate, conflicts []RootFileConflict) (RootFileResolution, error)
+
+func formatFilePreview(content []byte) string {
+	if !utf8.Valid(content) {
+		return fmt.Sprintf("[binary file, %d bytes]", len(content))
+	}
+	s := strings.TrimRight(string(content), "\r\n")
+	lines := strings.Split(s, "\n")
+	if len(lines) > MaxPreviewLines {
+		return strings.Join(lines[:MaxPreviewLines], "\n") + fmt.Sprintf("\n... (%d more lines)", len(lines)-MaxPreviewLines)
+	}
+	return s
+}
+
+func dependsOnTransitive(depGraph map[string][]string, a, b string) bool {
+	visited := map[string]bool{}
+	queue := []string{a}
+	visited[a] = true
+	for len(queue) > 0 {
+		curr := queue[0]
+		queue = queue[1:]
+		for _, dep := range depGraph[curr] {
+			if dep == b {
+				return true
+			}
+			if !visited[dep] {
+				visited[dep] = true
+				queue = append(queue, dep)
+			}
+		}
+	}
+	return false
+}
+
+func processAllRootFiles(root string, pkgs []downloadedPkgInfo, mode string, selectRootFiles func(files []string) ([]string, error), resolveRootFiles RootFileResolver) error {
+	if len(pkgs) == 0 {
+		return nil
+	}
+
+	depGraph := make(map[string][]string)
+	for _, p := range pkgs {
+		for depName := range p.toml.Dependencies {
+			depName = strings.TrimSpace(depName)
+			if depName != "" {
+				depGraph[p.name] = append(depGraph[p.name], depName)
+			}
+		}
+	}
+
+	if l, err := lock.Load(root); err == nil {
+		for _, entry := range l.Pkg {
+			for _, depStr := range entry.DependsOn {
+				fields := strings.Fields(depStr)
+				if len(fields) > 0 {
+					depGraph[entry.Name] = append(depGraph[entry.Name], fields[0])
+				}
+			}
+		}
+	}
+
+	candidatesByFile := make(map[string][]RootFileCandidate)
+	for _, p := range pkgs {
+		for rfName, content := range p.rootFiles {
+			candidatesByFile[rfName] = append(candidatesByFile[rfName], RootFileCandidate{
+				Path:    rfName,
+				Package: p.name,
+				Content: content,
+			})
+		}
+	}
+
+	if len(candidatesByFile) == 0 {
+		return nil
+	}
+
+	fileNames := make([]string, 0, len(candidatesByFile))
+	for f := range candidatesByFile {
+		fileNames = append(fileNames, f)
+	}
+	sort.Strings(fileNames)
+
+	var singles []RootFileCandidate
+	var conflicts []RootFileConflict
+
+	for _, f := range fileNames {
+		cands := candidatesByFile[f]
+		var surviving []RootFileCandidate
+		for i, c1 := range cands {
+			shadowed := false
+			for j, c2 := range cands {
+				if i == j {
+					continue
+				}
+				if dependsOnTransitive(depGraph, c2.Package, c1.Package) {
+					shadowed = true
+					break
+				}
+			}
+			if !shadowed {
+				surviving = append(surviving, c1)
+			}
+		}
+
+		if len(surviving) == 1 {
+			target := filepath.Join(root, filepath.FromSlash(surviving[0].Path))
+			if existing, err := os.ReadFile(target); err == nil {
+				if lock.SHA256Hex(existing) == lock.SHA256Hex(surviving[0].Content) {
+					continue
+				}
+			}
+			singles = append(singles, surviving[0])
+		} else if len(surviving) > 1 {
+			conflicts = append(conflicts, RootFileConflict{
+				Path:       f,
+				Candidates: surviving,
+			})
+		}
+	}
+
+	if len(singles) == 0 && len(conflicts) == 0 {
+		return nil
+	}
+
+	var resolution RootFileResolution
+	if resolveRootFiles != nil {
+		res, err := resolveRootFiles(singles, conflicts)
+		if err != nil {
+			return err
+		}
+		resolution = res
+	} else if selectRootFiles != nil {
+		var singlePaths []string
+		for _, s := range singles {
+			singlePaths = append(singlePaths, s.Path)
+		}
+		approvedPaths, err := selectRootFiles(singlePaths)
+		if err != nil {
+			return err
+		}
+		resolution.ApprovedSingles = approvedPaths
+		resolution.SelectedWinners = make(map[string]string)
+		for _, conf := range conflicts {
+			cSel, err := selectRootFiles([]string{conf.Path})
+			if err != nil {
+				return err
+			}
+			if len(cSel) > 0 {
+				resolution.SelectedWinners[conf.Path] = conf.Candidates[0].Package
+			}
+		}
+	} else {
+		switch mode {
+		case RootFileOptionNone:
+			return nil
+		case "yes", "all":
+			for _, s := range singles {
+				resolution.ApprovedSingles = append(resolution.ApprovedSingles, s.Path)
+			}
+			resolution.SelectedWinners = make(map[string]string)
+			for _, conf := range conflicts {
+				allIdentical := true
+				firstSHA := lock.SHA256Hex(conf.Candidates[0].Content)
+				for _, c := range conf.Candidates[1:] {
+					if lock.SHA256Hex(c.Content) != firstSHA {
+						allIdentical = false
+						break
+					}
+				}
+				if allIdentical {
+					resolution.SelectedWinners[conf.Path] = conf.Candidates[0].Package
+				} else {
+					return fmt.Errorf("conflict: unrelated packages declare differing %s; cannot resolve automatically without user input", conf.Path)
+				}
+			}
+		case "ask":
+			if !isTTYFunc() {
+				return fmt.Errorf("non-TTY requires one of --yes|--all|--none for root file approval")
+			}
+			var groups []*huh.Group
+
+			var approvedSingles []string
+			if len(singles) > 0 {
+				var singleFields []huh.Field
+				for _, s := range singles {
+					desc := fmt.Sprintf("Source: %s\n\n```\n%s\n```", s.Package, formatFilePreview(s.Content))
+					singleFields = append(singleFields, huh.NewNote().
+						Title(fmt.Sprintf("Root File Preview: %s", s.Path)).
+						Description(desc))
+				}
+				var options []huh.Option[string]
+				for _, s := range singles {
+					options = append(options, huh.NewOption(fmt.Sprintf("%s (from %s)", s.Path, s.Package), s.Path).Selected(true))
+				}
+				singleFields = append(singleFields, huh.NewMultiSelect[string]().
+					Title("Install root files").
+					Description("Select which files to place in the project root:").
+					Options(options...).
+					Value(&approvedSingles))
+				groups = append(groups, huh.NewGroup(singleFields...))
+			}
+
+			conflictPicks := make(map[string]*string)
+			for _, conf := range conflicts {
+				var conflictFields []huh.Field
+				for _, cand := range conf.Candidates {
+					desc := fmt.Sprintf("Source: %s\n\n```\n%s\n```", cand.Package, formatFilePreview(cand.Content))
+					conflictFields = append(conflictFields, huh.NewNote().
+						Title(fmt.Sprintf("Conflict Preview: %s (from %s)", conf.Path, cand.Package)).
+						Description(desc))
+				}
+				pick := new(string)
+				conflictPicks[conf.Path] = pick
+				var options []huh.Option[string]
+				for _, cand := range conf.Candidates {
+					options = append(options, huh.NewOption(fmt.Sprintf("From %s", cand.Package), cand.Package))
+				}
+				options = append(options, huh.NewOption("None (do not install)", RootFileOptionNone))
+				conflictFields = append(conflictFields, huh.NewSelect[string]().
+					Title(fmt.Sprintf("Select version for %s", conf.Path)).
+					Description("Multiple unrelated packages declare this file. Choose one:").
+					Options(options...).
+					Value(pick))
+				groups = append(groups, huh.NewGroup(conflictFields...))
+			}
+
+			form := huh.NewForm(groups...)
+			if err := form.Run(); err != nil {
+				return fmt.Errorf("root file selection cancelled: %w", err)
+			}
+
+			resolution.ApprovedSingles = approvedSingles
+			resolution.SelectedWinners = make(map[string]string)
+			for pth, pickPtr := range conflictPicks {
+				if pickPtr != nil && *pickPtr != "" && *pickPtr != RootFileOptionNone {
+					resolution.SelectedWinners[pth] = *pickPtr
+				}
+			}
+		default:
+			return fmt.Errorf("unknown mode %q", mode)
+		}
+	}
+
+	approvedSet := make(map[string]bool)
+	for _, f := range resolution.ApprovedSingles {
+		approvedSet[f] = true
+	}
+	for _, s := range singles {
+		if !approvedSet[s.Path] {
+			continue
+		}
+		target := filepath.Join(root, filepath.FromSlash(s.Path))
+		if err := os.MkdirAll(filepath.Dir(target), config.PermDirPublic); err != nil {
+			return fmt.Errorf("create dir for %s: %w", s.Path, err)
+		}
+		if err := os.WriteFile(target, s.Content, config.PermFilePublic); err != nil {
+			return fmt.Errorf("write %s: %w", s.Path, err)
+		}
+	}
+
+	for _, conf := range conflicts {
+		chosenPkg, ok := resolution.SelectedWinners[conf.Path]
+		if !ok || chosenPkg == "" || chosenPkg == RootFileOptionNone {
+			continue
+		}
+		var chosenCandidate *RootFileCandidate
+		for i := range conf.Candidates {
+			if conf.Candidates[i].Package == chosenPkg {
+				chosenCandidate = &conf.Candidates[i]
+				break
+			}
+		}
+		if chosenCandidate == nil {
+			return fmt.Errorf("internal error: chosen package %q for %s not found in candidates", chosenPkg, conf.Path)
+		}
+		target := filepath.Join(root, filepath.FromSlash(conf.Path))
+		if err := os.MkdirAll(filepath.Dir(target), config.PermDirPublic); err != nil {
+			return fmt.Errorf("create dir for %s: %w", conf.Path, err)
+		}
+		if err := os.WriteFile(target, chosenCandidate.Content, config.PermFilePublic); err != nil {
+			return fmt.Errorf("write %s: %w", conf.Path, err)
+		}
+	}
+
+	return nil
+}
+
+type downloadedPkgInfo struct {
+	name      string
+	version   string
+	toml      pkg.PkgToml
+	files     map[string][]byte
+	rootFiles map[string][]byte
+}
+
+func installComponentTree(ctx context.Context, root, name, version, mode string, selectRootFiles func(files []string) ([]string, error), resolveRootFiles RootFileResolver) (pkg.PkgToml, error) {
+	visited := map[string]bool{name: true}
+	var downloaded []downloadedPkgInfo
+	p, err := installComponentTreeRecursive(ctx, root, name, version, visited, &downloaded)
+	if err != nil {
+		return pkg.PkgToml{}, err
+	}
+	if err := processAllRootFiles(root, downloaded, mode, selectRootFiles, resolveRootFiles); err != nil {
+		return pkg.PkgToml{}, err
+	}
+	return p, nil
+}
+
+func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool, downloaded *[]downloadedPkgInfo) (pkg.PkgToml, error) {
 	client, err := registry.NewClient()
 	if err != nil {
 		return pkg.PkgToml{}, err
@@ -133,6 +455,7 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 						sNames = append(sNames, sf)
 					}
 					sort.Strings(sNames)
+
 					for _, sf := range sNames {
 						if strings.Contains(sf, "..") || filepath.IsAbs(sf) {
 							return pkg.PkgToml{}, fmt.Errorf("illegal path %q in scope archive %s", sf, scopeName)
@@ -155,11 +478,36 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 		}
 	}
 
+	pkgRootCandidates := make(map[string][]byte)
+	if p.RootFiles != nil && len(p.RootFiles.Files) > 0 {
+		for _, pattern := range p.RootFiles.Files {
+			for n, content := range files {
+				if n == config.ConfigFileName {
+					continue
+				}
+				if matched, _ := filepath.Match(pattern, n); matched || n == pattern {
+					pkgRootCandidates[n] = content
+				}
+			}
+		}
+	}
+
+	*downloaded = append(*downloaded, downloadedPkgInfo{
+		name:      name,
+		version:   version,
+		toml:      p,
+		files:     files,
+		rootFiles: pkgRootCandidates,
+	})
+
 	dest := filepath.Join(root, "components", name)
 	var entries []lock.FileEntry
 	names := make([]string, 0, len(files))
 	for n := range files {
 		if n == config.ConfigFileName {
+			continue
+		}
+		if _, isRoot := pkgRootCandidates[n]; isRoot {
 			continue
 		}
 		names = append(names, n)
@@ -217,7 +565,7 @@ func installComponentTreeRecursive(ctx context.Context, root, name, version stri
 		if err != nil {
 			return pkg.PkgToml{}, fmt.Errorf("resolve dependency %q (%s): %w", depName, depRange, err)
 		}
-		if _, err := installComponentTreeRecursive(ctx, root, depName, depVersion, visited); err != nil {
+		if _, err := installComponentTreeRecursive(ctx, root, depName, depVersion, visited, downloaded); err != nil {
 			return pkg.PkgToml{}, fmt.Errorf("install dependency %q: %w", depName, err)
 		}
 	}
@@ -258,11 +606,13 @@ func promptLine(prompt string) (string, error) {
 }
 
 type InitOptions struct {
-	Template string
-	Report   string
-	Yes      bool
-	Flags    []string
-	Confirm  func(conflicts []string) (bool, error)
+	Template         string
+	Report           string
+	Yes              bool
+	Flags            []string
+	Confirm          func(conflicts []string) (bool, error)
+	SelectRootFiles  func(files []string) ([]string, error)
+	ResolveRootFiles RootFileResolver
 }
 
 func normalizeTemplateFiles(files map[string][]byte) (map[string][]byte, error) {
@@ -436,7 +786,18 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 	}
 
-	p, err := installComponentTree(ctx, root, name, version)
+	mode := "ask"
+	if opt.Yes {
+		mode = "all"
+	} else if len(opt.Flags) > 0 {
+		m, mErr := selectMode(opt.Flags)
+		if mErr != nil {
+			return mErr
+		}
+		mode = m
+	}
+
+	p, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
 	if err != nil {
 		return err
 	}
@@ -460,12 +821,9 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	}
 
 	if len(opt.Flags) > 0 {
-		mode, mErr := selectMode(opt.Flags)
-		if mErr != nil {
-			return mErr
-		}
-		if mode != "" && mode != "none" {
-			if err := copyCommands(root, &cfg, p, mode); err != nil {
+		mErr := mode
+		if mErr != "" && mErr != "none" {
+			if err := copyCommands(root, &cfg, p, mErr); err != nil {
 				return err
 			}
 		}
@@ -479,8 +837,10 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 }
 
 type AddOptions struct {
-	Package string
-	Flags   []string
+	Package          string
+	Flags            []string
+	SelectRootFiles  func(files []string) ([]string, error)
+	ResolveRootFiles RootFileResolver
 }
 
 func Add(ctx context.Context, cwd string, opt AddOptions) error {
@@ -504,7 +864,7 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err != nil {
 		return err
 	}
-	p, err := installComponentTree(ctx, root, name, version)
+	p, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
 	if err != nil {
 		return err
 	}

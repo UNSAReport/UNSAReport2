@@ -54,9 +54,20 @@ export interface ProjectDef {
   typstEntry?: string;
 }
 
+export interface WorkspaceDef {
+  members?: string[];
+  packages?: string[];
+}
+
+export interface RootFilesDef {
+  files: string[];
+}
+
 export interface UnsareportToml {
   project: ProjectDef;
+  workspace?: WorkspaceDef;
   scope?: ScopeDef;
+  rootFiles?: RootFilesDef;
   name?: string;
   version?: string;
   description?: string;
@@ -479,10 +490,12 @@ export function validateUnsareportToml(
 
   const allowedTop: Record<string, true> = {
     project: true,
+    workspace: true,
     package: true,
     scope: true,
     components: true,
     templates: true,
+    'root-files': true,
     commands: true,
     hooks: true,
     'config-schema': true,
@@ -529,6 +542,71 @@ export function validateUnsareportToml(
     );
   }
 
+  let workspace: WorkspaceDef | undefined;
+  if (raw.workspace !== undefined) {
+    if (!isRecord(raw.workspace)) {
+      throw new ValidationError('unsareport.toml [workspace] must be a table', {
+        field: 'workspace',
+      });
+    }
+    const ws: WorkspaceDef = {};
+    if (raw.workspace.members !== undefined) {
+      if (
+        !Array.isArray(raw.workspace.members) ||
+        !raw.workspace.members.every((m) => typeof m === 'string')
+      ) {
+        throw new ValidationError(
+          'unsareport.toml [workspace] "members" must be an array of strings',
+          {
+            field: 'workspace.members',
+          },
+        );
+      }
+      ws.members = raw.workspace.members;
+    }
+    if (raw.workspace.packages !== undefined) {
+      if (
+        !Array.isArray(raw.workspace.packages) ||
+        !raw.workspace.packages.every((p) => typeof p === 'string')
+      ) {
+        throw new ValidationError(
+          'unsareport.toml [workspace] "packages" must be an array of strings',
+          {
+            field: 'workspace.packages',
+          },
+        );
+      }
+      ws.packages = raw.workspace.packages;
+    }
+    workspace = ws;
+  }
+
+  const packageRaw = raw.package;
+
+  let rootFiles: RootFilesDef | undefined;
+  if (raw['root-files'] !== undefined) {
+    if (!packageRaw) {
+      throw new ValidationError(
+        'unsareport.toml [root-files] is only allowed in [package], not in [scope] or [workspace]',
+        { field: 'root-files' },
+      );
+    }
+    if (!isRecord(raw['root-files'])) {
+      throw new ValidationError(
+        'unsareport.toml [root-files] must be a table',
+        {
+          field: 'root-files',
+        },
+      );
+    }
+    const files = validateGlobList(
+      raw['root-files'].files,
+      'root-files.files',
+      false,
+    );
+    rootFiles = { files };
+  }
+
   let scope: ScopeDef | undefined;
   if (raw.scope !== undefined) {
     if (!isRecord(raw.scope)) {
@@ -547,7 +625,11 @@ export function validateUnsareportToml(
         { field: 'scope.name' },
       );
     }
-    const files = validateGlobList(raw.scope.files, 'scope.files', false);
+    const files = validateGlobList(
+      raw.scope.files,
+      'scope.files',
+      workspace !== undefined,
+    );
     scope = { name: scopeName, files };
     if (raw.scope.description !== undefined) {
       scope.description = requireString(
@@ -558,10 +640,9 @@ export function validateUnsareportToml(
     }
   }
 
-  const packageRaw = raw.package;
-  if (!packageRaw && !scope) {
+  if (!packageRaw && !scope && !workspace) {
     throw new ValidationError(
-      'unsareport.toml requires either a [package] or a [scope] table',
+      'unsareport.toml requires either a [package], [scope], or [workspace] table',
       { field: 'manifest' },
     );
   }
@@ -791,7 +872,9 @@ export function validateUnsareportToml(
     hooks,
     configSchema,
   };
+  if (workspace !== undefined) doc.workspace = workspace;
   if (scope !== undefined) doc.scope = scope;
+  if (rootFiles !== undefined) doc.rootFiles = rootFiles;
   if (description !== undefined) doc.description = description;
   if (displayName !== undefined) doc.displayName = displayName;
   if (tags !== undefined) doc.tags = tags;

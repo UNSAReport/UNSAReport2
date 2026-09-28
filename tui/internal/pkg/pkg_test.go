@@ -156,3 +156,44 @@ func TestRejectsUnknownField(t *testing.T) {
 		t.Fatal("expected unknown-field error")
 	}
 }
+
+func TestParseAndValidateWorkspace(t *testing.T) {
+	wsScopeToml := `
+[project]
+config_version = 1
+
+[workspace]
+packages = ["*"]
+
+[scope]
+name = "@unsareport"
+description = "Official UNSAReport component library"
+files = ["tsconfig.json"]
+`
+	p, err := Parse(wsScopeToml)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if p.Workspace == nil || len(p.Workspace.Packages) != 1 || p.Workspace.Packages[0] != "*" {
+		t.Fatalf("expected workspace packages = [*], got %+v", p.Workspace)
+	}
+	if err := Validate(p); err != nil {
+		t.Fatalf("unexpected validation error: %v", err)
+	}
+
+	invalidWs := `
+[project]
+config_version = 1
+
+[workspace]
+members = ["../outside"]
+`
+	p2, err := Parse(invalidWs)
+	if err != nil {
+		t.Fatalf("unexpected parse error: %v", err)
+	}
+	if err := Validate(p2); err == nil {
+		t.Fatal("expected validation error for escaping workspace members glob")
+	}
+}
+

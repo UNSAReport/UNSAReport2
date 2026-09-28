@@ -91,7 +91,6 @@ default = "sample-val"
 		t.Fatalf("unexpected template name: %s", templates[0].Name)
 	}
 
-	// 1. Resolve with empty target from ws root (should resolve single package)
 	target, err := ResolveTemplateTarget(ws, "", ws)
 	if err != nil {
 		t.Fatalf("ResolveTemplateTarget empty target failed: %v", err)
@@ -103,7 +102,6 @@ default = "sample-val"
 		t.Fatalf("expected TypstEntry 'main.typ', got %q", target.TypstEntry)
 	}
 
-	// 2. Resolve by package name
 	targetByName, err := ResolveTemplateTarget(ws, "@scope/my-pkg", ws)
 	if err != nil {
 		t.Fatalf("ResolveTemplateTarget by name failed: %v", err)
@@ -112,7 +110,6 @@ default = "sample-val"
 		t.Fatalf("expected PkgName '@scope/my-pkg', got %q", targetByName.PkgName)
 	}
 
-	// 3. Resolve by relative dir
 	targetByDir, err := ResolveTemplateTarget(ws, "scope/my-pkg", ws)
 	if err != nil {
 		t.Fatalf("ResolveTemplateTarget by dir failed: %v", err)
@@ -121,7 +118,6 @@ default = "sample-val"
 		t.Fatalf("expected PkgName '@scope/my-pkg', got %q", targetByDir.PkgName)
 	}
 
-	// 4. Resolve by entry typ file
 	targetByTyp, err := ResolveTemplateTarget(ws, filepath.Join("scope", "my-pkg", "template", "main.typ"), ws)
 	if err != nil {
 		t.Fatalf("ResolveTemplateTarget by typ file failed: %v", err)
@@ -130,7 +126,6 @@ default = "sample-val"
 		t.Fatalf("expected EntryPath %q, got %q", filepath.Join(tmplDir, "main.typ"), targetByTyp.EntryPath)
 	}
 
-	// 5. Test hook environment generation
 	env := buildPackageHookEnv(ws, target)
 	foundReportDir := false
 	foundTypstEntry := false
