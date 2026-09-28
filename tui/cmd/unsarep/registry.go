@@ -273,21 +273,19 @@ func newRegistryListCmd() *cobra.Command {
 
 func newRegistrySyncCmd() *cobra.Command {
 	var opt registry.SyncOptions
-	var localDirs []string
 	var jsonOut bool
 	cmd := &cobra.Command{
 		Use:   "sync [dir]",
 		Short: "Synchronize local components directory for package development and testing",
 		Long: `sync inspects unsareport.toml files in the workspace, links local packages
 and scopes into a root components/ directory using relative symlinks, and downloads
-external dependencies from the registry (or links them from --local paths).`,
+external dependencies from the registry.`,
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := "."
 			if len(args) > 0 {
 				dir = args[0]
 			}
-			opt.LocalDirs = localDirs
 			ctx := context.Background()
 			client, err := registry.NewClient()
 			if err != nil {
@@ -319,7 +317,6 @@ external dependencies from the registry (or links them from --local paths).`,
 	}
 	cmd.Flags().BoolVar(&opt.Clean, "clean", false, "Remove the generated components directory")
 	cmd.Flags().BoolVar(&opt.Check, "check", false, "Verify dependency resolution without modifying files")
-	cmd.Flags().StringSliceVar(&localDirs, "local", nil, "Path(s) to sibling local package repositories")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output results in JSON format")
 	return cmd
 }

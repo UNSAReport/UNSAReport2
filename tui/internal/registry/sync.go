@@ -16,7 +16,6 @@ import (
 
 const (
 	SyncSourceInternal = "internal"
-	SyncSourceLocal    = "local"
 	SyncSourceRegistry = "registry"
 
 	ComponentsDirName = "components"
@@ -27,9 +26,8 @@ const (
 )
 
 type SyncOptions struct {
-	Clean     bool
-	Check     bool
-	LocalDirs []string
+	Clean bool
+	Check bool
 }
 
 type SyncedPackage struct {
@@ -84,21 +82,6 @@ func SyncWorkspace(ctx context.Context, client *Client, workspaceDir string, opt
 		return nil, fmt.Errorf("discover workspace: %w", err)
 	}
 
-	siblingPkgs := make(map[string]discoveredPkg)
-	for _, lDir := range opts.LocalDirs {
-		absLocal, lErr := filepath.Abs(lDir)
-		if lErr != nil {
-			return nil, fmt.Errorf("resolve local dir %q: %w", lDir, lErr)
-		}
-		sPkgs, _, sErr := discoverWorkspace(absLocal)
-		if sErr != nil {
-			return nil, fmt.Errorf("discover sibling dir %q: %w", absLocal, sErr)
-		}
-		for name, p := range sPkgs {
-			siblingPkgs[name] = p
-		}
-	}
-
 	allDeps := make(map[string]string)
 	for _, dp := range localPkgs {
 		for depName, depRange := range dp.decl.Dependencies {
@@ -129,15 +112,6 @@ func SyncWorkspace(ctx context.Context, client *Client, workspaceDir string, opt
 
 	for depName, depRange := range allDeps {
 		if _, ok := localPkgs[depName]; ok {
-			continue
-		}
-		if sib, ok := siblingPkgs[depName]; ok {
-			plans = append(plans, planItem{
-				name:    depName,
-				version: sib.decl.Package.Version,
-				source:  SyncSourceLocal,
-				srcPath: sib.dir,
-			})
 			continue
 		}
 		if client == nil {
@@ -213,7 +187,7 @@ func SyncWorkspace(ctx context.Context, client *Client, workspaceDir string, opt
 			return nil, fmt.Errorf("create parent dir for %q: %w", targetPkgDir, err)
 		}
 
-		if pl.source == SyncSourceInternal || pl.source == SyncSourceLocal {
+		if pl.source == SyncSourceInternal {
 			relSrc, relErr := filepath.Rel(filepath.Dir(targetPkgDir), pl.srcPath)
 			if relErr != nil {
 				return nil, fmt.Errorf("compute relative path for %q: %w", pl.srcPath, relErr)
