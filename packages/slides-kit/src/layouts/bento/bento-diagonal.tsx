@@ -27,47 +27,69 @@ export function BentoDiagonal({
 }: BentoDiagonalProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid cols={2} gap="1.5rem" className="my-auto h-full">
-        {/* Top-Left (Glow) */}
-        <SlideCard variant="glow" className="p-6 justify-between h-full">
-          <div>
-            <h4 className="text-xl font-bold mb-2">{topLeft.title}</h4>
-            <div className="text-sm opacity-85 leading-relaxed">
-              {topLeft.content}
+      <div className="flex w-full flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
+        <SlideGrid cols={2} gap="1rem" className="h-full min-h-0 flex-1">
+          {/* Top-Left (Glow) */}
+          <SlideCard
+            variant="glow"
+            className="min-h-0 min-w-0 justify-between overflow-hidden p-6"
+          >
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <h4 className="mb-2 break-words text-xl font-bold line-clamp-2">
+                {topLeft.title}
+              </h4>
+              <div className="break-words text-sm opacity-85 leading-relaxed line-clamp-6">
+                {topLeft.content}
+              </div>
             </div>
-          </div>
-        </SlideCard>
+          </SlideCard>
 
-        {/* Top-Right (Default) */}
-        <SlideCard variant="default" className="p-6 justify-between h-full">
-          <div>
-            <h4 className="text-base font-bold mb-2">{topRight.title}</h4>
-            <div className="text-xs opacity-75 leading-relaxed">
-              {topRight.content}
+          {/* Top-Right (Default) */}
+          <SlideCard
+            variant="default"
+            className="min-h-0 min-w-0 justify-between overflow-hidden p-6"
+          >
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <h4 className="mb-2 break-words text-base font-bold line-clamp-2">
+                {topRight.title}
+              </h4>
+              <div className="break-words text-xs opacity-75 leading-relaxed line-clamp-6">
+                {topRight.content}
+              </div>
             </div>
-          </div>
-        </SlideCard>
+          </SlideCard>
 
-        {/* Bottom-Left (Default) */}
-        <SlideCard variant="default" className="p-6 justify-between h-full">
-          <div>
-            <h4 className="text-base font-bold mb-2">{bottomLeft.title}</h4>
-            <div className="text-xs opacity-75 leading-relaxed">
-              {bottomLeft.content}
+          {/* Bottom-Left (Default) */}
+          <SlideCard
+            variant="default"
+            className="min-h-0 min-w-0 justify-between overflow-hidden p-6"
+          >
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <h4 className="mb-2 break-words text-base font-bold line-clamp-2">
+                {bottomLeft.title}
+              </h4>
+              <div className="break-words text-xs opacity-75 leading-relaxed line-clamp-6">
+                {bottomLeft.content}
+              </div>
             </div>
-          </div>
-        </SlideCard>
+          </SlideCard>
 
-        {/* Bottom-Right (Glow) */}
-        <SlideCard variant="glow" className="p-6 justify-between h-full">
-          <div>
-            <h4 className="text-xl font-bold mb-2">{bottomRight.title}</h4>
-            <div className="text-sm opacity-85 leading-relaxed">
-              {bottomRight.content}
+          {/* Bottom-Right (Glow) */}
+          <SlideCard
+            variant="glow"
+            className="min-h-0 min-w-0 justify-between overflow-hidden p-6"
+          >
+            <div className="min-h-0 min-w-0 overflow-hidden">
+              <h4 className="mb-2 break-words text-xl font-bold line-clamp-2">
+                {bottomRight.title}
+              </h4>
+              <div className="break-words text-sm opacity-85 leading-relaxed line-clamp-6">
+                {bottomRight.content}
+              </div>
             </div>
-          </div>
-        </SlideCard>
-      </SlideGrid>
+          </SlideCard>
+        </SlideGrid>
+      </div>
     </SlideSection>
   );
 }

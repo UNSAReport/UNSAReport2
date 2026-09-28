@@ -31,18 +31,25 @@ export function BentoLShape({
 }: BentoLShapeProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="grid grid-cols-12 gap-4 h-full my-auto">
+      <div className="grid w-full flex-1 min-h-0 min-w-0 grid-cols-12 gap-4 overflow-hidden">
         {/* Tall Left (5 cols) */}
-        <div className="col-span-5 h-full">
-          <SlideCard variant="glow" className="h-full justify-between p-6">
-            <div>
-              <div className="flex justify-between items-center mb-3">
-                <h3 className="text-xl font-bold">{tallLeft.title}</h3>
+        <div className="col-span-5 min-h-0 min-w-0 h-full overflow-hidden">
+          <SlideCard
+            variant="glow"
+            className="h-full min-h-0 min-w-0 justify-between overflow-hidden p-6"
+          >
+            <div className="min-w-0">
+              <div className="flex justify-between items-center gap-2 mb-3">
+                <h3 className="text-xl font-bold min-w-0 line-clamp-2 break-words">
+                  {tallLeft.title}
+                </h3>
                 {tallLeft.badge && (
-                  <SlideBadge variant="accent">{tallLeft.badge}</SlideBadge>
+                  <SlideBadge variant="accent" className="shrink-0">
+                    {tallLeft.badge}
+                  </SlideBadge>
                 )}
               </div>
-              <div className="text-sm opacity-85 leading-relaxed">
+              <div className="text-sm opacity-85 leading-relaxed break-words overflow-hidden line-clamp-6">
                 {tallLeft.content}
               </div>
             </div>
@@ -50,34 +57,44 @@ export function BentoLShape({
         </div>
 
         {/* Right side (7 cols: topRight and bottomWide) */}
-        <div className="col-span-7 h-full flex flex-col gap-4">
-          <SlideCard variant="default" className="flex-1 p-6 justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-lg font-bold">{topRight.title}</h4>
+        <div className="col-span-7 min-h-0 min-w-0 h-full overflow-hidden flex flex-col gap-4">
+          <SlideCard
+            variant="default"
+            className="flex-1 min-h-0 min-w-0 p-6 justify-between overflow-hidden"
+          >
+            <div className="min-w-0">
+              <div className="flex justify-between items-center gap-2 mb-2">
+                <h4 className="text-lg font-bold min-w-0 line-clamp-2 break-words">
+                  {topRight.title}
+                </h4>
                 {topRight.badge && (
-                  <SlideBadge variant="secondary" className="text-xs">
+                  <SlideBadge variant="secondary" className="text-xs shrink-0">
                     {topRight.badge}
                   </SlideBadge>
                 )}
               </div>
-              <div className="text-xs opacity-80 leading-relaxed">
+              <div className="text-xs opacity-80 leading-relaxed break-words overflow-hidden line-clamp-4">
                 {topRight.content}
               </div>
             </div>
           </SlideCard>
 
-          <SlideCard variant="default" className="flex-1 p-6 justify-between">
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-lg font-bold">{bottomWide.title}</h4>
+          <SlideCard
+            variant="default"
+            className="flex-1 min-h-0 min-w-0 p-6 justify-between overflow-hidden"
+          >
+            <div className="min-w-0">
+              <div className="flex justify-between items-center gap-2 mb-2">
+                <h4 className="text-lg font-bold min-w-0 line-clamp-2 break-words">
+                  {bottomWide.title}
+                </h4>
                 {bottomWide.badge && (
-                  <SlideBadge variant="secondary" className="text-xs">
+                  <SlideBadge variant="secondary" className="text-xs shrink-0">
                     {bottomWide.badge}
                   </SlideBadge>
                 )}
               </div>
-              <div className="text-xs opacity-80 leading-relaxed">
+              <div className="text-xs opacity-80 leading-relaxed break-words overflow-hidden line-clamp-4">
                 {bottomWide.content}
               </div>
             </div>

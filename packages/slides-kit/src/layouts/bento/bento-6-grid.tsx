@@ -28,23 +28,32 @@ export function Bento6Grid({
 }: Bento6GridProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid cols={3} gap="1.25rem" className="my-auto h-full">
+      <SlideGrid
+        cols={3}
+        gap="1.25rem"
+        className="flex-1 min-h-0 items-stretch"
+      >
         {cards.slice(0, 6).map((c, idx) => (
           <SlideCard
             key={`bento-6-${c.title || idx}`}
             variant="default"
-            className="p-5 justify-between h-full"
+            className="p-5 justify-between min-h-0 min-w-0 h-full overflow-hidden"
           >
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <h4 className="text-base font-bold">{c.title}</h4>
+            <div className="min-w-0 overflow-hidden">
+              <div className="flex justify-between items-center gap-2 mb-2">
+                <h4 className="text-base font-bold line-clamp-2 break-words min-w-0">
+                  {c.title}
+                </h4>
                 {c.badge && (
-                  <SlideBadge variant="secondary" className="text-[10px]">
+                  <SlideBadge
+                    variant="secondary"
+                    className="text-[10px] shrink-0"
+                  >
                     {c.badge}
                   </SlideBadge>
                 )}
               </div>
-              <div className="text-xs opacity-80 leading-relaxed">
+              <div className="text-xs opacity-80 leading-relaxed line-clamp-4 break-words overflow-hidden">
                 {c.content}
               </div>
             </div>

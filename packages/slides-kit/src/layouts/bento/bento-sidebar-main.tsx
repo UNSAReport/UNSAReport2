@@ -39,61 +39,83 @@ export function BentoSidebarMain({
 }: BentoSidebarMainProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideSplit
-        ratio="30-70"
-        gap="1.5rem"
-        left={
-          <SlideCard variant="default" className="h-full justify-between p-6">
-            <div>
-              <div className="flex justify-between items-center mb-4 border-b border-current/10 pb-2">
-                <h3 className="text-lg font-bold">{sidebarTitle}</h3>
-                {sidebarBadge && (
-                  <SlideBadge variant="secondary" className="text-xs">
-                    {sidebarBadge}
-                  </SlideBadge>
-                )}
-              </div>
-              <div className="text-xs opacity-80 leading-relaxed">
-                {sidebarContent}
-              </div>
-            </div>
-          </SlideCard>
-        }
-        right={
-          <div className="h-full flex flex-col gap-4">
-            <SlideCard variant="glow" className="flex-1 p-6 justify-between">
-              <h4 className="text-xl font-bold mb-2">{mainTopTitle}</h4>
-              <div className="text-sm opacity-85 leading-relaxed">
-                {mainTopContent}
+      <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden">
+        <SlideSplit
+          ratio="30-70"
+          gap="1rem"
+          className="min-h-0"
+          left={
+            <SlideCard
+              variant="default"
+              className="h-full min-h-0 min-w-0 justify-between overflow-hidden p-6"
+            >
+              <div className="min-w-0">
+                <div className="flex justify-between items-center gap-2 mb-4 border-b border-current/10 pb-2">
+                  <h3 className="text-lg font-bold min-w-0 line-clamp-2 break-words">
+                    {sidebarTitle}
+                  </h3>
+                  {sidebarBadge && (
+                    <SlideBadge
+                      variant="secondary"
+                      className="text-xs shrink-0"
+                    >
+                      {sidebarBadge}
+                    </SlideBadge>
+                  )}
+                </div>
+                <div className="text-xs opacity-80 leading-relaxed break-words overflow-hidden line-clamp-6">
+                  {sidebarContent}
+                </div>
               </div>
             </SlideCard>
-            <SlideGrid cols={2} gap="1rem" className="flex-1">
+          }
+          right={
+            <div className="h-full min-h-0 min-w-0 flex flex-col gap-4 overflow-hidden">
               <SlideCard
-                variant="default"
-                className="p-4 justify-between h-full"
+                variant="glow"
+                className="flex-1 min-h-0 min-w-0 p-6 justify-between overflow-hidden"
               >
-                <h5 className="text-sm font-bold mb-1">
-                  {mainBottomLeftTitle}
-                </h5>
-                <div className="text-xs opacity-75">
-                  {mainBottomLeftContent}
+                <div className="min-w-0">
+                  <h4 className="text-xl font-bold mb-2 min-w-0 line-clamp-2 break-words">
+                    {mainTopTitle}
+                  </h4>
+                  <div className="text-sm opacity-85 leading-relaxed break-words overflow-hidden line-clamp-4">
+                    {mainTopContent}
+                  </div>
                 </div>
               </SlideCard>
-              <SlideCard
-                variant="default"
-                className="p-4 justify-between h-full"
-              >
-                <h5 className="text-sm font-bold mb-1">
-                  {mainBottomRightTitle}
-                </h5>
-                <div className="text-xs opacity-75">
-                  {mainBottomRightContent}
-                </div>
-              </SlideCard>
-            </SlideGrid>
-          </div>
-        }
-      />
+              <SlideGrid cols={2} gap="1rem" className="flex-1 min-h-0 h-full">
+                <SlideCard
+                  variant="default"
+                  className="min-h-0 min-w-0 p-4 justify-between h-full overflow-hidden"
+                >
+                  <div className="min-w-0">
+                    <h5 className="text-sm font-bold mb-1 truncate">
+                      {mainBottomLeftTitle}
+                    </h5>
+                    <div className="text-xs opacity-75 break-words overflow-hidden line-clamp-3">
+                      {mainBottomLeftContent}
+                    </div>
+                  </div>
+                </SlideCard>
+                <SlideCard
+                  variant="default"
+                  className="min-h-0 min-w-0 p-4 justify-between h-full overflow-hidden"
+                >
+                  <div className="min-w-0">
+                    <h5 className="text-sm font-bold mb-1 truncate">
+                      {mainBottomRightTitle}
+                    </h5>
+                    <div className="text-xs opacity-75 break-words overflow-hidden line-clamp-3">
+                      {mainBottomRightContent}
+                    </div>
+                  </div>
+                </SlideCard>
+              </SlideGrid>
+            </div>
+          }
+        />
+      </div>
     </SlideSection>
   );
 }

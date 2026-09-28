@@ -29,38 +29,73 @@ export function BentoCross({
 }: BentoCrossProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="max-w-4xl mx-auto w-full h-full my-auto flex flex-col justify-between gap-3">
+      <div className="w-full flex-1 min-h-0 flex flex-col gap-4 overflow-hidden items-stretch">
         {/* Top Satellite */}
-        <div className="max-w-md mx-auto w-full">
-          <SlideCard variant="default" className="p-3 text-center">
-            <h4 className="text-xs font-bold">{top.title}</h4>
-            <div className="text-[11px] opacity-75">{top.content}</div>
+        <div className="w-full max-w-md mx-auto shrink-0 min-w-0">
+          <SlideCard
+            variant="default"
+            className="p-3 text-center min-w-0 overflow-hidden"
+          >
+            <h4 className="text-xs font-bold line-clamp-1 break-words">
+              {top.title}
+            </h4>
+            <div className="text-[11px] opacity-75 line-clamp-2 break-words overflow-hidden">
+              {top.content}
+            </div>
           </SlideCard>
         </div>
 
         {/* Center Row: Left, Center, Right */}
-        <SlideGrid cols={3} gap="1rem" className="items-center">
-          <SlideCard variant="default" className="p-4 text-center">
-            <h4 className="text-xs font-bold">{left.title}</h4>
-            <div className="text-[11px] opacity-75">{left.content}</div>
+        <SlideGrid cols={3} gap="1rem" className="flex-1 min-h-0 items-stretch">
+          <SlideCard
+            variant="default"
+            className="p-4 text-center min-h-0 min-w-0 h-full overflow-hidden"
+          >
+            <h4 className="text-xs font-bold line-clamp-1 break-words">
+              {left.title}
+            </h4>
+            <div className="text-[11px] opacity-75 line-clamp-3 break-words overflow-hidden">
+              {left.content}
+            </div>
           </SlideCard>
 
-          <SlideCard variant="glow" className="p-6 text-center shadow-lg">
-            <h3 className="text-lg font-bold mb-1">{center.title}</h3>
-            <div className="text-xs opacity-85">{center.content}</div>
+          <SlideCard
+            variant="glow"
+            className="p-6 text-center shadow-lg min-h-0 min-w-0 h-full overflow-hidden"
+          >
+            <h3 className="text-lg font-bold mb-1 line-clamp-2 break-words">
+              {center.title}
+            </h3>
+            <div className="text-xs opacity-85 line-clamp-4 break-words overflow-hidden">
+              {center.content}
+            </div>
           </SlideCard>
 
-          <SlideCard variant="default" className="p-4 text-center">
-            <h4 className="text-xs font-bold">{right.title}</h4>
-            <div className="text-[11px] opacity-75">{right.content}</div>
+          <SlideCard
+            variant="default"
+            className="p-4 text-center min-h-0 min-w-0 h-full overflow-hidden"
+          >
+            <h4 className="text-xs font-bold line-clamp-1 break-words">
+              {right.title}
+            </h4>
+            <div className="text-[11px] opacity-75 line-clamp-3 break-words overflow-hidden">
+              {right.content}
+            </div>
           </SlideCard>
         </SlideGrid>
 
         {/* Bottom Satellite */}
-        <div className="max-w-md mx-auto w-full">
-          <SlideCard variant="default" className="p-3 text-center">
-            <h4 className="text-xs font-bold">{bottom.title}</h4>
-            <div className="text-[11px] opacity-75">{bottom.content}</div>
+        <div className="w-full max-w-md mx-auto shrink-0 min-w-0">
+          <SlideCard
+            variant="default"
+            className="p-3 text-center min-w-0 overflow-hidden"
+          >
+            <h4 className="text-xs font-bold line-clamp-1 break-words">
+              {bottom.title}
+            </h4>
+            <div className="text-[11px] opacity-75 line-clamp-2 break-words overflow-hidden">
+              {bottom.content}
+            </div>
           </SlideCard>
         </div>
       </div>

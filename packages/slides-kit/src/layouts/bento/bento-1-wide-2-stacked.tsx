@@ -34,33 +34,50 @@ export function Bento1Wide2Stacked({
 }: Bento1Wide2StackedProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col h-full gap-4 my-auto">
+      <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col gap-6">
         {/* Top 2 Cards */}
-        <SlideGrid cols={2} gap="1.5rem" className="flex-1">
-          <SlideCard variant="default" className="p-6 justify-between h-full">
-            <h4 className="text-lg font-bold mb-2">{topLeftTitle}</h4>
-            <div className="text-xs opacity-80 leading-relaxed">
+        <SlideGrid cols={2} gap="1.5rem" className="flex-1 min-h-0 min-w-0">
+          <SlideCard
+            variant="default"
+            className="p-6 min-w-0 min-h-0 h-full overflow-hidden"
+          >
+            <h4 className="text-lg font-bold mb-2 line-clamp-2 break-words">
+              {topLeftTitle}
+            </h4>
+            <div className="text-xs opacity-80 leading-relaxed line-clamp-6 break-words overflow-hidden">
               {topLeftContent}
             </div>
           </SlideCard>
-          <SlideCard variant="default" className="p-6 justify-between h-full">
-            <h4 className="text-lg font-bold mb-2">{topRightTitle}</h4>
-            <div className="text-xs opacity-80 leading-relaxed">
+          <SlideCard
+            variant="default"
+            className="p-6 min-w-0 min-h-0 h-full overflow-hidden"
+          >
+            <h4 className="text-lg font-bold mb-2 line-clamp-2 break-words">
+              {topRightTitle}
+            </h4>
+            <div className="text-xs opacity-80 leading-relaxed line-clamp-6 break-words overflow-hidden">
               {topRightContent}
             </div>
           </SlideCard>
         </SlideGrid>
 
         {/* Bottom Full Wide Card */}
-        <SlideCard variant="glow" className="flex-1 p-6 justify-between">
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="text-xl font-bold">{bottomWideTitle}</h3>
+        <SlideCard
+          variant="glow"
+          className="flex-1 min-h-0 min-w-0 p-6 overflow-hidden"
+        >
+          <div className="min-w-0 min-h-0 overflow-hidden">
+            <div className="flex justify-between items-center gap-4 mb-2">
+              <h3 className="text-xl font-bold line-clamp-2 break-words min-w-0">
+                {bottomWideTitle}
+              </h3>
               {bottomWideBadge && (
-                <SlideBadge variant="accent">{bottomWideBadge}</SlideBadge>
+                <SlideBadge variant="accent" className="shrink-0">
+                  {bottomWideBadge}
+                </SlideBadge>
               )}
             </div>
-            <div className="text-sm opacity-85 leading-relaxed">
+            <div className="text-sm opacity-85 leading-relaxed line-clamp-3 break-words overflow-hidden">
               {bottomWideContent}
             </div>
           </div>

@@ -37,72 +37,92 @@ export function Bento4FeaturedLeft({
 }: Bento4FeaturedLeftProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="grid grid-cols-12 gap-6 w-full h-full items-stretch">
+      <div className="grid grid-cols-12 gap-6 w-full flex-1 min-h-0 overflow-hidden items-stretch">
         {/* Featured Left Card (5 cols) */}
-        <div className="col-span-5 h-full">
+        <div className="col-span-5 min-h-0 min-w-0 flex">
           <SlideCard
             variant="glow"
             featured={true}
-            className="h-full justify-between p-8"
+            className="flex-1 min-h-0 min-w-0 justify-between p-8 overflow-hidden"
           >
-            <div>
+            <div className="min-w-0 overflow-hidden">
               {featured.badge && (
                 <div className="mb-4">
                   <SlideBadge variant="secondary">{featured.badge}</SlideBadge>
                 </div>
               )}
               {featured.stat && (
-                <div className="text-6xl font-black mb-2 tracking-tight">
+                <div className="text-5xl font-black mb-2 tracking-tight truncate">
                   {featured.stat}
                 </div>
               )}
               {featured.label && (
-                <h3 className="text-2xl font-bold mb-3">{featured.label}</h3>
+                <h3 className="text-2xl font-bold mb-3 line-clamp-2 break-words">
+                  {featured.label}
+                </h3>
               )}
               {featured.description && (
-                <p className="text-base opacity-80 leading-relaxed">
+                <p className="text-base opacity-80 leading-relaxed line-clamp-4 break-words">
                   {featured.description}
                 </p>
               )}
             </div>
-            {featured.content && <div className="mt-4">{featured.content}</div>}
+            {featured.content && (
+              <div className="mt-4 min-w-0 overflow-hidden">
+                {featured.content}
+              </div>
+            )}
           </SlideCard>
         </div>
 
         {/* Right 3 Cards (7 cols: 1 top wide, 2 bottom) */}
-        <div className="col-span-7 h-full flex flex-col gap-6">
+        <div className="col-span-7 min-h-0 min-w-0 flex flex-col gap-6 overflow-hidden">
           {cards[0] && (
-            <SlideCard className="flex-1 justify-between p-6">
-              <div className="flex justify-between items-start mb-2">
-                <h4 className="text-lg font-semibold">{cards[0].title}</h4>
-                {cards[0].badge && (
-                  <SlideBadge variant="accent">{cards[0].badge}</SlideBadge>
+            <SlideCard className="flex-1 min-h-0 min-w-0 justify-between p-6 overflow-hidden">
+              <div className="min-w-0 overflow-hidden">
+                <div className="flex justify-between items-start gap-4 mb-2">
+                  <h4 className="text-lg font-semibold line-clamp-2 break-words min-w-0">
+                    {cards[0].title}
+                  </h4>
+                  {cards[0].badge && (
+                    <SlideBadge variant="accent" className="shrink-0">
+                      {cards[0].badge}
+                    </SlideBadge>
+                  )}
+                </div>
+                {cards[0].stat && (
+                  <div className="text-3xl font-extrabold mb-1 truncate">
+                    {cards[0].stat}
+                  </div>
+                )}
+                {cards[0].description && (
+                  <p className="text-sm opacity-70 line-clamp-3 break-words">
+                    {cards[0].description}
+                  </p>
                 )}
               </div>
-              {cards[0].stat && (
-                <div className="text-3xl font-extrabold mb-1">
-                  {cards[0].stat}
-                </div>
-              )}
-              {cards[0].description && (
-                <p className="text-sm opacity-70">{cards[0].description}</p>
-              )}
             </SlideCard>
           )}
 
-          <div className="flex-1 grid grid-cols-2 gap-6">
+          <div className="flex-1 min-h-0 grid grid-cols-2 gap-6">
             {cards.slice(1, 3).map((card, idx) => (
               <SlideCard
                 key={`bento-card-${card.title || idx}`}
-                className="h-full justify-between p-6"
+                className="min-h-0 min-w-0 h-full justify-between p-6 overflow-hidden"
               >
-                <div>
-                  <h4 className="text-base font-semibold mb-1">{card.title}</h4>
+                <div className="min-w-0 overflow-hidden">
+                  <h4 className="text-base font-semibold mb-1 line-clamp-2 break-words">
+                    {card.title}
+                  </h4>
                   {card.stat && (
-                    <div className="text-2xl font-bold mb-1">{card.stat}</div>
+                    <div className="text-2xl font-bold mb-1 truncate">
+                      {card.stat}
+                    </div>
                   )}
                   {card.description && (
-                    <p className="text-xs opacity-60">{card.description}</p>
+                    <p className="text-xs opacity-60 line-clamp-3 break-words">
+                      {card.description}
+                    </p>
                   )}
                 </div>
               </SlideCard>

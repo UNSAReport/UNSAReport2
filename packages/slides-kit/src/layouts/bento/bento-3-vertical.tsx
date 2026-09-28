@@ -28,24 +28,34 @@ export function Bento3Vertical({
 }: Bento3VerticalProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="max-w-4xl mx-auto w-full my-auto">
-        <SlideStack spacing="1.25rem">
+      <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col">
+        <SlideStack
+          spacing="1.5rem"
+          className="flex-1 min-h-0 min-w-0 overflow-hidden"
+        >
           {rows.slice(0, 3).map((r, idx) => (
             <SlideCard
               key={`bento-3v-${r.title || idx}`}
               variant="default"
-              className="p-5 flex-row items-center justify-between"
+              className="p-5 flex-1 min-h-0 min-w-0 flex-row items-center overflow-hidden"
             >
-              <div className="flex-1 pr-6">
+              <div className="flex-1 pr-6 min-w-0 min-h-0 overflow-hidden">
                 <div className="flex items-center gap-3 mb-1">
-                  <h4 className="text-lg font-bold">{r.title}</h4>
+                  <h4 className="text-lg font-bold line-clamp-2 break-words min-w-0">
+                    {r.title}
+                  </h4>
                   {r.badge && (
-                    <SlideBadge variant="secondary" className="text-xs">
+                    <SlideBadge
+                      variant="secondary"
+                      className="text-xs shrink-0"
+                    >
                       {r.badge}
                     </SlideBadge>
                   )}
                 </div>
-                <div className="text-xs opacity-75">{r.content}</div>
+                <div className="text-xs opacity-75 line-clamp-2 break-words overflow-hidden">
+                  {r.content}
+                </div>
               </div>
             </SlideCard>
           ))}
