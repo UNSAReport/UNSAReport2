@@ -36,12 +36,22 @@ html.print-pdf #root > div {
     overflow: visible !important;
   }
 }
+html.reveal-print,
+html.reveal-print body,
+html.reveal-print .reveal,
+html.reveal-print .reveal .slides,
+html.reveal-print .reveal .slides .pdf-page {
+  background: var(--slide-bg, #0b0f19) !important;
+  background-color: var(--slide-bg, #0b0f19) !important;
+}
 .reveal .slides section,
 .reveal .slides > section,
 .reveal .slides > section > section,
 .reveal .slides .pdf-page section {
   height: 100% !important;
   top: 0 !important;
+  left: 0 !important;
+  width: 100% !important;
   display: block !important;
 }
 `;
@@ -69,7 +79,7 @@ export function DeckRenderer({
     transition = 'slide',
     width = 1280,
     height = 720,
-    margin = 0.04,
+    margin = 0,
     autoSlide = 0,
     loop = false,
     slides = [],
