@@ -1,8 +1,11 @@
 import process from 'node:process';
 import {
   ACCESS_TOKEN_TTL_S,
+  DEFAULT_SUB_APPS,
+  DEFAULT_USER_ROLE,
   REFRESH_TOKEN_TTL_S,
 } from '@unsa/schemas/constants';
+import type { Role } from '@/types';
 
 function parseIntOrThrow(raw: string, name: string): number {
   const parsed = Number.parseInt(raw, 10);
@@ -51,4 +54,11 @@ export const config = {
 
   clientRedirectUrl: process.env.CLIENT_REDIRECT_URL || 'http://localhost:5173',
   adminApiKey: requiredEnv('ADMIN_API_KEY'),
+
+  defaultSubApps: process.env.DEFAULT_SUB_APPS
+    ? process.env.DEFAULT_SUB_APPS.split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : [...DEFAULT_SUB_APPS],
+  defaultRole: (process.env.DEFAULT_ROLE || DEFAULT_USER_ROLE) as Role,
 };

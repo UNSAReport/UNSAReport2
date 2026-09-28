@@ -6,6 +6,7 @@ import {
   personalAccessTokens,
   refreshTokens,
   signingKeys,
+  userRoles,
   users,
 } from '@/db/schema';
 
@@ -15,6 +16,7 @@ const schema = {
   refreshTokens,
   personalAccessTokens,
   signingKeys,
+  userRoles,
 };
 
 const queryClient = postgres(config.databaseUrl);
