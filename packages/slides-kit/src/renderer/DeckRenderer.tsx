@@ -4,6 +4,25 @@ import { ThemeProvider } from '@/renderer/ThemeProvider';
 import type { DeckConfig } from '@/types';
 import 'reveal.js/reveal.css';
 
+const REVEAL_OVERRIDE_STYLES = `
+@layer base {
+  /* Reverts a preflight rule on hidden that breaks some reveal.js */
+  [hidden] {
+    display: revert !important;
+  }
+}
+[hidden] {
+  display: revert !important;
+}
+.reveal .slides section,
+.reveal .slides > section,
+.reveal .slides > section > section,
+.reveal .slides .pdf-page section {
+  height: 100% !important;
+  top: 0 !important;
+}
+`;
+
 export interface DeckRendererProps {
   /** Configuración completa del deck de diapositivas */
   config?: DeckConfig;
@@ -38,6 +57,7 @@ export function DeckRenderer({
       theme={theme}
       className={`w-full h-full relative ${className}`}
     >
+      <style dangerouslySetInnerHTML={{ __html: REVEAL_OVERRIDE_STYLES }} />
       <Deck
         config={{
           width,

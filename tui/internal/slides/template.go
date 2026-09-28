@@ -130,15 +130,41 @@ export default defineConfig({
 		{
 			Path: "index.html",
 			Content: `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="w-full h-full">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>` + projectName + `</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      @layer base {
+        /* Reverts a preflight rule on hidden that breaks some reveal.js */
+        [hidden] {
+          display: revert !important;
+        }
+      }
+      [hidden] {
+        display: revert !important;
+      }
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background-color: #0b0f19;
+      }
+      .reveal .slides section,
+      .reveal .slides > section,
+      .reveal .slides > section > section,
+      .reveal .slides .pdf-page section {
+        height: 100% !important;
+        top: 0 !important;
+      }
+    </style>
   </head>
-  <body class="m-0 p-0 overflow-hidden bg-black">
-    <div id="root"></div>
+  <body class="w-full h-full m-0 p-0 overflow-hidden bg-[#0b0f19] text-white">
+    <div id="root" class="w-full h-full"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
