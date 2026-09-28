@@ -13,33 +13,39 @@
     },
     "./layouts": {
       "types": "./dist/layouts/registry.d.ts",
-      "import": "./dist/layouts/registry.js"
+      "import": "./dist/layouts/registry.js",
+      "default": "./dist/layouts/registry.js"
     },
     "./layouts/types": {
       "types": "./dist/layouts/types.d.ts"
     },
     "./themes": {
       "types": "./dist/themes/registry.d.ts",
-      "import": "./dist/themes/registry.js"
+      "import": "./dist/themes/registry.js",
+      "default": "./dist/themes/registry.js"
     },
     "./themes/types": {
       "types": "./dist/themes/types.d.ts"
     },
     "./renderer": {
       "types": "./dist/renderer/DeckRenderer.d.ts",
-      "import": "./dist/renderer/DeckRenderer.js"
+      "import": "./dist/renderer/DeckRenderer.js",
+      "default": "./dist/renderer/DeckRenderer.js"
     },
     "./renderer/DeckRenderer": {
       "types": "./dist/renderer/DeckRenderer.d.ts",
-      "import": "./dist/renderer/DeckRenderer.js"
+      "import": "./dist/renderer/DeckRenderer.js",
+      "default": "./dist/renderer/DeckRenderer.js"
     },
     "./renderer/SlideRenderer": {
       "types": "./dist/renderer/SlideRenderer.d.ts",
-      "import": "./dist/renderer/SlideRenderer.js"
+      "import": "./dist/renderer/SlideRenderer.js",
+      "default": "./dist/renderer/SlideRenderer.js"
     },
     "./renderer/ThemeProvider": {
       "types": "./dist/renderer/ThemeProvider.d.ts",
-      "import": "./dist/renderer/ThemeProvider.js"
+      "import": "./dist/renderer/ThemeProvider.js",
+      "default": "./dist/renderer/ThemeProvider.js"
     },
     "./primitives/*": {
       "types": "./dist/primitives/*.d.ts"

@@ -6,7 +6,7 @@ import {
   listLayouts,
 } from '@unsa/slides-kit/layouts';
 import { ThemeProvider } from '@unsa/slides-kit/renderer/ThemeProvider';
-import { type ThemeDefinition, listThemes } from '@unsa/slides-kit/themes';
+import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
 
 export const Route = createFileRoute('/presentations/catalog')({
