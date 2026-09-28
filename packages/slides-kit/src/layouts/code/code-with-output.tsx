@@ -27,52 +27,63 @@ export function CodeWithOutput({
 }: CodeWithOutputProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideSplit
-        ratio="60-40"
-        gap="2rem"
-        left={
-          <SlideCard
-            variant="elevated"
-            padding={0}
-            className="h-full overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-current/10">
-              <span className="text-xs font-mono opacity-70">
-                Código Fuente
-              </span>
-              <SlideBadge variant="secondary" className="text-[10px] font-mono">
-                {language}
-              </SlideBadge>
-            </div>
-            <div className="p-6 overflow-auto font-mono text-sm leading-relaxed h-[calc(100%-45px)]">
-              <pre className="m-0">
-                <code>{code}</code>
-              </pre>
-            </div>
-          </SlideCard>
-        }
-        right={
-          <SlideCard
-            variant="muted"
-            padding={0}
-            className="h-full overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-current/10">
-              <span className="text-xs font-mono font-bold opacity-80">
-                {outputTitle}
-              </span>
-              <SlideBadge variant="success" className="text-[10px] uppercase">
-                Salida
-              </SlideBadge>
-            </div>
-            <div className="p-6 overflow-auto font-mono text-sm leading-relaxed h-[calc(100%-45px)]">
-              <pre className="m-0">
-                <code>{output}</code>
-              </pre>
-            </div>
-          </SlideCard>
-        }
-      />
+      <div className="flex w-full flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
+        <SlideSplit
+          ratio="60-40"
+          gap="1.5rem"
+          className="min-h-0 flex-1"
+          left={
+            <SlideCard
+              variant="elevated"
+              padding={0}
+              className="h-full min-h-0 min-w-0 overflow-hidden"
+            >
+              <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-current/10 shrink-0 min-w-0">
+                <span className="text-xs font-mono opacity-70 truncate min-w-0">
+                  Código Fuente
+                </span>
+                <SlideBadge
+                  variant="secondary"
+                  className="text-[10px] font-mono shrink-0"
+                >
+                  {language}
+                </SlideBadge>
+              </div>
+              <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-6 font-mono text-sm leading-relaxed">
+                <pre className="m-0 h-full min-w-0 overflow-auto">
+                  <code className="whitespace-pre-wrap break-all">{code}</code>
+                </pre>
+              </div>
+            </SlideCard>
+          }
+          right={
+            <SlideCard
+              variant="muted"
+              padding={0}
+              className="h-full min-h-0 min-w-0 overflow-hidden"
+            >
+              <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-current/10 shrink-0 min-w-0">
+                <span className="text-xs font-mono font-bold opacity-80 truncate min-w-0">
+                  {outputTitle}
+                </span>
+                <SlideBadge
+                  variant="success"
+                  className="text-[10px] uppercase shrink-0"
+                >
+                  Salida
+                </SlideBadge>
+              </div>
+              <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-6 font-mono text-sm leading-relaxed">
+                <pre className="m-0 h-full min-w-0 overflow-auto">
+                  <code className="whitespace-pre-wrap break-all">
+                    {output}
+                  </code>
+                </pre>
+              </div>
+            </SlideCard>
+          }
+        />
+      </div>
     </SlideSection>
   );
 }

@@ -32,50 +32,62 @@ export function CodeStepByStep({
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideSplit
-        ratio="60-40"
-        gap="2rem"
-        left={
-          <SlideCard
-            variant="elevated"
-            padding={0}
-            className="h-full overflow-hidden"
-          >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-current/10">
-              <span className="text-xs font-mono opacity-70">
-                Paso {currentStep?.step}: {currentStep?.label}
-              </span>
-              <SlideBadge variant="secondary" className="text-[10px] font-mono">
-                {language}
-              </SlideBadge>
-            </div>
-            <div className="p-6 overflow-auto font-mono text-sm leading-relaxed h-[calc(100%-45px)]">
-              <pre className="m-0">
-                <code>{currentStep?.code}</code>
-              </pre>
-            </div>
-          </SlideCard>
-        }
-        right={
-          <div className="flex flex-col justify-center h-full space-y-4">
-            {steps.map((st, idx) => (
-              <SlideCard
-                key={`code-step-${st.step || idx}`}
-                variant={idx === 0 ? 'glow' : 'default'}
-                className="p-4"
-              >
-                <div className="flex items-center gap-3 mb-1">
-                  <span className="w-6 h-6 rounded-full border border-current font-bold flex items-center justify-center text-xs font-mono">
+      <div className="flex w-full flex-1 min-h-0 min-w-0 flex-col overflow-hidden">
+        <SlideSplit
+          ratio="60-40"
+          gap="1.5rem"
+          className="min-h-0 flex-1"
+          left={
+            <SlideCard
+              variant="elevated"
+              padding={0}
+              className="h-full min-h-0 min-w-0 overflow-hidden"
+            >
+              <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-current/10 shrink-0 min-w-0">
+                <span className="text-xs font-mono opacity-70 truncate min-w-0 flex-1">
+                  Paso {currentStep?.step}: {currentStep?.label}
+                </span>
+                <SlideBadge
+                  variant="secondary"
+                  className="text-[10px] font-mono shrink-0"
+                >
+                  {language}
+                </SlideBadge>
+              </div>
+              <div className="flex-1 min-h-0 min-w-0 overflow-hidden p-6 font-mono text-sm leading-relaxed">
+                <pre className="m-0 h-full min-w-0 overflow-auto">
+                  <code className="whitespace-pre-wrap break-all">
+                    {currentStep?.code}
+                  </code>
+                </pre>
+              </div>
+            </SlideCard>
+          }
+          right={
+            <div className="flex h-full min-h-0 min-w-0 flex-col justify-center gap-4 overflow-hidden">
+              {steps.slice(0, 4).map((st, idx) => (
+                <SlideCard
+                  key={`code-step-${st.step || idx}`}
+                  variant={idx === 0 ? 'glow' : 'default'}
+                  className="p-4 flex-row items-start gap-4 min-w-0 overflow-hidden shrink-0"
+                >
+                  <span className="w-6 h-6 rounded-full border border-current font-bold flex items-center justify-center shrink-0 text-xs font-mono">
                     {st.step}
                   </span>
-                  <h4 className="text-sm font-bold">{st.label}</h4>
-                </div>
-                <p className="text-xs opacity-75 pl-9">{st.note}</p>
-              </SlideCard>
-            ))}
-          </div>
-        }
-      />
+                  <div className="min-w-0 overflow-hidden">
+                    <h4 className="text-sm font-bold mb-1 line-clamp-1 break-words min-w-0">
+                      {st.label}
+                    </h4>
+                    <p className="text-xs opacity-75 leading-relaxed line-clamp-2 break-words min-w-0">
+                      {st.note}
+                    </p>
+                  </div>
+                </SlideCard>
+              ))}
+            </div>
+          }
+        />
+      </div>
     </SlideSection>
   );
 }
