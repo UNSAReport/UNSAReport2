@@ -2,8 +2,9 @@ import {
   createFileRoute,
   type ErrorComponentProps,
   Link,
+  useNavigate,
 } from '@tanstack/react-router';
-import { useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import {
   getPresentationServerFn,
   type SlidesPresentation,
@@ -87,6 +88,10 @@ function PresentationErrorComponent({ error }: ErrorComponentProps) {
 function PresentationViewer() {
   const data = Route.useLoaderData();
   const { slug } = Route.useParams();
+  const search = Route.useSearch() as Record<string, unknown>;
+  const navigate = useNavigate();
+  const isPresent =
+    search.present === '1' || search.present === 1 || search.present === true;
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const notesPanelId = useId();
@@ -100,6 +105,34 @@ function PresentationViewer() {
 
   const [showNotes, setShowNotes] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(1);
+  const [tokenQuery] = useState(() => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+    const value = match ? decodeURIComponent(match[1]) : '';
+    return value ? `?token=${encodeURIComponent(value)}` : '';
+  });
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowLeft') {
+        iframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ method: 'prev' }),
+          '*',
+        );
+        setCurrentSlideIndex((prev) => Math.max(1, prev - 1));
+      } else if (e.key === 'ArrowRight') {
+        iframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ method: 'next' }),
+          '*',
+        );
+        setCurrentSlideIndex((prev) => prev + 1);
+      } else if (e.key === 'Escape' && isPresent) {
+        navigate({ to: '/presentations/$slug', params: { slug } });
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [isPresent, navigate, slug]);
 
   if (data.isLocal) {
     const LocalComp = localDecks.find((p) => p.slug === slug)?.component;
@@ -149,7 +182,63 @@ function PresentationViewer() {
     }
   };
 
-  const embedSrc = `/api/slides/embed/${presentation.id}/v${selectedVersion}/index.html`;
+  const embedSrc = `/api/slides/embed/${presentation.id}/v${selectedVersion}/index.html${tokenQuery}`;
+
+  if (isPresent) {
+    return (
+      <div
+        ref={containerRef}
+        className="relative h-full w-full bg-black text-slate-100 font-sans overflow-hidden"
+      >
+        <iframe
+          ref={iframeRef}
+          src={embedSrc}
+          title={presentation.title}
+          sandbox="allow-scripts"
+          className="absolute inset-0 w-full h-full border-0"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-950/80 backdrop-blur border border-slate-700/60 text-xs z-10">
+          <button
+            type="button"
+            onClick={handlePrevSlide}
+            aria-label="Diapositiva anterior"
+            className="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+          >
+            ◀
+          </button>
+          <span className="text-slate-300 font-mono px-1">
+            {currentSlideIndex}
+          </span>
+          <button
+            type="button"
+            onClick={handleNextSlide}
+            aria-label="Diapositiva siguiente"
+            className="px-2.5 py-1 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors"
+          >
+            ▶
+          </button>
+          <div className="w-px h-4 bg-slate-700" />
+          <button
+            type="button"
+            onClick={toggleFullscreen}
+            aria-label="Pantalla completa"
+            className="px-2.5 py-1 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            ⛶
+          </button>
+          <Link
+            to="/presentations/$slug"
+            params={{ slug }}
+            aria-label="Salir del modo presentación"
+            className="px-2.5 py-1 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 transition-colors"
+          >
+            ✕ Salir
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -199,7 +288,14 @@ function PresentationViewer() {
               )}
             </select>
           </div>
-
+          <Link
+            to="/presentations/$slug"
+            params={{ slug }}
+            search={{ present: 1 }}
+            className="px-2.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+          >
+            ▶ Presentar
+          </Link>
           <button
             type="button"
             onClick={toggleFullscreen}

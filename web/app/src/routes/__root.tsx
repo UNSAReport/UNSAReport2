@@ -139,9 +139,9 @@ function RootComponent() {
       <AuthHashConsumer />
       <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
         <a href="/">/</a> | <a href="/registry">Registry</a> |{' '}
-        <a href="/presentations/microphoto">Slides</a> |{' '}
-        <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{' '}
-        <a href="/scopes">Scopes</a> | <a href="/auth/pat">PATs</a>
+        <a href="/presentations">Slides</a> | <a href="/auth/login">Login</a> |{' '}
+        <a href="/auth/me">Me</a> | <a href="/scopes">Scopes</a> |{' '}
+        <a href="/auth/pat">PATs</a>
         {hasAnyAdminRole ? (
           <>
             {' '}

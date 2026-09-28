@@ -153,7 +153,15 @@ function PresentationsDashboard() {
           </h2>
           <p className="text-sm text-slate-400 max-w-md mx-auto mt-2 mb-6">
             Crea una nueva presentación en tu terminal con el CLI oficial y
-            publícala con un solo comando:
+            publícala con un solo comando. Si ya tienes acceso, explora los
+            diseños disponibles en el{' '}
+            <Link
+              to="/presentations/catalog"
+              className="text-indigo-400 hover:text-indigo-300 underline"
+            >
+              catálogo de layouts
+            </Link>
+            .
           </p>
           <div className="inline-block bg-slate-950 p-4 rounded-xl text-left border border-slate-800 font-mono text-xs text-indigo-300">
             <p className="text-slate-500">
@@ -245,14 +253,25 @@ function PresentationCard({
           )}
         </div>
 
-        <Link
-          to="/presentations/$slug"
-          params={{ slug: item.slug }}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
-        >
-          <span>Abrir</span>
-          <span aria-hidden="true">→</span>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/presentations/$slug"
+            params={{ slug: item.slug }}
+            search={{ present: 1 }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+          >
+            <span>Presentar</span>
+            <span aria-hidden="true">⛶</span>
+          </Link>
+          <Link
+            to="/presentations/$slug"
+            params={{ slug: item.slug }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
+          >
+            <span>Abrir</span>
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </div>
     </article>
   );
