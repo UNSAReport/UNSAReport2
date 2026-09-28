@@ -605,12 +605,22 @@ func promptLine(prompt string) (string, error) {
 	return strings.TrimSpace(line), nil
 }
 
+func containsStr(list []string, item string) bool {
+	for _, s := range list {
+		if s == item {
+			return true
+		}
+	}
+	return false
+}
+
 type InitOptions struct {
 	Template         string
 	Report           string
 	Yes              bool
 	Flags            []string
 	Confirm          func(conflicts []string) (bool, error)
+	ResolveConflicts func(conflicts []string) ([]string, error)
 	SelectRootFiles  func(files []string) ([]string, error)
 	ResolveRootFiles RootFileResolver
 }
@@ -708,6 +718,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 		sort.Strings(conflicts)
 
+		overwriteSet := make(map[string]bool)
 		if len(conflicts) > 0 {
 			if opt.Confirm != nil {
 				confirmed, err := opt.Confirm(conflicts)
@@ -717,30 +728,49 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 				if !confirmed {
 					return errors.New(ErrInitCancelled)
 				}
+				for _, f := range conflicts {
+					overwriteSet[f] = true
+				}
+			} else if opt.ResolveConflicts != nil {
+				toOverwrite, err := opt.ResolveConflicts(conflicts)
+				if err != nil {
+					return err
+				}
+				for _, f := range toOverwrite {
+					overwriteSet[f] = true
+				}
 			} else if opt.Yes {
 				fmt.Println(WarnConflictingFiles)
 				for _, f := range conflicts {
 					fmt.Printf("  - %s\n", f)
+					overwriteSet[f] = true
 				}
 			} else {
-				fmt.Println(WarnConflictingFiles)
-				for _, f := range conflicts {
-					fmt.Printf("  - %s\n", f)
-				}
-				if !isTTY() {
+				if !isTTYFunc() || stdinReader != os.Stdin {
 					return errors.New(ErrNonTTYRequiresYes)
 				}
-				ans, err := promptLine(PromptReplaceFiles)
-				if err != nil {
-					return err
-				}
-				if strings.ToLower(ans) != "y" && strings.ToLower(ans) != "yes" {
+				var chosen []string
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewMultiSelect[string]().
+						Title("Conflicting Files Detected").
+						Description("Select existing files to overwrite (unselected files will be preserved):").
+						Options(huh.NewOptions(conflicts...)...).
+						Value(&chosen),
+				))
+				if err := form.Run(); err != nil {
 					return errors.New(ErrInitCancelled)
 				}
+				for _, f := range chosen {
+					overwriteSet[f] = true
+				}
+			}
+		} else {
+			for _, f := range conflicts {
+				overwriteSet[f] = true
 			}
 		}
 
-		if existing == nil {
+		if existing == nil && (!containsStr(conflicts, config.ConfigFileName) || overwriteSet[config.ConfigFileName]) {
 			cfg := project.SpecConfig{}
 			cfg.Project.TypstEntry = config.DefaultTypstEntry
 			cfg.Project.ConfigVersion = config.ConfigVersion
@@ -755,9 +785,16 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		if err := os.MkdirAll(reportDir, config.PermDirPublic); err != nil {
 			return err
 		}
-		starterTypst := "= Document\n"
-		if err := os.WriteFile(mainTypPath, []byte(starterTypst), config.PermFilePublic); err != nil {
-			return err
+		mainTypRel, err := filepath.Rel(root, mainTypPath)
+		if err != nil {
+			mainTypRel = mainTypPath
+		}
+		mainTypRel = filepath.ToSlash(mainTypRel)
+		if !containsStr(conflicts, mainTypRel) || overwriteSet[mainTypRel] {
+			starterTypst := "= Document\n"
+			if err := os.WriteFile(mainTypPath, []byte(starterTypst), config.PermFilePublic); err != nil {
+				return err
+			}
 		}
 
 		return runCheck(root)
@@ -804,6 +841,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 	}
 	sort.Strings(conflicts)
 
+	overwriteSet := make(map[string]bool)
 	if len(conflicts) > 0 {
 		if opt.Confirm != nil {
 			confirmed, err := opt.Confirm(conflicts)
@@ -813,30 +851,49 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			if !confirmed {
 				return errors.New(ErrInitCancelled)
 			}
+			for _, f := range conflicts {
+				overwriteSet[f] = true
+			}
+		} else if opt.ResolveConflicts != nil {
+			toOverwrite, err := opt.ResolveConflicts(conflicts)
+			if err != nil {
+				return err
+			}
+			for _, f := range toOverwrite {
+				overwriteSet[f] = true
+			}
 		} else if opt.Yes {
 			fmt.Println(WarnConflictingFiles)
 			for _, f := range conflicts {
 				fmt.Printf("  - %s\n", f)
+				overwriteSet[f] = true
 			}
 		} else {
-			fmt.Println(WarnConflictingFiles)
-			for _, f := range conflicts {
-				fmt.Printf("  - %s\n", f)
-			}
-			if !isTTY() {
+			if !isTTYFunc() || stdinReader != os.Stdin {
 				return errors.New(ErrNonTTYRequiresYes)
 			}
-			ans, err := promptLine(PromptReplaceFiles)
-			if err != nil {
-				return err
-			}
-			if strings.ToLower(ans) != "y" && strings.ToLower(ans) != "yes" {
+			var chosen []string
+			form := huh.NewForm(huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Conflicting Files Detected").
+					Description("Select existing files to overwrite (unselected files will be preserved):").
+					Options(huh.NewOptions(conflicts...)...).
+					Value(&chosen),
+			))
+			if err := form.Run(); err != nil {
 				return errors.New(ErrInitCancelled)
 			}
+			for _, f := range chosen {
+				overwriteSet[f] = true
+			}
+		}
+	} else {
+		for _, f := range conflicts {
+			overwriteSet[f] = true
 		}
 	}
 
-	if existing == nil {
+	if existing == nil && (!containsStr(conflicts, config.ConfigFileName) || overwriteSet[config.ConfigFileName]) {
 		cfg := project.SpecConfig{}
 		cfg.Project.TypstEntry = config.DefaultTypstEntry
 		cfg.Project.ConfigVersion = config.ConfigVersion
@@ -855,6 +912,13 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		target := filepath.Join(reportDir, filepath.FromSlash(n))
 		if !strings.HasPrefix(filepath.Clean(target), filepath.Clean(reportDir)) {
 			return fmt.Errorf("illegal template path %q", n)
+		}
+		rel, rerr := filepath.Rel(root, target)
+		if rerr == nil {
+			rel = filepath.ToSlash(rel)
+			if containsStr(conflicts, rel) && !overwriteSet[rel] {
+				continue
+			}
 		}
 		if err := os.MkdirAll(filepath.Dir(target), config.PermDirPublic); err != nil {
 			return err
@@ -980,29 +1044,54 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			selected[c] = true
 		}
 	case "ask":
-		fmt.Println("Commands:")
-		for i, c := range cmds {
-			fmt.Printf("  %d. %s:%s — %s\n", i+1, prefix, c, p.Commands[c].Description)
-		}
-		line, err := promptLine("Select [numbers/all/none, default=all]:")
-		if err != nil {
-			return err
-		}
-		line = strings.ToLower(strings.TrimSpace(line))
-		switch line {
-		case "", "all":
+		if isTTYFunc() && stdinReader == os.Stdin && len(cmds) > 0 {
+			var chosenCmds []string
+			options := make([]huh.Option[string], 0, len(cmds))
 			for _, c := range cmds {
+				label := prefix + ":" + c
+				if desc := p.Commands[c].Description; desc != "" {
+					label += " — " + desc
+				}
+				options = append(options, huh.NewOption(label, c).Selected(true))
+			}
+			form := huh.NewForm(huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Install Package Commands").
+					Description("Select script aliases to add to your project:").
+					Options(options...).
+					Value(&chosenCmds),
+			))
+			if err := form.Run(); err != nil {
+				return fmt.Errorf("command selection cancelled: %w", err)
+			}
+			for _, c := range chosenCmds {
 				selected[c] = true
 			}
-		case "none":
-		default:
-			for _, part := range strings.Split(line, ",") {
-				part = strings.TrimSpace(part)
-				var idx int
-				if _, err := fmt.Sscanf(part, "%d", &idx); err != nil || idx < 1 || idx > len(cmds) {
-					return fmt.Errorf("invalid selection %q", part)
+		} else {
+			fmt.Println("Commands:")
+			for i, c := range cmds {
+				fmt.Printf("  %d. %s:%s — %s\n", i+1, prefix, c, p.Commands[c].Description)
+			}
+			line, err := promptLine("Select [numbers/all/none, default=all]:")
+			if err != nil {
+				return err
+			}
+			line = strings.ToLower(strings.TrimSpace(line))
+			switch line {
+			case "", "all":
+				for _, c := range cmds {
+					selected[c] = true
 				}
-				selected[cmds[idx-1]] = true
+			case "none":
+			default:
+				for _, part := range strings.Split(line, ",") {
+					part = strings.TrimSpace(part)
+					var idx int
+					if _, err := fmt.Sscanf(part, "%d", &idx); err != nil || idx < 1 || idx > len(cmds) {
+						return fmt.Errorf("invalid selection %q", part)
+					}
+					selected[cmds[idx-1]] = true
+				}
 			}
 		}
 	default:
@@ -1024,14 +1113,31 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 				if mode != "ask" {
 					return fmt.Errorf("alias collision on %q; aborted", alias)
 				}
-				line, err := promptLine(fmt.Sprintf("alias %q exists with different body; new alias name (empty aborts):", alias))
-				if err != nil {
-					return err
+				if isTTYFunc() {
+					var newAlias string
+					form := huh.NewForm(huh.NewGroup(
+						huh.NewInput().
+							Title("Script Alias Collision").
+							Description(fmt.Sprintf("Alias %q already exists with a different command body. Enter a new alias name (empty aborts):", alias)).
+							Value(&newAlias),
+					))
+					if err := form.Run(); err != nil {
+						return fmt.Errorf("alias collision on %q; aborted", alias)
+					}
+					if strings.TrimSpace(newAlias) == "" {
+						return fmt.Errorf("alias collision on %q; aborted", alias)
+					}
+					alias = strings.TrimSpace(newAlias)
+				} else {
+					line, err := promptLine(fmt.Sprintf("alias %q exists with different body; new alias name (empty aborts):", alias))
+					if err != nil {
+						return err
+					}
+					if strings.TrimSpace(line) == "" {
+						return fmt.Errorf("alias collision on %q; aborted", alias)
+					}
+					alias = strings.TrimSpace(line)
 				}
-				if strings.TrimSpace(line) == "" {
-					return fmt.Errorf("alias collision on %q; aborted", alias)
-				}
-				alias = strings.TrimSpace(line)
 			} else if src := cfg.ScriptSource(alias); src == "" {
 				continue
 			}
@@ -1047,55 +1153,111 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 		}
 	}
 	bound := map[string]project.HookTiming{}
-	for std, timing := range p.Hooks {
+	for std := range p.Hooks {
 		if !scripts.HookStandards[std] {
 			return fmt.Errorf("package suggests unknown hook standard %q", std)
 		}
-		var current project.HookTiming
-		for _, s := range timing.Before {
-			alias := prefix + ":" + s
-			if mode == "ask" {
-				line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.before]? [y/N]:", alias, std))
-				if err != nil {
-					return err
-				}
-				if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
-					continue
-				}
-			} else if mode == "yes" || mode == "all" {
-				if _, ok := p.Commands[s]; !ok {
-					continue
-				}
-			} else if mode == "none" {
-				continue
-			} else {
-				return fmt.Errorf("unknown command-select mode %q", mode)
-			}
-			current.Before = append(current.Before, alias)
+	}
+
+	if mode == "ask" && isTTYFunc() && stdinReader == os.Stdin {
+		type hookCandidate struct {
+			std    string
+			timing string
+			alias  string
 		}
-		for _, s := range timing.After {
-			alias := prefix + ":" + s
-			if mode == "ask" {
-				line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.after]? [y/N]:", alias, std))
-				if err != nil {
-					return err
-				}
-				if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
-					continue
-				}
-			} else if mode == "yes" || mode == "all" {
-				if _, ok := p.Commands[s]; !ok {
-					continue
-				}
-			} else if mode == "none" {
-				continue
-			} else {
-				return fmt.Errorf("unknown command-select mode %q", mode)
+		var candidates []hookCandidate
+		var options []huh.Option[string]
+		for std, timing := range p.Hooks {
+			for _, s := range timing.Before {
+				alias := prefix + ":" + s
+				idxStr := fmt.Sprintf("%d", len(candidates))
+				candidates = append(candidates, hookCandidate{std: std, timing: "before", alias: alias})
+				options = append(options, huh.NewOption(fmt.Sprintf("[%s.before] %s", std, alias), idxStr).Selected(true))
 			}
-			current.After = append(current.After, alias)
+			for _, s := range timing.After {
+				alias := prefix + ":" + s
+				idxStr := fmt.Sprintf("%d", len(candidates))
+				candidates = append(candidates, hookCandidate{std: std, timing: "after", alias: alias})
+				options = append(options, huh.NewOption(fmt.Sprintf("[%s.after] %s", std, alias), idxStr).Selected(true))
+			}
 		}
-		if len(current.Before) > 0 || len(current.After) > 0 {
-			bound[std] = current
+		if len(options) > 0 {
+			var chosen []string
+			form := huh.NewForm(huh.NewGroup(
+				huh.NewMultiSelect[string]().
+					Title("Hook Automations").
+					Description("Select lifecycle hooks to bind to this project:").
+					Options(options...).
+					Value(&chosen),
+			))
+			if err := form.Run(); err != nil {
+				return fmt.Errorf("hook selection cancelled: %w", err)
+			}
+			chosenSet := make(map[string]bool)
+			for _, idxStr := range chosen {
+				chosenSet[idxStr] = true
+			}
+			for i, cand := range candidates {
+				idxStr := fmt.Sprintf("%d", i)
+				if chosenSet[idxStr] {
+					current := bound[cand.std]
+					if cand.timing == "before" {
+						current.Before = append(current.Before, cand.alias)
+					} else {
+						current.After = append(current.After, cand.alias)
+					}
+					bound[cand.std] = current
+				}
+			}
+		}
+	} else {
+		for std, timing := range p.Hooks {
+			var current project.HookTiming
+			for _, s := range timing.Before {
+				alias := prefix + ":" + s
+				if mode == "ask" {
+					line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.before]? [y/N]:", alias, std))
+					if err != nil {
+						return err
+					}
+					if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+						continue
+					}
+				} else if mode == "yes" || mode == "all" {
+					if _, ok := p.Commands[s]; !ok {
+						continue
+					}
+				} else if mode == "none" {
+					continue
+				} else {
+					return fmt.Errorf("unknown command-select mode %q", mode)
+				}
+				current.Before = append(current.Before, alias)
+			}
+			for _, s := range timing.After {
+				alias := prefix + ":" + s
+				if mode == "ask" {
+					line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.after]? [y/N]:", alias, std))
+					if err != nil {
+						return err
+					}
+					if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+						continue
+					}
+				} else if mode == "yes" || mode == "all" {
+					if _, ok := p.Commands[s]; !ok {
+						continue
+					}
+				} else if mode == "none" {
+					continue
+				} else {
+					return fmt.Errorf("unknown command-select mode %q", mode)
+				}
+				current.After = append(current.After, alias)
+			}
+			if len(current.Before) > 0 || len(current.After) > 0 {
+				bound[std] = current
+			}
 		}
 	}
 	if len(bound) > 0 {
@@ -1142,28 +1304,60 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 		var val string
 		switch mode {
 		case "ask":
-			prompt := fmt.Sprintf("package %q config %q", origin, k)
-			if e.Doc != "" {
-				prompt += fmt.Sprintf(" (%s)", e.Doc)
-			}
-			if hasDef {
-				prompt += fmt.Sprintf(" [default %s]:", def)
-			} else {
-				prompt += " (required):"
-			}
-			line, err := promptLine(prompt)
-			if err != nil {
-				return err
-			}
-			val = strings.TrimSpace(line)
-			if val == "" {
-				val = def
-			}
-			if val == "" {
-				if e.Required {
-					return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+			if isTTYFunc() {
+				input := huh.NewInput().
+					Title(fmt.Sprintf("Config: %s", k)).
+					Description(e.Doc).
+					Value(&val)
+				if hasDef {
+					val = def
 				}
-				continue
+				if e.Required {
+					input.Validate(func(s string) error {
+						if strings.TrimSpace(s) == "" {
+							return fmt.Errorf("package %q requires config %q", origin, k)
+						}
+						return nil
+					})
+				}
+				form := huh.NewForm(huh.NewGroup(input))
+				if err := form.Run(); err != nil {
+					return err
+				}
+				val = strings.TrimSpace(val)
+				if val == "" {
+					val = def
+				}
+				if val == "" {
+					if e.Required {
+						return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+					}
+					continue
+				}
+			} else {
+				prompt := fmt.Sprintf("package %q config %q", origin, k)
+				if e.Doc != "" {
+					prompt += fmt.Sprintf(" (%s)", e.Doc)
+				}
+				if hasDef {
+					prompt += fmt.Sprintf(" [default %s]:", def)
+				} else {
+					prompt += " (required):"
+				}
+				line, err := promptLine(prompt)
+				if err != nil {
+					return err
+				}
+				val = strings.TrimSpace(line)
+				if val == "" {
+					val = def
+				}
+				if val == "" {
+					if e.Required {
+						return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+					}
+					continue
+				}
 			}
 		case "yes", "all":
 			if !hasDef {
@@ -1480,6 +1674,13 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 				apply[n] = true
 			}
 		case "ask":
+			type changedFileInfo struct {
+				name    string
+				isNew   bool
+				cur     []byte
+				newCont []byte
+			}
+			var changedList []changedFileInfo
 			for _, n := range names {
 				target := filepath.Join(dest, filepath.FromSlash(n))
 				cur, readErr := os.ReadFile(target)
@@ -1488,19 +1689,181 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 					continue
 				}
 				changesCount++
-				if applyAll {
-					apply[n] = true
-					acceptedChanges++
-					continue
-				}
-				if skipAll {
-					apply[n] = false
-					continue
-				}
+				changedList = append(changedList, changedFileInfo{
+					name:    n,
+					isNew:   readErr != nil,
+					cur:     cur,
+					newCont: files[n],
+				})
+			}
 
-				if readErr != nil {
-					fmt.Printf("\n[NEW FILE] %s/%s\n", t.Name, n)
-					line, err := promptLine(fmt.Sprintf("Add new file %s/%s? [y/N/a/q]:", t.Name, n))
+			if isTTYFunc() && stdinReader == os.Stdin && len(changedList) > 0 {
+				selectedFiles := make(map[string]bool)
+				for _, cf := range changedList {
+					selectedFiles[cf.name] = true
+				}
+			menuLoop:
+				for {
+					selectedCount := 0
+					for _, cf := range changedList {
+						if selectedFiles[cf.name] {
+							selectedCount++
+						}
+					}
+					var action string
+					applyLabel := fmt.Sprintf("Apply selected updates (%d/%d files)", selectedCount, len(changedList))
+					menuForm := huh.NewForm(huh.NewGroup(
+						huh.NewSelect[string]().
+							Title(fmt.Sprintf("Update Package %s (v%s -> v%s)", t.Name, t.Version, version)).
+							Description("Review and apply file modifications:").
+							Options(
+								huh.NewOption(applyLabel, "apply"),
+								huh.NewOption("Inspect file diffs...", "diff"),
+								huh.NewOption("Select / deselect files to update...", "select"),
+								huh.NewOption("Cancel update", "cancel"),
+							).
+							Value(&action),
+					))
+					if err := menuForm.Run(); err != nil || action == "cancel" {
+						return fmt.Errorf("update cancelled")
+					}
+
+					switch action {
+					case "apply":
+						for _, cf := range changedList {
+							if selectedFiles[cf.name] {
+								apply[cf.name] = true
+								acceptedChanges++
+							} else {
+								apply[cf.name] = false
+							}
+						}
+						break menuLoop
+					case "diff":
+						var chosenFile string
+						var diffOpts []huh.Option[string]
+						for _, cf := range changedList {
+							tag := "[MODIFIED]"
+							if cf.isNew {
+								tag = "[NEW]"
+							}
+							diffOpts = append(diffOpts, huh.NewOption(fmt.Sprintf("%s %s", tag, cf.name), cf.name))
+						}
+						filePicker := huh.NewForm(huh.NewGroup(
+							huh.NewSelect[string]().
+								Title("Select File to Inspect Diff").
+								Options(diffOpts...).
+								Value(&chosenFile),
+						))
+						if err := filePicker.Run(); err != nil {
+							continue
+						}
+						var cf changedFileInfo
+						for _, item := range changedList {
+							if item.name == chosenFile {
+								cf = item
+								break
+							}
+						}
+						var diffContent string
+						if cf.isNew {
+							diffContent = fmt.Sprintf("New file %s/%s (%d bytes)\n\n```\n%s\n```", t.Name, cf.name, len(cf.newCont), formatFilePreview(cf.newCont))
+						} else {
+							oldLabel := fmt.Sprintf("%s/%s (current)", t.Name, cf.name)
+							newLabel := fmt.Sprintf("%s/%s (v%s)", t.Name, cf.name, version)
+							dt, dErr := generateDiff(oldLabel, newLabel, cf.cur, cf.newCont)
+							if dErr != nil {
+								diffContent = fmt.Sprintf("Error generating diff: %v", dErr)
+							} else {
+								diffContent = fmt.Sprintf("Diff for %s/%s:\n\n```diff\n%s\n```", t.Name, cf.name, dt)
+							}
+						}
+						viewForm := huh.NewForm(huh.NewGroup(
+							huh.NewNote().
+								Title(fmt.Sprintf("Diff: %s", cf.name)).
+								Description(diffContent),
+						))
+						_ = viewForm.Run()
+					case "select":
+						var picks []string
+						var selectOpts []huh.Option[string]
+						for _, cf := range changedList {
+							tag := "[MODIFIED]"
+							if cf.isNew {
+								tag = "[NEW]"
+							}
+							opt := huh.NewOption(fmt.Sprintf("%s %s", tag, cf.name), cf.name)
+							if selectedFiles[cf.name] {
+								opt = opt.Selected(true)
+								picks = append(picks, cf.name)
+							}
+							selectOpts = append(selectOpts, opt)
+						}
+						selectForm := huh.NewForm(huh.NewGroup(
+							huh.NewMultiSelect[string]().
+								Title("Select Files to Update").
+								Description("Check files to apply, uncheck to keep current versions:").
+								Options(selectOpts...).
+								Value(&picks),
+						))
+						if err := selectForm.Run(); err == nil {
+							for _, cf := range changedList {
+								selectedFiles[cf.name] = false
+							}
+							for _, p := range picks {
+								selectedFiles[p] = true
+							}
+						}
+					}
+				}
+			} else {
+				for _, cf := range changedList {
+					n := cf.name
+					cur := cf.cur
+					if applyAll {
+						apply[n] = true
+						acceptedChanges++
+						continue
+					}
+					if skipAll {
+						apply[n] = false
+						continue
+					}
+
+					if cf.isNew {
+						fmt.Printf("\n[NEW FILE] %s/%s\n", t.Name, n)
+						line, err := promptLine(fmt.Sprintf("Add new file %s/%s? [y/N/a/q]:", t.Name, n))
+						if err != nil {
+							return err
+						}
+						switch strings.ToLower(strings.TrimSpace(line)) {
+						case "y", "yes":
+							apply[n] = true
+							acceptedChanges++
+						case "n", "no", "":
+							apply[n] = false
+						case "a", "all":
+							applyAll = true
+							apply[n] = true
+							acceptedChanges++
+						case "q", "quit":
+							skipAll = true
+							apply[n] = false
+						default:
+							return fmt.Errorf("invalid response %q", line)
+						}
+						continue
+					}
+
+					oldLabel := fmt.Sprintf("%s/%s (current)", t.Name, n)
+					newLabel := fmt.Sprintf("%s/%s (v%s)", t.Name, n, version)
+					diffText, dErr := generateDiff(oldLabel, newLabel, cur, files[n])
+					if dErr != nil {
+						return dErr
+					}
+					fmt.Println()
+					fmt.Print(colorizeDiff(diffText))
+					line, err := promptLine(fmt.Sprintf("Apply update to %s/%s? [y/N/a/q]:", t.Name, n))
 					if err != nil {
 						return err
 					}
@@ -1520,36 +1883,6 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 					default:
 						return fmt.Errorf("invalid response %q", line)
 					}
-					continue
-				}
-
-				oldLabel := fmt.Sprintf("%s/%s (current)", t.Name, n)
-				newLabel := fmt.Sprintf("%s/%s (v%s)", t.Name, n, version)
-				diffText, dErr := generateDiff(oldLabel, newLabel, cur, files[n])
-				if dErr != nil {
-					return dErr
-				}
-				fmt.Println()
-				fmt.Print(colorizeDiff(diffText))
-				line, err := promptLine(fmt.Sprintf("Apply update to %s/%s? [y/N/a/q]:", t.Name, n))
-				if err != nil {
-					return err
-				}
-				switch strings.ToLower(strings.TrimSpace(line)) {
-				case "y", "yes":
-					apply[n] = true
-					acceptedChanges++
-				case "n", "no", "":
-					apply[n] = false
-				case "a", "all":
-					applyAll = true
-					apply[n] = true
-					acceptedChanges++
-				case "q", "quit":
-					skipAll = true
-					apply[n] = false
-				default:
-					return fmt.Errorf("invalid response %q", line)
 				}
 			}
 		case "none":
@@ -1844,19 +2177,40 @@ func resolveTypstEntry(reportDir, configured string, prompt func(string) (string
 		}
 		return cands[0], nil
 	default:
-		fmt.Println("Typst files:")
-		for i, c := range cands {
-			fmt.Printf("  %d. %s\n", i+1, c)
+		if prompt != nil {
+			fmt.Println("Typst files:")
+			for i, c := range cands {
+				fmt.Printf("  %d. %s\n", i+1, c)
+			}
+			line, err := prompt("Select [number]:")
+			if err != nil {
+				return "", err
+			}
+			var idx int
+			if _, err := fmt.Sscanf(strings.TrimSpace(line), "%d", &idx); err != nil || idx < 1 || idx > len(cands) {
+				return "", fmt.Errorf("invalid selection %q", line)
+			}
+			return cands[idx-1], nil
 		}
-		line, err := prompt("Select [number]:")
-		if err != nil {
-			return "", err
+		if isTTYFunc() && stdinReader == os.Stdin {
+			var chosen string
+			options := make([]huh.Option[string], 0, len(cands))
+			for _, c := range cands {
+				options = append(options, huh.NewOption(c, c))
+			}
+			form := huh.NewForm(huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Select Typst Entrypoint").
+					Description(fmt.Sprintf("Multiple .typ files found in %s. Choose entry document:", reportDir)).
+					Options(options...).
+					Value(&chosen),
+			))
+			if err := form.Run(); err != nil {
+				return "", fmt.Errorf("typst entry selection cancelled: %w", err)
+			}
+			return chosen, nil
 		}
-		var idx int
-		if _, err := fmt.Sscanf(strings.TrimSpace(line), "%d", &idx); err != nil || idx < 1 || idx > len(cands) {
-			return "", fmt.Errorf("invalid selection %q", line)
-		}
-		return cands[idx-1], nil
+		return "", fmt.Errorf("multiple typst files found in non-interactive environment")
 	}
 }
 

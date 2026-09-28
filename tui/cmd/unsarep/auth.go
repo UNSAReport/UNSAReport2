@@ -52,13 +52,22 @@ func doLogin(cmd *cobra.Command, noBrowser, noBrowserChanged bool, token string)
 		form := huh.NewForm(huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("How do you want to log in?").
-				Options(huh.NewOptions("Browser", "Paste PAT token")...).
+				Options(
+					huh.NewOption("Browser (opens login URL in browser)", "browser"),
+					huh.NewOption("Headless (display login URL to copy-paste)", "headless"),
+					huh.NewOption("Paste PAT token", "pat"),
+				).
 				Value(&method),
 		))
 		if err := runForm(form); err != nil {
 			return nil, err
 		}
-		if method == "Paste PAT token" {
+		switch method {
+		case "browser":
+			noBrowser = false
+		case "headless":
+			noBrowser = true
+		case "pat":
 			form := huh.NewForm(huh.NewGroup(
 				huh.NewInput().
 					Title("PAT token").
@@ -71,10 +80,6 @@ func doLogin(cmd *cobra.Command, noBrowser, noBrowserChanged bool, token string)
 						}
 						return nil
 					}),
-				huh.NewConfirm().
-					Title("Skip opening the browser?").
-					Description("Only relevant for browser login; ignored for tokens").
-					Value(&noBrowser),
 			))
 			if err := runForm(form); err != nil {
 				return nil, err
@@ -108,21 +113,33 @@ func newLogoutCmd() *cobra.Command {
 		Short: "Clear stored credentials",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if !yes && canPrompt() {
-				var confirm bool
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewConfirm().Title("Log out?").Value(&confirm),
-				))
-				if err := runForm(form); err != nil {
-					return err
-				}
-				if !confirm {
-					return fmt.Errorf("logout cancelled")
-				}
-			}
 			client, err := auth.NewClient()
 			if err != nil {
 				return err
+			}
+			if !yes && canPrompt() {
+				identity := "current user session"
+				if cred, user, _ := client.Status(context.Background()); user != nil && user.Email != "" {
+					identity = fmt.Sprintf("%s <%s>", user.Name, user.Email)
+				} else if cred != nil && cred.Email != "" {
+					identity = fmt.Sprintf("%s <%s>", cred.Name, cred.Email)
+				} else if cred != nil && len(cred.PAT) > 10 {
+					identity = fmt.Sprintf("token %s...", cred.PAT[:10])
+				}
+				var action string
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewSelect[string]().
+						Title("Confirm Logout").
+						Description(fmt.Sprintf("Currently authenticated as: %s", identity)).
+						Options(
+							huh.NewOption(fmt.Sprintf("Log out from %s", identity), "logout"),
+							huh.NewOption("Cancel", "cancel"),
+						).
+						Value(&action),
+				))
+				if err := runForm(form); err != nil || action != "logout" {
+					return fmt.Errorf("logout cancelled")
+				}
 			}
 			if err := client.Logout(); err != nil {
 				return err

@@ -228,10 +228,12 @@ func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
 	form := huh.NewForm(huh.NewGroup(
 		huh.NewSelect[string]().
 			Title("Component selection").
+			Description("Choose how to configure commands, hooks, and files:").
 			Options(
-				huh.NewOption("Defaults only (--yes)", "yes"),
-				huh.NewOption("Defaults and all (--all)", "all"),
-				huh.NewOption("None (--none)", "none"),
+				huh.NewOption("Interactive setup (customize commands, hooks & files)", "ask"),
+				huh.NewOption("Defaults only (--yes) — install recommended scripts", "yes"),
+				huh.NewOption("Defaults and all (--all) — install all package features", "all"),
+				huh.NewOption("None (--none) — package files only", "none"),
 			).
 			Value(&mode),
 	))
@@ -239,6 +241,8 @@ func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
 		return false, false, false, err
 	}
 	switch mode {
+	case "ask":
+		return false, false, false, nil
 	case "yes":
 		return true, false, false, nil
 	case "all":
@@ -246,7 +250,7 @@ func promptMode(cmd *cobra.Command) (yes, all, none bool, err error) {
 	case "none":
 		return false, false, true, nil
 	}
-	return false, false, false, usagef(cmd, "select one of --yes, --all, --none")
+	return false, false, false, usagef(cmd, "select one of interactive, --yes, --all, --none")
 }
 func newDocsAddCmd() *cobra.Command {
 	var pkgFlag string
@@ -365,16 +369,21 @@ func newDocsUpdateCmd() *cobra.Command {
 				}
 
 				if !cmd.Flags().Changed("deps") {
-					depsConfirm := false
+					var depChoice string
 					depsForm := huh.NewForm(huh.NewGroup(
-						huh.NewConfirm().
-							Title("Update dependencies as well?").
-							Value(&depsConfirm),
+						huh.NewSelect[string]().
+							Title("Dependency updates").
+							Description("How would you like to handle package dependencies?").
+							Options(
+								huh.NewOption("Update target package only", "none"),
+								huh.NewOption("Update direct dependencies as well", "deps"),
+							).
+							Value(&depChoice),
 					))
 					if err := runForm(depsForm); err != nil {
 						return err
 					}
-					deps = depsConfirm
+					deps = (depChoice == "deps")
 				}
 			}
 			ctx := context.Background()
@@ -397,58 +406,84 @@ func newDocsRemoveCmd() *cobra.Command {
 	var pkgFlag string
 	var yes bool
 	cmd := &cobra.Command{
-		Use:   "remove [pkg]",
-		Short: "Remove a component package",
-		Args:  cobra.MaximumNArgs(1),
+		Use:   "remove [pkg...]",
+		Short: "Remove component package(s)",
+		Args:  cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			pos := ""
+			var pkgsToRemove []string
 			if len(args) > 0 {
-				pos = args[0]
+				if cmd.Flags().Changed("package") && pkgFlag != args[0] {
+					return usagef(cmd, "specify package either as positional or --package, not both")
+				}
+				pkgsToRemove = args
+			} else if pkgFlag != "" {
+				pkgsToRemove = []string{pkgFlag}
 			}
-			pkg, err := resolvePosOrFlag(cmd, "package", pos, "package", pkgFlag)
-			if err != nil {
-				return err
-			}
-			if pkg == "" {
+
+			cwd, _ := os.Getwd()
+			if len(pkgsToRemove) == 0 {
 				if !canPrompt() {
 					return usagef(cmd, "usage: unsarep docs remove <pkg>")
 				}
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Package").
-						Description("Installed package to remove").
-						Value(&pkg).
-						Validate(func(s string) error {
-							if strings.TrimSpace(s) == "" {
-								return fmt.Errorf("package is required")
-							}
-							return nil
-						}),
+				l, lErr := lock.Load(cwd)
+				if lErr != nil || len(l.Pkg) == 0 {
+					return fmt.Errorf("no packages installed in %s", cwd)
+				}
+				cfg, _ := project.Load(filepath.Join(cwd, config.ConfigFileName))
+				options := make([]huh.Option[string], 0, len(l.Pkg))
+				for _, p := range l.Pkg {
+					depType := "dependency"
+					if _, isDirect := cfg.Dependencies[p.Name]; isDirect {
+						depType = "direct"
+					}
+					label := fmt.Sprintf("%s (v%s, %s)", p.Name, p.Version, depType)
+					options = append(options, huh.NewOption(label, p.Name))
+				}
+				var selectedPkgs []string
+				selectForm := huh.NewForm(huh.NewGroup(
+					huh.NewMultiSelect[string]().
+						Title("Select Packages to Remove").
+						Description("Check one or more packages to uninstall:").
+						Options(options...).
+						Value(&selectedPkgs),
 				))
-				if err := runForm(form); err != nil {
+				if err := runForm(selectForm); err != nil {
 					return err
 				}
+				if len(selectedPkgs) == 0 {
+					return fmt.Errorf("no packages selected for removal")
+				}
+				pkgsToRemove = selectedPkgs
 			}
+
 			if !yes {
 				if !canPrompt() {
-					return usagef(cmd, "refusing to remove %q without --yes outside a terminal", pkg)
+					return usagef(cmd, "refusing to remove %q without --yes outside a terminal", pkgsToRemove[0])
 				}
-				var confirm bool
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewConfirm().Title(fmt.Sprintf("Remove package %q?", pkg)).Value(&confirm),
+				var action string
+				confirmForm := huh.NewForm(huh.NewGroup(
+					huh.NewNote().
+						Title("Package Removal Confirmation").
+						Description(fmt.Sprintf("The following %d package(s) and their associated files/scripts will be removed:\n- %s", len(pkgsToRemove), strings.Join(pkgsToRemove, "\n- "))),
+					huh.NewSelect[string]().
+						Title("Confirm removal").
+						Options(
+							huh.NewOption(fmt.Sprintf("Remove %d package(s)", len(pkgsToRemove)), "remove"),
+							huh.NewOption("Cancel", "cancel"),
+						).
+						Value(&action),
 				))
-				if err := runForm(form); err != nil {
-					return err
-				}
-				if !confirm {
+				if err := runForm(confirmForm); err != nil || action != "remove" {
 					return fmt.Errorf("remove cancelled")
 				}
 			}
-			cwd, _ := os.Getwd()
-			if err := docs.Remove(cwd, pkg); err != nil {
-				return err
+
+			for _, p := range pkgsToRemove {
+				if err := docs.Remove(cwd, p); err != nil {
+					return fmt.Errorf("remove %s: %w", p, err)
+				}
+				printOK("Package %s removed.", p)
 			}
-			printOK("Package %s removed.", pkg)
 			return nil
 		},
 	}

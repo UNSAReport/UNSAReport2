@@ -314,18 +314,33 @@ func newSlidesDeployCmd() *cobra.Command {
 				return fmt.Errorf("slides deploy: not logged in — run 'unsarep slides login' first")
 			}
 			if !yes && canPrompt() {
-				var confirm bool
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewConfirm().
-						Title(fmt.Sprintf("Deploy %q (%s, %s)?", project.Title, project.Slug, valueOr(project.Visibility, "private"))).
-						Value(&confirm),
-				))
-				if err := runForm(form); err != nil {
-					return err
+				var action string
+				vis := valueOr(project.Visibility, "private")
+				org := "(personal)"
+				if project.OrgSlug != "" {
+					org = project.OrgSlug
 				}
-				if !confirm {
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewNote().
+						Title("Presentation Deployment Summary").
+						Description(fmt.Sprintf("Title: %s\nSlug: %s\nVisibility: %s\nTarget: %s\nFiles: %d manifest items",
+							project.Title, project.Slug, vis, org, len(rawManifest))),
+					huh.NewSelect[string]().
+						Title("Deploy Action").
+						Options(
+							huh.NewOption(fmt.Sprintf("Deploy with current settings (%s)", vis), vis),
+							huh.NewOption("Change visibility to private and deploy", "private"),
+							huh.NewOption("Change visibility to org and deploy", "org"),
+							huh.NewOption("Change visibility to unlisted and deploy", "unlisted"),
+							huh.NewOption("Change visibility to public and deploy", "public"),
+							huh.NewOption("Cancel deployment", "cancel"),
+						).
+						Value(&action),
+				))
+				if err := runForm(form); err != nil || action == "cancel" {
 					return fmt.Errorf("deploy cancelled")
 				}
+				project.Visibility = action
 			}
 			fmt.Println("Bundling presentation assets...")
 			resp, err := client.Deploy(ctx, token, &slides.DeployRequest{
