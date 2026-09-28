@@ -38,7 +38,7 @@
     },
     "packages/logger": {
       "name": "@unsa/logger",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "devDependencies": {
         "typescript": "^5.7.3",
       },
@@ -89,7 +89,7 @@
     },
     "web/app": {
       "name": "@unsa/website",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@revealjs/react": "^0.2.1",
         "@tanstack/react-router": "^1.170.32",
@@ -118,7 +118,7 @@
     },
     "web/packages/api": {
       "name": "@unsa/api",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "@unsa/schemas": "workspace:*",
         "zod": "^4.4.3",
@@ -130,11 +130,11 @@
     },
     "web/packages/config": {
       "name": "@unsa/config",
-      "version": "0.1.0",
+      "version": "0.1.1",
     },
     "web/packages/schemas": {
       "name": "@unsa/schemas",
-      "version": "0.1.0",
+      "version": "0.1.1",
       "dependencies": {
         "zod": "^4.4.3",
       },

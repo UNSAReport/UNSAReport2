@@ -147,5 +147,23 @@ func TestRegistryWatchCmdFlags(t *testing.T) {
 		t.Fatalf("expected --open default value to be 'true', got %q", f.DefValue)
 	}
 }
+func TestDocsRemoveCmdFlags(t *testing.T) {
+	cmd := newDocsRemoveCmd()
+	if f := cmd.Flags().Lookup("yes"); f == nil {
+		t.Fatal("expected --yes flag on docs remove command")
+	} else if f.Shorthand != "y" {
+		t.Fatalf("expected -y shorthand for yes, got %q", f.Shorthand)
+	}
+	if f := cmd.Flags().Lookup("package"); f == nil {
+		t.Fatal("expected --package flag on docs remove command")
+	}
+}
 
-
+func TestLogoutCmdFlags(t *testing.T) {
+	cmd := newLogoutCmd()
+	if f := cmd.Flags().Lookup("yes"); f == nil {
+		t.Fatal("expected --yes flag on logout command")
+	} else if f.Shorthand != "y" {
+		t.Fatalf("expected -y shorthand for yes, got %q", f.Shorthand)
+	}
+}

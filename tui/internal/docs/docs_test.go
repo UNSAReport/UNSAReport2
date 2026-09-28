@@ -1535,3 +1535,43 @@ func TestFormatFilePreview(t *testing.T) {
 		t.Fatalf("expected truncation, got:\n%s", formatted)
 	}
 }
+
+func TestInitSelectiveConflictOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, config.ConfigFileName)
+	_ = os.WriteFile(cfgPath, []byte("[project]\nconfig_version = 1\n"), 0o644)
+
+	reportDir := filepath.Join(dir, "t1")
+	_ = os.MkdirAll(reportDir, 0o755)
+	mainTyp := filepath.Join(reportDir, config.DefaultTypstEntry)
+	origTypContent := "= Original Document\n"
+	_ = os.WriteFile(mainTyp, []byte(origTypContent), 0o644)
+
+	err := Init(context.Background(), dir, InitOptions{
+		Template: config.TemplateBlank,
+		Report:   "t1",
+		ResolveConflicts: func(conflicts []string) ([]string, error) {
+			return []string{"t1/main.typ"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Init with ResolveConflicts failed: %v", err)
+	}
+
+	typContent, err := os.ReadFile(mainTyp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(typContent) != "= Document\n" {
+		t.Fatalf("expected main.typ to be overwritten with template, got: %s", string(typContent))
+	}
+
+	cfgContent, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(cfgContent) != "[project]\nconfig_version = 1\n" {
+		t.Fatalf("expected unsareport.toml to be preserved, got: %s", string(cfgContent))
+	}
+}
+

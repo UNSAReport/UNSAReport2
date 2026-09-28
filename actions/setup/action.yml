@@ -2,7 +2,7 @@ name: 'Setup UNSAReport CLI'
 description: 'Download, verify checksums, and set up the unsarep CLI in PATH'
 inputs:
   version:
-    description: 'Version tag of unsarep to install (e.g. latest, v0.1.0)'
+    description: 'Version tag of unsarep to install (e.g. latest, v0.1.1)'
     required: false
     default: 'latest'
 outputs:

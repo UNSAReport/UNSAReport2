@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Publish to UNSAReport Registry
-        uses: UNSAReport/UNSAReport2/actions/publish@v0.1.0
+        uses: UNSAReport/UNSAReport2/actions/publish@v0.1.1
         with:
           token: ${{ secrets.UNSAREP_TOKEN }}
           dir: '.'
@@ -101,7 +101,7 @@ Downloads the precompiled `unsarep` CLI binary, verifies its sha256 checksum aga
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `version` | No | `latest` | Tag or version to install (`latest`, `dev`, `v0.1.0`, etc.). When invoked via `@dev`, `latest` automatically builds `dev` from source. |
+| `version` | No | `latest` | Tag or version to install (`latest`, `dev`, `v0.1.1`, etc.). When invoked via `@dev`, `latest` automatically builds `dev` from source. |
 
 ### Outputs
 
@@ -115,9 +115,9 @@ Downloads the precompiled `unsarep` CLI binary, verifies its sha256 checksum aga
 ```yaml
 steps:
   - uses: actions/checkout@v4
-  - uses: UNSAReport/UNSAReport2/actions/setup@v0.1.0
+  - uses: UNSAReport/UNSAReport2/actions/setup@v0.1.1
     with:
-      version: 'v0.1.0'
+      version: 'v0.1.1'
 
   - name: Validate package manifest
     run: unsarep registry check ./mi-paquete
@@ -160,7 +160,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Publish Scope Packages
-        uses: UNSAReport/UNSAReport2/actions/publish@v0.1.0
+        uses: UNSAReport/UNSAReport2/actions/publish@v0.1.1
         with:
           token: ${{ secrets.UNSAREP_TOKEN }}
           dir: '.'
