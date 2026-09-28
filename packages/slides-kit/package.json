@@ -5,48 +5,51 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/config.ts",
-      "import": "./src/config.ts"
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
     },
     "./types": {
-      "types": "./src/types.ts"
+      "types": "./dist/types.d.ts"
     },
     "./layouts": {
-      "types": "./src/layouts/registry.ts",
-      "import": "./src/layouts/registry.ts"
+      "types": "./dist/layouts/registry.d.ts",
+      "import": "./dist/layouts/registry.js"
     },
     "./layouts/types": {
-      "types": "./src/layouts/types.ts"
+      "types": "./dist/layouts/types.d.ts"
     },
     "./themes": {
-      "types": "./src/themes/registry.ts",
-      "import": "./src/themes/registry.ts"
+      "types": "./dist/themes/registry.d.ts",
+      "import": "./dist/themes/registry.js"
     },
     "./themes/types": {
-      "types": "./src/themes/types.ts"
+      "types": "./dist/themes/types.d.ts"
     },
     "./renderer": {
-      "types": "./src/renderer/DeckRenderer.tsx",
-      "import": "./src/renderer/DeckRenderer.tsx"
+      "types": "./dist/renderer/DeckRenderer.d.ts",
+      "import": "./dist/renderer/DeckRenderer.js"
     },
     "./renderer/DeckRenderer": {
-      "types": "./src/renderer/DeckRenderer.tsx",
-      "import": "./src/renderer/DeckRenderer.tsx"
+      "types": "./dist/renderer/DeckRenderer.d.ts",
+      "import": "./dist/renderer/DeckRenderer.js"
     },
     "./renderer/SlideRenderer": {
-      "types": "./src/renderer/SlideRenderer.tsx",
-      "import": "./src/renderer/SlideRenderer.tsx"
+      "types": "./dist/renderer/SlideRenderer.d.ts",
+      "import": "./dist/renderer/SlideRenderer.js"
     },
     "./renderer/ThemeProvider": {
-      "types": "./src/renderer/ThemeProvider.tsx",
-      "import": "./src/renderer/ThemeProvider.tsx"
+      "types": "./dist/renderer/ThemeProvider.d.ts",
+      "import": "./dist/renderer/ThemeProvider.js"
     },
     "./primitives/*": {
-      "types": "./src/primitives/*.tsx",
-      "import": "./src/primitives/*.tsx"
+      "types": "./dist/primitives/*.d.ts"
     }
   },
+  "files": [
+    "dist"
+  ],
   "scripts": {
+    "build": "bun build src/config.ts src/layouts/registry.ts src/themes/registry.ts src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && tsc --declaration --emitDeclarationOnly --outDir dist",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit"
   },

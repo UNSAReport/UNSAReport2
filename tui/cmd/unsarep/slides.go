@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -43,6 +44,7 @@ func slidesCwd() string {
 
 func newSlidesInitCmd() *cobra.Command {
 	var nameFlag string
+	var installFlag bool
 	cmd := &cobra.Command{
 		Use:   "init [name]",
 		Short: "Scaffold a new slide deck",
@@ -84,16 +86,69 @@ func newSlidesInitCmd() *cobra.Command {
 				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 					return fmt.Errorf("slides init: %w", err)
 				}
-				if err := os.WriteFile(full, []byte(f.Content), 0o644); err != nil {
+				var bytes []byte
+				if len(f.Data) > 0 {
+					bytes = f.Data
+				} else {
+					bytes = []byte(f.Content)
+				}
+				if err := os.WriteFile(full, bytes, 0o644); err != nil {
 					return fmt.Errorf("slides init: %w", err)
 				}
 			}
 			fmt.Printf("Created presentation project at ./%s\n", name)
+
+			var installDeps bool
+			if installFlag {
+				installDeps = true
+			} else if canPrompt() {
+				confirm := false
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewConfirm().
+						Title("¿Instalar dependencias ahora?").
+						Description("Ejecutará el gestor de paquetes detectado (bun / npm) en el nuevo proyecto").
+						Value(&confirm),
+				))
+				if err := runForm(form); err == nil && confirm {
+					installDeps = true
+				}
+			}
+
+			if installDeps {
+				pm := "bun"
+				if _, err := exec.LookPath("bun"); err != nil {
+					if _, err := exec.LookPath("npm"); err == nil {
+						pm = "npm"
+					} else if _, err := exec.LookPath("pnpm"); err == nil {
+						pm = "pnpm"
+					} else {
+						pm = ""
+					}
+				}
+
+				if pm != "" {
+					fmt.Printf("Instalando dependencias con %s...\n", pm)
+					installCmd := exec.Command(pm, "install")
+					installCmd.Dir = target
+					installCmd.Stdout = os.Stdout
+					installCmd.Stderr = os.Stderr
+					if err := installCmd.Run(); err != nil {
+						fmt.Printf("Aviso: No se pudieron instalar las dependencias automáticamente: %v\n", err)
+						fmt.Printf("Puedes instalarlas manualmente ejecutando: cd %s && %s install\n", name, pm)
+					} else {
+						fmt.Println("Dependencias instaladas con éxito.")
+					}
+				} else {
+					fmt.Println("Aviso: No se detectó bun, npm o pnpm en el PATH. Instala las dependencias manualmente.")
+				}
+			}
+
 			fmt.Printf("Next: cd %s && unsarep slides dev  # preview | unsarep slides deploy  # publish\n", name)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&nameFlag, "name", "", "Presentation name, same as positional")
+	cmd.Flags().BoolVar(&installFlag, "install", false, "Install dependencies automatically after scaffolding")
 	return cmd
 }
 

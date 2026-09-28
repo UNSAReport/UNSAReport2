@@ -1,13 +1,18 @@
 package slides
 
 import (
+	_ "embed"
 	"fmt"
 	"strings"
 )
 
+//go:embed assets/slides-kit.tgz
+var slidesKitArchive []byte
+
 type TemplateFile struct {
 	Path    string
 	Content string
+	Data    []byte
 }
 
 func StarterTemplate(projectName string) []TemplateFile {
@@ -16,6 +21,10 @@ func StarterTemplate(projectName string) []TemplateFile {
 		slug = "my-slides"
 	}
 	return []TemplateFile{
+		{
+			Path: "slides-kit.tgz",
+			Data: slidesKitArchive,
+		},
 		{
 			Path: "package.json",
 			Content: `{
@@ -29,12 +38,14 @@ func StarterTemplate(projectName string) []TemplateFile {
     "preview": "vite preview"
   },
   "dependencies": {
-    "@unsa/slides-kit": "workspace:*",
+    "@unsa/slides-kit": "file:./slides-kit.tgz",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "reveal.js": "^6.0.1"
   },
   "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "^5.7.3",
     "vite": "^6.2.0"

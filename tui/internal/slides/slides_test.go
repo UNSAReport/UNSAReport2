@@ -104,7 +104,7 @@ func TestStarterTemplate_Writes(t *testing.T) {
 	}
 	for _, f := range files {
 		want[f.Path] = true
-		if f.Content == "" {
+		if f.Content == "" && len(f.Data) == 0 {
 			t.Errorf("empty content for %s", f.Path)
 		}
 	}
@@ -293,11 +293,11 @@ func TestDeployMultipart(t *testing.T) {
 	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
 	dummyZip := []byte("PK\x05\x06dummy-zip-content")
 	resp, err := c.Deploy(context.Background(), "unsareport_pat_multi", &DeployRequest{
-		Slug:        "multipart-demo",
-		Title:       "Multipart Demo",
-		Visibility:  "public",
-		ZipBytes:    dummyZip,
-		Manifest:    map[string]any{"name": "multipart-demo", "title": "Multipart Demo"},
+		Slug:       "multipart-demo",
+		Title:      "Multipart Demo",
+		Visibility: "public",
+		ZipBytes:   dummyZip,
+		Manifest:   map[string]any{"name": "multipart-demo", "title": "Multipart Demo"},
 	})
 	if err != nil {
 		t.Fatalf("Deploy multipart failed: %v", err)
