@@ -31,21 +31,22 @@ export function StatsBigNumberContext({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
         ratio="40-60"
-        gap="2.5rem"
+        gap="1.5rem"
+        className="flex-1 min-h-0 items-stretch"
         left={
           <SlideCard
             variant="glow"
-            className="h-full items-center justify-center text-center p-8"
+            className="min-h-0 items-center justify-center text-center p-6 min-w-0 overflow-hidden"
           >
             {badge && (
-              <div className="mb-4">
+              <div className="mb-3 shrink-0">
                 <SlideBadge variant="accent">{badge}</SlideBadge>
               </div>
             )}
-            <div className="text-7xl md:text-8xl font-black font-mono tracking-tight leading-none mb-3">
+            <div className="text-6xl font-black font-mono tracking-tight leading-none mb-3 tabular-nums truncate max-w-full">
               {metric}
             </div>
-            <span className="text-base uppercase font-mono tracking-wider opacity-75 font-semibold">
+            <span className="text-sm uppercase font-mono tracking-wider opacity-75 font-semibold line-clamp-2 break-words min-w-0 max-w-full">
               {metricLabel}
             </span>
           </SlideCard>
@@ -53,17 +54,21 @@ export function StatsBigNumberContext({
         right={
           <SlideCard
             variant="default"
-            className="h-full justify-center p-8 space-y-4"
+            className="min-h-0 justify-center p-6 min-w-0 overflow-hidden"
           >
-            <h3 className="text-2xl font-bold mb-2">{contextTitle}</h3>
-            {contextParagraphs.map((p) => (
-              <p
-                key={`ctx-p-${p}`}
-                className="text-base opacity-85 leading-relaxed"
-              >
-                {p}
-              </p>
-            ))}
+            <h3 className="text-2xl font-bold mb-2 line-clamp-2 break-words min-w-0">
+              {contextTitle}
+            </h3>
+            <div className="flex flex-col gap-3 min-h-0 overflow-hidden">
+              {contextParagraphs.slice(0, 3).map((p) => (
+                <p
+                  key={`ctx-p-${p}`}
+                  className="text-base opacity-85 leading-relaxed line-clamp-3 break-words min-w-0"
+                >
+                  {p}
+                </p>
+              ))}
+            </div>
           </SlideCard>
         }
       />

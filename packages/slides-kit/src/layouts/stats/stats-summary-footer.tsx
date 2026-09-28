@@ -30,24 +30,28 @@ export function StatsSummaryFooter({
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col h-full justify-between gap-6">
+      <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col justify-between gap-6">
         {/* Contenido principal superior */}
-        <div className="flex-1 min-h-0 flex flex-col justify-center">
+        <div className="flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col justify-center">
           {children}
         </div>
 
         {/* Barra inferior anclada de métricas */}
-        <SlideCard variant="glow" padding={0} className="overflow-hidden">
+        <SlideCard
+          variant="glow"
+          padding={0}
+          className="overflow-hidden shrink-0 min-w-0"
+        >
           <SlideGrid cols={cols as 3 | 4} gap={0}>
             {metrics.map((m, idx) => (
               <div
                 key={`footer-metric-${m.label || idx}`}
-                className={`p-4 text-center ${idx !== 0 ? 'border-l border-current/10' : ''}`}
+                className={`p-4 text-center min-w-0 min-h-0 overflow-hidden ${idx !== 0 ? 'border-l border-current/10' : ''}`}
               >
-                <div className="text-xs uppercase font-mono opacity-60 font-semibold">
+                <div className="text-xs uppercase font-mono opacity-60 font-semibold truncate min-w-0">
                   {m.label}
                 </div>
-                <div className="text-3xl font-black font-mono mt-1">
+                <div className="text-3xl font-black font-mono mt-1 truncate min-w-0">
                   {m.value}
                 </div>
               </div>

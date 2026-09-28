@@ -28,28 +28,36 @@ export function Stats4Grid({
 }: Stats4GridProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid cols={2} gap="1.5rem" className="my-auto">
+      <SlideGrid
+        cols={2}
+        gap="1.5rem"
+        className="flex-1 min-h-0"
+        style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}
+      >
         {stats.slice(0, 4).map((item, idx) => (
           <SlideCard
             key={`stat-grid-${item.label || idx}`}
             variant="default"
-            className="p-6 justify-between"
+            className="p-6 justify-center min-w-0 min-h-0 overflow-hidden"
           >
-            <div className="flex justify-between items-start mb-2">
-              <span className="text-xs uppercase font-mono opacity-60 font-semibold">
+            <div className="flex justify-between items-start gap-2 mb-2 min-w-0">
+              <span className="text-xs uppercase font-mono opacity-60 font-semibold line-clamp-2 break-words min-w-0">
                 {item.label}
               </span>
               {item.badge && (
-                <SlideBadge variant="secondary" className="text-[10px]">
+                <SlideBadge
+                  variant="secondary"
+                  className="text-[10px] shrink-0"
+                >
                   {item.badge}
                 </SlideBadge>
               )}
             </div>
-            <div className="text-5xl font-black tracking-tight mb-2">
+            <div className="text-4xl font-black tracking-tight mb-2 tabular-nums truncate">
               {item.metric}
             </div>
             {item.detail && (
-              <p className="text-xs opacity-70 border-t border-current/10 pt-2">
+              <p className="text-xs opacity-70 border-t border-current/10 pt-2 line-clamp-2 break-words min-w-0">
                 {item.detail}
               </p>
             )}
