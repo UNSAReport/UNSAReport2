@@ -60,7 +60,7 @@ func newDocsInitCmd() *cobra.Command {
 				return err
 			}
 			if searchFlag != "" && template == "" {
-				pkgs, sErr := client.SearchPackages(ctx, searchFlag, config.DefaultSearchLimit)
+				pkgs, sErr := client.SearchTemplatePackages(ctx, searchFlag, config.DefaultSearchLimit)
 				if sErr != nil {
 					return sErr
 				}
@@ -79,7 +79,7 @@ func newDocsInitCmd() *cobra.Command {
 			}
 			if template == "" {
 				if !canPrompt() {
-					return usagef(cmd, "usage: unsarep docs init <template-pkg>[@<range>] [--report R] [--yes|--all|--none]")
+					return usagef(cmd, "usage: unsarep docs init <template-pkg|blank>[@<range>] [--report R] [--yes|--all|--none]")
 				}
 				chosen, pErr := promptSelectTemplate(ctx, client)
 				if pErr != nil {
@@ -98,11 +98,15 @@ func newDocsInitCmd() *cobra.Command {
 				report = reportVal
 			}
 			if !yesFlag && !allFlag && !noneFlag && canPrompt() {
-				y, a, n, perr := promptMode(cmd)
-				if perr != nil {
-					return perr
+				if strings.EqualFold(template, config.TemplateBlank) {
+					noneFlag = true
+				} else {
+					y, a, n, perr := promptMode(cmd)
+					if perr != nil {
+						return perr
+					}
+					yesFlag, allFlag, noneFlag = y, a, n
 				}
-				yesFlag, allFlag, noneFlag = y, a, n
 			}
 			flags := selectFlags(yesFlag, allFlag, noneFlag)
 			cwd, _ := os.Getwd()
@@ -132,6 +136,7 @@ func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *re
 		var options []huh.Option[string]
 		options = append(options, huh.NewOption("Search registry by keyword...", config.ActionSearchRegistry))
 		options = append(options, huh.NewOption("Enter package name manually...", config.ActionManualPackage))
+		options = append(options, huh.NewOption("Blank template (no components)", config.TemplateBlank))
 
 		for _, p := range pkgs {
 			desc := p.Description
@@ -173,7 +178,7 @@ func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *re
 			if err := runForm(queryForm); err != nil {
 				return "", err
 			}
-			matched, err := client.SearchPackages(ctx, query, config.DefaultSearchLimit)
+			matched, err := client.SearchTemplatePackages(ctx, query, config.DefaultSearchLimit)
 			if err != nil {
 				return "", err
 			}
@@ -211,7 +216,7 @@ func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *re
 }
 
 func promptSelectTemplate(ctx context.Context, client *registry.Client) (string, error) {
-	pkgs, err := client.ListPackagesCached(ctx)
+	pkgs, err := client.ListTemplatePackagesCached(ctx)
 	if err != nil {
 		return "", err
 	}

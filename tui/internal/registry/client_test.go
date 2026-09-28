@@ -232,6 +232,97 @@ func TestSearchPackages(t *testing.T) {
 	}
 }
 
+func TestSearchTemplatePackages(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/packages" {
+			w.WriteHeader(404)
+			return
+		}
+		if r.URL.Query().Get("type") != "template" {
+			t.Errorf("expected type=template, got %q", r.URL.Query().Get("type"))
+		}
+		if r.URL.Query().Get("has_templates") != "true" {
+			t.Errorf("expected has_templates=true, got %q", r.URL.Query().Get("has_templates"))
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"packages": []any{
+				map[string]any{
+					"name":          "@unsa/report-template",
+					"description":   "Report template",
+					"version":       "1.0.0",
+					"has_templates": true,
+				},
+				map[string]any{
+					"name":          "@unsa/non-template",
+					"description":   "Component only",
+					"version":       "1.0.0",
+					"has_templates": false,
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	pkgs, err := c.SearchTemplatePackages(context.Background(), "template", 10)
+	if err != nil {
+		t.Fatalf("SearchTemplatePackages failed: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("expected 1 package with has_templates=true, got %d", len(pkgs))
+	}
+	if pkgs[0].Name != "@unsa/report-template" {
+		t.Errorf("expected @unsa/report-template, got %q", pkgs[0].Name)
+	}
+	if !pkgs[0].HasTemplates {
+		t.Errorf("expected HasTemplates=true")
+	}
+}
+
+func TestListTemplatePackages(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/v1/packages" {
+			w.WriteHeader(404)
+			return
+		}
+		if r.URL.Query().Get("type") != "template" {
+			t.Errorf("expected type=template, got %q", r.URL.Query().Get("type"))
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"packages": []any{
+				map[string]any{
+					"name":         "@unsa/epis-lab",
+					"description":  "EPIS Lab",
+					"version":      "0.1.0",
+					"hasTemplates": true,
+				},
+				map[string]any{
+					"name":         "@unsa/btn",
+					"description":  "Button",
+					"version":      "0.1.0",
+					"hasTemplates": false,
+				},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	pkgs, err := c.ListTemplatePackages(context.Background())
+	if err != nil {
+		t.Fatalf("ListTemplatePackages failed: %v", err)
+	}
+	if len(pkgs) != 1 {
+		t.Fatalf("expected 1 template package, got %d", len(pkgs))
+	}
+	if pkgs[0].Name != "@unsa/epis-lab" {
+		t.Errorf("expected @unsa/epis-lab, got %q", pkgs[0].Name)
+	}
+	if !pkgs[0].HasTemplates {
+		t.Errorf("expected HasTemplates=true")
+	}
+}
+
 func TestGetAndSaveCachedPackages(t *testing.T) {
 	tmpDir := t.TempDir()
 	cachePath := filepath.Join(tmpDir, "registry.json")
