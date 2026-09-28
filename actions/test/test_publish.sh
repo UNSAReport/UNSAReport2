@@ -308,4 +308,51 @@ if ! grep -q "published-count=1" "${NORM_OUTPUT}"; then
 fi
 echo "PASS: Registry URL normalization succeeded."
 
+echo "--> Test 10: Remote version already exists skips publish"
+REMOTE_EXISTS_OUTPUT="${TEST_TEMP_BASE}/output-remote-exists.txt"
+REMOTE_EXISTS_CACHE="${TEST_TEMP_BASE}/cache-remote-exists"
+mkdir -p "${REMOTE_EXISTS_CACHE}"
+
+# Start tiny mock registry responding 200 to package version requests
+bun -e '
+  const s = Bun.serve({
+    port: 9877,
+    fetch(req) {
+      if (req.url.includes("/v1/packages/")) {
+        return new Response(JSON.stringify({ version: "0.1.0" }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }
+  });
+  setInterval(() => {}, 1000);
+' >/dev/null 2>&1 &
+MOCK_SERVER_PID=$!
+
+sleep 0.2
+
+INPUT_TOKEN="${VALID_TOKEN}" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_REGISTRY_URL="http://127.0.0.1:9877" \
+INPUT_DRY_RUN="false" \
+INPUT_CACHE="false" \
+CACHE_DIR="${REMOTE_EXISTS_CACHE}" \
+GITHUB_OUTPUT="${REMOTE_EXISTS_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}"
+
+kill "${MOCK_SERVER_PID}" 2>/dev/null || true
+
+if ! grep -q "skipped-count=1" "${REMOTE_EXISTS_OUTPUT}"; then
+  echo "FAIL: Expected skipped-count=1 when package version already exists remotely"
+  exit 1
+fi
+if ! grep -q "published-count=0" "${REMOTE_EXISTS_OUTPUT}"; then
+  echo "FAIL: Expected published-count=0 when package version already exists remotely"
+  exit 1
+fi
+echo "PASS: Package already existing in remote registry was skipped successfully."
+
 echo "=== All publish tests passed successfully! ==="

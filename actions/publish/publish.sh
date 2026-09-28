@@ -111,6 +111,17 @@ extract_manifest_val() {
   ' "${file}"
 }
 
+check_remote_version_exists() {
+  local pkg_name="$1"
+  local pkg_version="$2"
+  local status_code
+  status_code=$(curl -s -o /dev/null -w "%{http_code}" "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || echo "000")
+  if [ "${status_code}" = "200" ]; then
+    return 0
+  fi
+  return 1
+}
+
 RESOLVED_MODE="${INPUT_MODE}"
 ROOT_MANIFEST="${INPUT_DIR}/${CONFIG_FILENAME}"
 PACKAGES_SEARCH_DIR="${INPUT_DIR}/${INPUT_PACKAGES_DIR}"
@@ -253,15 +264,48 @@ for pkg_dir in "${TARGET_PKG_DIRS[@]}"; do
     fi
 
     if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
-      echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' passed check. Skipping publish step."
-      PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      if check_remote_version_exists "${PKG_NAME}" "${PKG_VERSION}"; then
+        echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry. Skipping publish."
+        SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      else
+        echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' passed check. Skipping publish step."
+        PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      fi
     else
+      if check_remote_version_exists "${PKG_NAME}" "${PKG_VERSION}"; then
+        echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry (${INPUT_REGISTRY_URL}). Skipping publish."
+        CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+          '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+        CACHE_UPDATED="${TRUE_VAL}"
+        SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+        continue
+      fi
+
       echo "Publishing '${PKG_NAME}@${PKG_VERSION}' from '${pkg_dir}' to registry '${INPUT_REGISTRY_URL}'..."
-      UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry publish "${pkg_dir}"
-      CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
-        '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
-      CACHE_UPDATED="${TRUE_VAL}"
-      PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      set +e
+      publish_out=$(UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry publish "${pkg_dir}" 2>&1)
+      publish_status=$?
+      set -e
+
+      if [ ${publish_status} -ne 0 ]; then
+        if [[ "${publish_out}" =~ "already exists" ]] || [[ "${publish_out}" =~ "(409)" ]]; then
+          echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry: ${publish_out}. Skipping publish."
+          CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+            '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+          CACHE_UPDATED="${TRUE_VAL}"
+          SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+        else
+          echo "${publish_out}" >&2
+          echo "::error::Publishing '${PKG_NAME}@${PKG_VERSION}' failed: ${publish_out}"
+          exit ${publish_status}
+        fi
+      else
+        echo "${publish_out}"
+        CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+          '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+        CACHE_UPDATED="${TRUE_VAL}"
+        PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      fi
     fi
   fi
 done
