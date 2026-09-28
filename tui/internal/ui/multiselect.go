@@ -22,6 +22,7 @@ const (
 )
 
 type MultiSelect[T comparable] struct {
+	huh.Field
 	inner    *huh.MultiSelect[T]
 	options  []huh.Option[T]
 	defaults []T
@@ -36,6 +37,7 @@ type MultiSelect[T comparable] struct {
 func NewMultiSelect[T comparable]() *MultiSelect[T] {
 	inner := huh.NewMultiSelect[T]()
 	return &MultiSelect[T]{
+		Field: inner,
 		inner: inner,
 		keySelectAll: key.NewBinding(
 			key.WithKeys(KeyAll, "A", "ctrl+a"),
@@ -211,11 +213,6 @@ func (m *MultiSelect[T]) KeyBinds() []key.Binding {
 
 func (m *MultiSelect[T]) WithTheme(theme *huh.Theme) huh.Field {
 	m.inner.WithTheme(theme)
-	return m
-}
-
-func (m *MultiSelect[T]) WithAccessible(accessible bool) huh.Field {
-	m.inner.WithAccessible(accessible)
 	return m
 }
 

@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"bytes"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -97,5 +99,27 @@ func TestMultiSelectFormIntegration(t *testing.T) {
 	_, _ = form.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}})
 	if len(selected) != 2 {
 		t.Fatalf("expected 2 items after 'a' on form, got %v", selected)
+	}
+}
+
+func TestMultiSelectAccessible(t *testing.T) {
+	var selected []string
+	var out bytes.Buffer
+	ms := NewMultiSelect[string]().
+		Title("Accessible Test").
+		Options(huh.NewOption("Alpha", "a"), huh.NewOption("Beta", "b")).
+		Value(&selected)
+
+	form := huh.NewForm(huh.NewGroup(ms)).
+		WithAccessible(true).
+		WithInput(strings.NewReader("1\n\n")).
+		WithOutput(&out)
+
+	if err := form.Run(); err != nil {
+		t.Fatalf("unexpected error running accessible form: %v", err)
+	}
+
+	if len(selected) != 1 || selected[0] != "a" {
+		t.Fatalf("expected selected ['a'], got %v", selected)
 	}
 }
