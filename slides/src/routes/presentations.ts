@@ -361,7 +361,7 @@ presentationsRouter.get('/:id', async (c) => {
   const versions = await db
     .select()
     .from(presentationVersions)
-    .where(eq(presentationVersions.presentationId, id));
+    .where(eq(presentationVersions.presentationId, presentation.id));
 
   return c.json({ presentation, versions });
 });
