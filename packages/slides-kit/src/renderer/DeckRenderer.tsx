@@ -14,12 +14,35 @@ const REVEAL_OVERRIDE_STYLES = `
 [hidden] {
   display: revert !important;
 }
+html.reveal-print,
+html.reveal-print body,
+html.reveal-print #root,
+html.reveal-print #root > div,
+html.print-pdf,
+html.print-pdf body,
+html.print-pdf #root,
+html.print-pdf #root > div {
+  height: auto !important;
+  min-height: 100% !important;
+  overflow: visible !important;
+}
+@media print {
+  html,
+  body,
+  #root,
+  #root > div {
+    height: auto !important;
+    min-height: 100% !important;
+    overflow: visible !important;
+  }
+}
 .reveal .slides section,
 .reveal .slides > section,
 .reveal .slides > section > section,
 .reveal .slides .pdf-page section {
   height: 100% !important;
   top: 0 !important;
+  display: block !important;
 }
 `;
 
