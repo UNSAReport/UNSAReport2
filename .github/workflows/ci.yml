@@ -377,6 +377,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Test actions/setup
         uses: ./actions/setup
         with:
