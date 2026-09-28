@@ -97,8 +97,9 @@ runs:
       uses: actions/cache/restore@v4
       with:
         path: ${{ runner.temp }}/unsarep-cache
-        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/unsareport.toml') }}
+        key: ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/unsareport.toml') }}-${{ github.run_id }}
         restore-keys: |
+          ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('**/unsareport.toml') }}-
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-${{ github.ref_name }}-
           ${{ inputs.cache-key-prefix }}-${{ runner.os }}-
 
@@ -119,7 +120,7 @@ runs:
         bash "${{ github.action_path }}/publish.sh"
 
     - name: Save publish cache
-      if: ${{ inputs.cache == 'true' && steps.run-publish.outputs.cache-updated == 'true' && !cancelled() }}
+      if: ${{ always() && !cancelled() && inputs.cache == 'true' && steps.run-publish.outputs.cache-updated == 'true' }}
       uses: actions/cache/save@v4
       with:
         path: ${{ runner.temp }}/unsarep-cache
