@@ -26,6 +26,7 @@ import (
 	"github.com/UNSAReport/tui/internal/project"
 	"github.com/UNSAReport/tui/internal/registry"
 	"github.com/UNSAReport/tui/internal/scripts"
+	"github.com/UNSAReport/tui/internal/ui"
 )
 
 const (
@@ -294,14 +295,17 @@ func processAllRootFiles(root string, pkgs []downloadedPkgInfo, mode string, sel
 						Title(fmt.Sprintf("Root File Preview: %s", s.Path)).
 						Description(desc))
 				}
+				var defaultPaths []string
 				var options []huh.Option[string]
 				for _, s := range singles {
-					options = append(options, huh.NewOption(fmt.Sprintf("%s (from %s)", s.Path, s.Package), s.Path).Selected(true))
+					options = append(options, huh.NewOption(fmt.Sprintf("%s (from %s)", s.Path, s.Package), s.Path))
+					defaultPaths = append(defaultPaths, s.Path)
 				}
-				singleFields = append(singleFields, huh.NewMultiSelect[string]().
+				singleFields = append(singleFields, ui.NewMultiSelect[string]().
 					Title("Install root files").
-					Description("Select which files to place in the project root:").
+					Description("Select which files to place in the project root (a: all, d: defaults, n: none):").
 					Options(options...).
+					Defaults(defaultPaths...).
 					Value(&approvedSingles))
 				groups = append(groups, huh.NewGroup(singleFields...))
 			}
@@ -751,9 +755,9 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 				}
 				var chosen []string
 				form := huh.NewForm(huh.NewGroup(
-					huh.NewMultiSelect[string]().
+					ui.NewMultiSelect[string]().
 						Title("Conflicting Files Detected").
-						Description("Select existing files to overwrite (unselected files will be preserved):").
+						Description("Select existing files to overwrite (a: all, d: defaults, n: none):").
 						Options(huh.NewOptions(conflicts...)...).
 						Value(&chosen),
 				))
@@ -874,9 +878,9 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			}
 			var chosen []string
 			form := huh.NewForm(huh.NewGroup(
-				huh.NewMultiSelect[string]().
+				ui.NewMultiSelect[string]().
 					Title("Conflicting Files Detected").
-					Description("Select existing files to overwrite (unselected files will be preserved):").
+					Description("Select existing files to overwrite (a: all, d: defaults, n: none):").
 					Options(huh.NewOptions(conflicts...)...).
 					Value(&chosen),
 			))
@@ -1046,19 +1050,22 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 	case "ask":
 		if isTTYFunc() && stdinReader == os.Stdin && len(cmds) > 0 {
 			var chosenCmds []string
+			var defaultCmds []string
 			options := make([]huh.Option[string], 0, len(cmds))
 			for _, c := range cmds {
 				label := prefix + ":" + c
 				if desc := p.Commands[c].Description; desc != "" {
 					label += " — " + desc
 				}
-				options = append(options, huh.NewOption(label, c).Selected(true))
+				options = append(options, huh.NewOption(label, c))
+				defaultCmds = append(defaultCmds, c)
 			}
 			form := huh.NewForm(huh.NewGroup(
-				huh.NewMultiSelect[string]().
+				ui.NewMultiSelect[string]().
 					Title("Install Package Commands").
-					Description("Select script aliases to add to your project:").
+					Description("Select script aliases to add to your project (a: all, d: defaults, n: none):").
 					Options(options...).
+					Defaults(defaultCmds...).
 					Value(&chosenCmds),
 			))
 			if err := form.Run(); err != nil {
@@ -1172,22 +1179,27 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 				alias := prefix + ":" + s
 				idxStr := fmt.Sprintf("%d", len(candidates))
 				candidates = append(candidates, hookCandidate{std: std, timing: "before", alias: alias})
-				options = append(options, huh.NewOption(fmt.Sprintf("[%s.before] %s", std, alias), idxStr).Selected(true))
+				options = append(options, huh.NewOption(fmt.Sprintf("[%s.before] %s", std, alias), idxStr))
 			}
 			for _, s := range timing.After {
 				alias := prefix + ":" + s
 				idxStr := fmt.Sprintf("%d", len(candidates))
 				candidates = append(candidates, hookCandidate{std: std, timing: "after", alias: alias})
-				options = append(options, huh.NewOption(fmt.Sprintf("[%s.after] %s", std, alias), idxStr).Selected(true))
+				options = append(options, huh.NewOption(fmt.Sprintf("[%s.after] %s", std, alias), idxStr))
 			}
 		}
 		if len(options) > 0 {
+			var defaultHooks []string
+			for i := range candidates {
+				defaultHooks = append(defaultHooks, fmt.Sprintf("%d", i))
+			}
 			var chosen []string
 			form := huh.NewForm(huh.NewGroup(
-				huh.NewMultiSelect[string]().
+				ui.NewMultiSelect[string]().
 					Title("Hook Automations").
-					Description("Select lifecycle hooks to bind to this project:").
+					Description("Select lifecycle hooks to bind to this project (a: all, d: defaults, n: none):").
 					Options(options...).
+					Defaults(defaultHooks...).
 					Value(&chosen),
 			))
 			if err := form.Run(); err != nil {
@@ -1786,6 +1798,7 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 						_ = viewForm.Run()
 					case "select":
 						var picks []string
+						var defaultPicks []string
 						var selectOpts []huh.Option[string]
 						for _, cf := range changedList {
 							tag := "[MODIFIED]"
@@ -1794,16 +1807,17 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 							}
 							opt := huh.NewOption(fmt.Sprintf("%s %s", tag, cf.name), cf.name)
 							if selectedFiles[cf.name] {
-								opt = opt.Selected(true)
 								picks = append(picks, cf.name)
+								defaultPicks = append(defaultPicks, cf.name)
 							}
 							selectOpts = append(selectOpts, opt)
 						}
 						selectForm := huh.NewForm(huh.NewGroup(
-							huh.NewMultiSelect[string]().
+							ui.NewMultiSelect[string]().
 								Title("Select Files to Update").
-								Description("Check files to apply, uncheck to keep current versions:").
+								Description("Check files to apply (a: all, d: defaults, n: none):").
 								Options(selectOpts...).
+								Defaults(defaultPicks...).
 								Value(&picks),
 						))
 						if err := selectForm.Run(); err == nil {
