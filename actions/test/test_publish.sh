@@ -308,18 +308,21 @@ if ! grep -q "published-count=1" "${NORM_OUTPUT}"; then
 fi
 echo "PASS: Registry URL normalization succeeded."
 
-echo "--> Test 10: Remote version already exists skips publish"
+echo "--> Test 10: Remote version exists with matching content skips publish"
 REMOTE_EXISTS_OUTPUT="${TEST_TEMP_BASE}/output-remote-exists.txt"
 REMOTE_EXISTS_CACHE="${TEST_TEMP_BASE}/cache-remote-exists"
 mkdir -p "${REMOTE_EXISTS_CACHE}"
 
-# Start tiny mock registry responding 200 to package version requests
+# Start tiny mock registry responding 200 with matching file checksum
 bun -e '
   const s = Bun.serve({
     port: 9877,
     fetch(req) {
       if (req.url.includes("/v1/packages/")) {
-        return new Response(JSON.stringify({ version: "0.1.0" }), {
+        return new Response(JSON.stringify({
+          version: "0.1.0",
+          files: [{ path: "lib.typ", checksum: "57c86b9cdb3da24d792ae5cf27c00f1a08ab35ea05e13aa093cbf34e59437c72" }]
+        }), {
           status: 200,
           headers: { "Content-Type": "application/json" }
         });
@@ -346,13 +349,102 @@ bash "${PUBLISH_SCRIPT}"
 kill "${MOCK_SERVER_PID}" 2>/dev/null || true
 
 if ! grep -q "skipped-count=1" "${REMOTE_EXISTS_OUTPUT}"; then
-  echo "FAIL: Expected skipped-count=1 when package version already exists remotely"
+  echo "FAIL: Expected skipped-count=1 when package version already exists remotely with matching content"
   exit 1
 fi
 if ! grep -q "published-count=0" "${REMOTE_EXISTS_OUTPUT}"; then
-  echo "FAIL: Expected published-count=0 when package version already exists remotely"
+  echo "FAIL: Expected published-count=0 when package version already exists remotely with matching content"
   exit 1
 fi
-echo "PASS: Package already existing in remote registry was skipped successfully."
+echo "PASS: Package already existing in remote registry with matching content was skipped successfully."
+
+echo "--> Test 11: Remote version exists with DIFFERENT content fails fast"
+REMOTE_DIFF_OUTPUT="${TEST_TEMP_BASE}/output-remote-diff.txt"
+REMOTE_DIFF_CACHE="${TEST_TEMP_BASE}/cache-remote-diff"
+mkdir -p "${REMOTE_DIFF_CACHE}"
+
+# Start mock registry responding 200 with non-matching checksum
+bun -e '
+  const s = Bun.serve({
+    port: 9878,
+    fetch(req) {
+      if (req.url.includes("/v1/packages/")) {
+        return new Response(JSON.stringify({
+          version: "0.1.0",
+          files: [{ path: "lib.typ", checksum: "0000000000000000000000000000000000000000000000000000000000000000" }]
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }
+  });
+  setInterval(() => {}, 1000);
+' >/dev/null 2>&1 &
+MOCK_SERVER_PID_2=$!
+
+sleep 0.2
+
+test_11_failed=0
+INPUT_TOKEN="${VALID_TOKEN}" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_REGISTRY_URL="http://127.0.0.1:9878" \
+INPUT_DRY_RUN="false" \
+INPUT_CACHE="false" \
+CACHE_DIR="${REMOTE_DIFF_CACHE}" \
+GITHUB_OUTPUT="${REMOTE_DIFF_OUTPUT}" \
+bash "${PUBLISH_SCRIPT}" >/dev/null 2>&1 || test_11_failed=1
+
+kill "${MOCK_SERVER_PID_2}" 2>/dev/null || true
+
+if [ ${test_11_failed} -ne 1 ]; then
+  echo "FAIL: Expected publish.sh to exit with error when remote version exists with different checksum"
+  exit 1
+fi
+echo "PASS: Remote version with checksum mismatch failed fast as expected."
+
+echo "--> Test 12: Dry-run with remote checksum mismatch also fails fast"
+test_12_failed=0
+bun -e '
+  const s = Bun.serve({
+    port: 9879,
+    fetch(req) {
+      if (req.url.includes("/v1/packages/")) {
+        return new Response(JSON.stringify({
+          version: "0.1.0",
+          files: [{ path: "lib.typ", checksum: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" }]
+        }), {
+          status: 200,
+          headers: { "Content-Type": "application/json" }
+        });
+      }
+      return new Response("Not found", { status: 404 });
+    }
+  });
+  setInterval(() => {}, 1000);
+' >/dev/null 2>&1 &
+MOCK_SERVER_PID_3=$!
+
+sleep 0.2
+
+INPUT_TOKEN="${VALID_TOKEN}" \
+INPUT_DIR="${FIXTURES_DIR}/sample-pkg" \
+INPUT_MODE="package" \
+INPUT_REGISTRY_URL="http://127.0.0.1:9879" \
+INPUT_DRY_RUN="true" \
+INPUT_CACHE="false" \
+CACHE_DIR="${TEST_TEMP_BASE}/cache-dry-mismatch" \
+GITHUB_OUTPUT="${TEST_TEMP_BASE}/output-dry-mismatch.txt" \
+bash "${PUBLISH_SCRIPT}" >/dev/null 2>&1 || test_12_failed=1
+
+kill "${MOCK_SERVER_PID_3}" 2>/dev/null || true
+
+if [ ${test_12_failed} -ne 1 ]; then
+  echo "FAIL: Expected dry-run to exit with error when remote version exists with different checksum"
+  exit 1
+fi
+echo "PASS: Dry run with unbumped checksum mismatch failed fast as expected."
 
 echo "=== All publish tests passed successfully! ==="
