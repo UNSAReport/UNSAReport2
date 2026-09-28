@@ -30,7 +30,7 @@
       {
         packages.default = pkgs.buildGoModule rec {
           pname = "unsarep";
-          version = "1.0.1";
+          version = "0.1.1";
           src = ./tui;
           subPackages = [ "cmd/unsarep" ];
 
