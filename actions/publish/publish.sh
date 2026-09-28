@@ -2,9 +2,12 @@
 set -euo pipefail
 
 readonly PAT_PREFIX="unsareport_pat_"
+readonly DUMMY_PAT="unsareport_pat_00000000000000000000000000000000"
 readonly CONFIG_FILENAME="unsareport.toml"
 readonly CACHE_FILE_NAME="manifest-cache.json"
-readonly DEFAULT_REGISTRY_URL="https://unsareport.ynoacamino.tech"
+readonly DEFAULT_REGISTRY_URL="https://unsareport.ynoacamino.tech/api/registry"
+readonly WEB_ORIGIN="https://unsareport.ynoacamino.tech"
+readonly WEB_ORIGIN_SLASH="https://unsareport.ynoacamino.tech/"
 readonly DEFAULT_PACKAGES_DIR="packages"
 readonly DEFAULT_DIR="."
 readonly MODE_PACKAGE="package"
@@ -25,16 +28,23 @@ INPUT_PUSH_SCOPE="${INPUT_PUSH_SCOPE:-${TRUE_VAL}}"
 CACHE_DIR="${CACHE_DIR:-${RUNNER_TEMP:-/tmp}/unsarep-cache}"
 OUTPUT_FILE="${GITHUB_OUTPUT:-/dev/null}"
 
-if [ -z "${INPUT_TOKEN}" ]; then
-  echo "::error::Missing required input: token. Please provide a valid UNSAReport Personal Access Token (PAT)."
-  exit 1
+if [ "${INPUT_REGISTRY_URL}" = "${WEB_ORIGIN}" ] || [ "${INPUT_REGISTRY_URL}" = "${WEB_ORIGIN_SLASH}" ]; then
+  INPUT_REGISTRY_URL="${DEFAULT_REGISTRY_URL}"
 fi
 
-echo "::add-mask::${INPUT_TOKEN}"
-
-if [[ ! "${INPUT_TOKEN}" =~ ^${PAT_PREFIX} ]]; then
-  echo "::error::Invalid token format. Personal Access Tokens must begin with '${PAT_PREFIX}'."
-  exit 1
+if [ -z "${INPUT_TOKEN}" ] || [ "${INPUT_TOKEN}" = "${DUMMY_PAT}" ]; then
+  if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
+    echo "Dry-run mode active without authentication token."
+  else
+    echo "::warning::UNSAReport PAT token is missing or placeholder. Running in dry-run mode instead of publishing."
+    INPUT_DRY_RUN="${TRUE_VAL}"
+  fi
+else
+  echo "::add-mask::${INPUT_TOKEN}"
+  if [[ ! "${INPUT_TOKEN}" =~ ^${PAT_PREFIX} ]]; then
+    echo "::error::Invalid token format. Personal Access Tokens must begin with '${PAT_PREFIX}'."
+    exit 1
+  fi
 fi
 
 if [ ! -d "${INPUT_DIR}" ]; then

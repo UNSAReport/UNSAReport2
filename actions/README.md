@@ -65,11 +65,11 @@ Validates package manifest (`unsareport.toml`), bundles components, and uploads 
 
 | Name | Required | Default | Description |
 |------|----------|---------|-------------|
-| `token` | **Yes** | — | Personal Access Token (`unsareport_pat_...`). |
+| `token` | No* | — | Personal Access Token (`unsareport_pat_...`). Required for live publishing, optional when `dry-run: true`. |
 | `dir` | No | `.` | Relative path to package directory or scope root containing `unsareport.toml`. |
 | `mode` | No | `auto` | Execution mode: `auto`, `package` (single package), or `scope` (scope monorepo). |
 | `packages-dir` | No | `packages` | Subdirectory containing packages when running in `scope` mode. |
-| `registry-url` | No | `https://unsareport.ynoacamino.tech` | Base URL of the target UNSAReport package registry. |
+| `registry-url` | No | `https://unsareport.ynoacamino.tech/api/registry` | Base URL of the target UNSAReport package registry. |
 | `version` | No | `latest` | Version of `unsarep` CLI to install (`latest`, `dev`, `v...`). When invoked via `@dev`, `latest` automatically builds `dev` from source. |
 | `check` | No | `true` | Whether to execute `unsarep registry check` before publishing. |
 | `dry-run` | No | `false` | If `true`, validates package integrity without uploading to registry. Useful for Pull Request CI workflows. |

@@ -2,8 +2,9 @@ name: 'Publish UNSAReport Package'
 description: 'Validate and publish packages or whole scopes to the UNSAReport registry using Personal Access Tokens (PAT) with automated caching'
 inputs:
   token:
-    description: 'Personal Access Token (PAT) for the UNSAReport registry'
-    required: true
+    description: 'Personal Access Token (PAT) for the UNSAReport registry. Optional when running in dry-run mode.'
+    required: false
+    default: ''
   dir:
     description: 'Path to package directory or scope root containing unsareport.toml'
     required: false
@@ -19,7 +20,7 @@ inputs:
   registry-url:
     description: 'URL of the UNSAReport package registry'
     required: false
-    default: 'https://unsareport.ynoacamino.tech'
+    default: 'https://unsareport.ynoacamino.tech/api/registry'
   version:
     description: 'Version tag of unsarep CLI to install if not already in PATH'
     required: false
