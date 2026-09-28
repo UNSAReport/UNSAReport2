@@ -29,13 +29,18 @@ export function Split5050Text({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
         ratio="50-50"
-        gap="2rem"
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0"
         left={
-          <SlideCard className="h-full justify-start p-8">
-            <h3 className="text-2xl font-bold mb-4">{leftTitle}</h3>
-            <div className="text-base leading-relaxed opacity-90">
+          <SlideCard className="h-full min-h-0 min-w-0 overflow-hidden justify-start p-8">
+            <h3 className="text-2xl font-bold mb-4 line-clamp-2 break-words">
+              {leftTitle}
+            </h3>
+            <div className="text-base leading-relaxed opacity-90 min-w-0 min-h-0 overflow-hidden break-words line-clamp-[10]">
               {typeof leftContent === 'string' ? (
-                <p className="whitespace-pre-line">{leftContent}</p>
+                <p className="whitespace-pre-line line-clamp-[10] break-words">
+                  {leftContent}
+                </p>
               ) : (
                 leftContent
               )}
@@ -43,11 +48,15 @@ export function Split5050Text({
           </SlideCard>
         }
         right={
-          <SlideCard className="h-full justify-start p-8">
-            <h3 className="text-2xl font-bold mb-4">{rightTitle}</h3>
-            <div className="text-base leading-relaxed opacity-90">
+          <SlideCard className="h-full min-h-0 min-w-0 overflow-hidden justify-start p-8">
+            <h3 className="text-2xl font-bold mb-4 line-clamp-2 break-words">
+              {rightTitle}
+            </h3>
+            <div className="text-base leading-relaxed opacity-90 min-w-0 min-h-0 overflow-hidden break-words line-clamp-[10]">
               {typeof rightContent === 'string' ? (
-                <p className="whitespace-pre-line">{rightContent}</p>
+                <p className="whitespace-pre-line line-clamp-[10] break-words">
+                  {rightContent}
+                </p>
               ) : (
                 rightContent
               )}

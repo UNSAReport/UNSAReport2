@@ -32,36 +32,47 @@ export function Split7030({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
         ratio="70-30"
-        gap="2rem"
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0"
         left={
-          <SlideCard variant="default" className="h-full justify-start p-8">
+          <SlideCard
+            variant="default"
+            className="h-full min-h-0 min-w-0 overflow-hidden justify-start p-8"
+          >
             {mainTitle && (
-              <h3 className="text-2xl font-bold mb-4">{mainTitle}</h3>
+              <h3 className="text-2xl font-bold mb-4 line-clamp-2 break-words">
+                {mainTitle}
+              </h3>
             )}
-            <div className="text-base leading-relaxed opacity-90">
+            <div className="text-base leading-relaxed opacity-90 min-w-0 min-h-0 overflow-hidden break-words line-clamp-[12]">
               {mainContent}
             </div>
           </SlideCard>
         }
         right={
-          <SlideCard variant="glow" className="h-full justify-between p-6">
-            <div>
+          <SlideCard
+            variant="glow"
+            className="h-full min-h-0 min-w-0 overflow-hidden justify-between p-6"
+          >
+            <div className="min-w-0 min-h-0 overflow-hidden">
               {sidebarBadge && (
                 <div className="mb-4">
                   <SlideBadge variant="accent">{sidebarBadge}</SlideBadge>
                 </div>
               )}
-              <h3 className="text-xl font-bold mb-6">{sidebarTitle}</h3>
-              <div className="space-y-4">
-                {sidebarStats.map((st) => (
+              <h3 className="text-xl font-bold mb-6 line-clamp-2 break-words">
+                {sidebarTitle}
+              </h3>
+              <div className="space-y-4 overflow-hidden">
+                {sidebarStats.slice(0, 4).map((st) => (
                   <div
                     key={`side-stat-${st.label}`}
-                    className="border-b border-current/10 pb-3"
+                    className="border-b border-current/10 pb-3 min-w-0"
                   >
-                    <span className="text-xs uppercase font-mono opacity-60 block">
+                    <span className="text-xs uppercase font-mono opacity-60 block truncate">
                       {st.label}
                     </span>
-                    <span className="text-2xl font-bold font-mono">
+                    <span className="text-2xl font-bold font-mono truncate block">
                       {st.value}
                     </span>
                   </div>

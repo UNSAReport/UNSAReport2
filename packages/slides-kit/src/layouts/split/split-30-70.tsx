@@ -32,21 +32,27 @@ export function Split3070({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
         ratio="30-70"
-        gap="2rem"
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0"
         left={
-          <SlideCard variant="muted" className="h-full justify-between p-6">
-            <div>
+          <SlideCard
+            variant="muted"
+            className="h-full min-h-0 min-w-0 overflow-hidden justify-between p-6"
+          >
+            <div className="min-w-0 min-h-0 overflow-hidden">
               {sidebarBadge && (
                 <div className="mb-4">
                   <SlideBadge variant="secondary">{sidebarBadge}</SlideBadge>
                 </div>
               )}
-              <h3 className="text-xl font-bold mb-4">{sidebarTitle}</h3>
-              <ul className="space-y-3">
-                {sidebarItems.map((item) => (
+              <h3 className="text-xl font-bold mb-4 line-clamp-2 break-words">
+                {sidebarTitle}
+              </h3>
+              <ul className="space-y-3 overflow-hidden">
+                {sidebarItems.slice(0, 5).map((item) => (
                   <li
                     key={`side-item-${item}`}
-                    className="text-sm opacity-80 border-b border-current/10 pb-2"
+                    className="text-sm opacity-80 border-b border-current/10 pb-2 line-clamp-2 break-words"
                   >
                     {item}
                   </li>
@@ -56,11 +62,16 @@ export function Split3070({
           </SlideCard>
         }
         right={
-          <SlideCard variant="default" className="h-full justify-start p-8">
+          <SlideCard
+            variant="default"
+            className="h-full min-h-0 min-w-0 overflow-hidden justify-start p-8"
+          >
             {mainTitle && (
-              <h3 className="text-2xl font-bold mb-4">{mainTitle}</h3>
+              <h3 className="text-2xl font-bold mb-4 line-clamp-2 break-words">
+                {mainTitle}
+              </h3>
             )}
-            <div className="text-base leading-relaxed opacity-90">
+            <div className="text-base leading-relaxed opacity-90 min-w-0 min-h-0 overflow-hidden break-words line-clamp-[12]">
               {mainContent}
             </div>
           </SlideCard>

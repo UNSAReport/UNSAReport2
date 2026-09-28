@@ -34,30 +34,34 @@ export function SplitNumberedSteps({
         ratio="40-60"
         gap="2.5rem"
         left={
-          <div className="flex flex-col justify-center h-full p-4">
-            <h3 className="text-3xl font-bold mb-4">{overviewTitle}</h3>
-            <p className="text-base opacity-80 leading-relaxed mb-6">
+          <div className="flex flex-col justify-center h-full min-h-0 min-w-0 p-4 overflow-hidden">
+            <h3 className="text-3xl font-bold mb-4 truncate">
+              {overviewTitle}
+            </h3>
+            <p className="text-base opacity-80 leading-relaxed mb-6 line-clamp-6 break-words">
               {overviewText}
             </p>
-            <div>
+            <div className="shrink-0">
               <SlideBadge variant="accent">Metodología Secuencial</SlideBadge>
             </div>
           </div>
         }
         right={
-          <div className="flex flex-col justify-center h-full gap-4">
-            {steps.map((st, idx) => (
+          <div className="flex flex-col justify-center h-full min-h-0 min-w-0 gap-4 overflow-hidden">
+            {steps.slice(0, 4).map((st, idx) => (
               <SlideCard
                 key={`num-step-${st.title || idx}`}
                 variant="default"
-                className="p-4 flex-row items-center gap-4"
+                className="p-4 flex-row items-center gap-4 min-w-0 min-h-0 overflow-hidden"
               >
                 <div className="w-10 h-10 rounded-full border border-current font-bold flex items-center justify-center shrink-0 font-mono text-sm opacity-90">
                   0{idx + 1}
                 </div>
-                <div>
-                  <h4 className="text-base font-bold">{st.title}</h4>
-                  <p className="text-xs opacity-75">{st.description}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-base font-bold truncate">{st.title}</h4>
+                  <p className="text-xs opacity-75 line-clamp-2 break-words">
+                    {st.description}
+                  </p>
                 </div>
               </SlideCard>
             ))}

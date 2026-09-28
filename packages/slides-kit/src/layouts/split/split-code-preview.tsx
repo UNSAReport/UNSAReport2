@@ -35,31 +35,45 @@ export function SplitCodePreview({
           <SlideCard
             variant="elevated"
             padding={0}
-            className="h-full overflow-hidden"
+            className="h-full min-h-0 min-w-0 overflow-hidden flex flex-col"
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-current/10">
-              <span className="text-xs font-mono opacity-70">Componente</span>
-              <SlideBadge variant="secondary" className="text-[10px] font-mono">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-current/10 shrink-0">
+              <span className="text-xs font-mono opacity-70 truncate">
+                Componente
+              </span>
+              <SlideBadge
+                variant="secondary"
+                className="text-[10px] font-mono shrink-0"
+              >
                 {language}
               </SlideBadge>
             </div>
-            <div className="p-6 overflow-auto font-mono text-sm leading-relaxed h-[calc(100%-45px)]">
-              <pre className="m-0">
-                <code>{code}</code>
-              </pre>
+            <div className="flex-1 min-h-0 overflow-hidden">
+              <div className="h-full overflow-auto p-6 font-mono text-sm leading-relaxed">
+                <pre className="m-0 whitespace-pre-wrap break-words">
+                  <code className="break-words">{code}</code>
+                </pre>
+              </div>
             </div>
           </SlideCard>
         }
         right={
-          <SlideCard variant="default" className="h-full justify-between p-6">
-            <div className="flex justify-between items-center border-b border-current/10 pb-3 mb-4">
-              <span className="text-xs uppercase font-mono font-semibold opacity-75">
+          <SlideCard
+            variant="default"
+            className="h-full min-h-0 min-w-0 overflow-hidden justify-between p-6"
+          >
+            <div className="flex justify-between items-center border-b border-current/10 pb-3 mb-4 shrink-0">
+              <span className="text-xs uppercase font-mono font-semibold opacity-75 truncate min-w-0">
                 {previewTitle}
               </span>
-              <SlideBadge variant="accent">UI Live</SlideBadge>
+              <SlideBadge variant="accent" className="shrink-0">
+                UI Live
+              </SlideBadge>
             </div>
-            <div className="flex-1 flex items-center justify-center p-4">
-              {preview}
+            <div className="flex-1 min-h-0 min-w-0 flex items-center justify-center p-4 overflow-hidden">
+              <div className="w-full h-full min-h-0 min-w-0 flex items-center justify-center overflow-hidden [&>*]:max-w-full [&>*]:max-h-full">
+                {preview}
+              </div>
             </div>
           </SlideCard>
         }

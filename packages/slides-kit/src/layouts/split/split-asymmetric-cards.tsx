@@ -17,7 +17,7 @@ export interface SplitAsymmetricCardsProps {
 }
 
 /**
- * Dos tarjetas asimétricas desfasadas para romper la monotonía visual con dinamismo arquitectónico.
+ * Dos tarjetas asimétricas para romper la monotonía visual con dinamismo arquitectónico.
  */
 export function SplitAsymmetricCards({
   tag,
@@ -34,40 +34,47 @@ export function SplitAsymmetricCards({
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
         ratio="50-50"
-        gap="2.5rem"
+        gap="1.5rem"
+        className="flex-1 min-h-0 min-w-0 items-stretch"
         left={
-          <div className="h-full flex flex-col justify-start pt-4">
-            <SlideCard variant="default" className="p-8 justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-2xl font-bold">{leftTitle}</h3>
-                  {leftBadge && (
-                    <SlideBadge variant="secondary">{leftBadge}</SlideBadge>
-                  )}
-                </div>
-                <div className="text-base leading-relaxed opacity-85">
-                  {leftContent}
-                </div>
+          <SlideCard
+            variant="default"
+            className="h-full min-h-0 min-w-0 overflow-hidden p-8 justify-between"
+          >
+            <div className="min-w-0 min-h-0 overflow-hidden">
+              <div className="flex justify-between items-center gap-3 mb-4 min-w-0">
+                <h3 className="text-2xl font-bold line-clamp-2 break-words min-w-0">
+                  {leftTitle}
+                </h3>
+                {leftBadge && (
+                  <SlideBadge variant="secondary">{leftBadge}</SlideBadge>
+                )}
               </div>
-            </SlideCard>
-          </div>
+              <div className="text-base leading-relaxed opacity-85 break-words line-clamp-[10] overflow-hidden min-w-0">
+                {leftContent}
+              </div>
+            </div>
+          </SlideCard>
         }
         right={
-          <div className="h-full flex flex-col justify-end pb-4">
-            <SlideCard variant="elevated" className="p-8 justify-between">
-              <div>
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-2xl font-bold">{rightTitle}</h3>
-                  {rightBadge && (
-                    <SlideBadge variant="accent">{rightBadge}</SlideBadge>
-                  )}
-                </div>
-                <div className="text-base leading-relaxed opacity-85">
-                  {rightContent}
-                </div>
+          <SlideCard
+            variant="elevated"
+            className="h-full min-h-0 min-w-0 overflow-hidden p-8 justify-between"
+          >
+            <div className="min-w-0 min-h-0 overflow-hidden">
+              <div className="flex justify-between items-center gap-3 mb-4 min-w-0">
+                <h3 className="text-2xl font-bold line-clamp-2 break-words min-w-0">
+                  {rightTitle}
+                </h3>
+                {rightBadge && (
+                  <SlideBadge variant="accent">{rightBadge}</SlideBadge>
+                )}
               </div>
-            </SlideCard>
-          </div>
+              <div className="text-base leading-relaxed opacity-85 break-words line-clamp-[10] overflow-hidden min-w-0">
+                {rightContent}
+              </div>
+            </div>
+          </SlideCard>
         }
       />
     </SlideSection>
