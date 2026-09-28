@@ -1,4 +1,4 @@
-import { Deck } from '@revealjs/react';
+import { Deck, Slide } from '@revealjs/react';
 import { SlideRenderer } from '@/renderer/SlideRenderer';
 import { ThemeProvider } from '@/renderer/ThemeProvider';
 import type { DeckConfig } from '@/types';
@@ -6,7 +6,8 @@ import 'reveal.js/reveal.css';
 
 export interface DeckRendererProps {
   /** Configuración completa del deck de diapositivas */
-  config: DeckConfig;
+  config?: DeckConfig;
+  deck?: DeckConfig;
   /** Clases CSS adicionales para el contenedor exterior */
   className?: string;
 }
@@ -15,7 +16,12 @@ export interface DeckRendererProps {
  * Componente raíz de presentación: inicializa Reveal.js, aplica el ThemeProvider
  * y renderiza la lista de diapositivas declarativas.
  */
-export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
+export function DeckRenderer({
+  config,
+  deck,
+  className = '',
+}: DeckRendererProps) {
+  const activeConfig = config || deck;
   const {
     theme = 'unsa-dark',
     transition = 'slide',
@@ -25,7 +31,7 @@ export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
     autoSlide = 0,
     loop = false,
     slides = [],
-  } = config;
+  } = activeConfig || {};
 
   return (
     <ThemeProvider
@@ -51,11 +57,9 @@ export function DeckRenderer({ config, className = '' }: DeckRendererProps) {
         }}
       >
         {slides.map((slide, index) => (
-          <SlideRenderer
-            key={`slide-${slide.layout}-${slide.title || index}`}
-            slide={slide}
-            index={index}
-          />
+          <Slide key={`slide-${slide.layout}-${slide.title || index}`}>
+            <SlideRenderer slide={slide} index={index} />
+          </Slide>
         ))}
       </Deck>
     </ThemeProvider>

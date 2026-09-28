@@ -78,12 +78,12 @@ export default defineConfig({
       left: {
         title: 'Tradicional',
         badge: 'Antes',
-        items: ['Diseño estático', 'Acoplamiento rígido', 'Dificultad de actualización'],
+        features: ['Diseño estático', 'Acoplamiento rígido', 'Dificultad de actualización'],
       },
       right: {
         title: 'UNSA Slides',
         badge: 'Recomendado',
-        items: ['110 layouts puros', 'Tokens temáticos intercambiables', 'Despliegue ágil en la nube'],
+        features: ['110 layouts puros', 'Tokens temáticos intercambiables', 'Despliegue ágil en la nube'],
       },
     },
     {
@@ -135,6 +135,7 @@ export default defineConfig({
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>` + projectName + `</title>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
   <body class="m-0 p-0 overflow-hidden bg-black">
     <div id="root"></div>
@@ -152,7 +153,7 @@ import deckConfig from '../deck.config';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <DeckRenderer deck={deckConfig} />
+    <DeckRenderer config={deckConfig} />
   </React.StrictMode>,
 );
 `,

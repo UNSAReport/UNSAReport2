@@ -7,7 +7,8 @@ import { SlideSplit } from '@/primitives/SlideSplit';
 export interface ComparisonSide {
   title: string;
   badge?: string;
-  features: string[];
+  features?: string[];
+  items?: string[];
   summary?: string;
 }
 
@@ -31,6 +32,9 @@ export function SplitComparisonCards({
   right,
   children,
 }: SplitComparisonCardsProps) {
+  const leftFeatures = left.features || left.items || [];
+  const rightFeatures = right.features || right.items || [];
+
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
       <SlideSplit
@@ -46,7 +50,7 @@ export function SplitComparisonCards({
                 )}
               </div>
               <ul className="space-y-3 mb-6">
-                {left.features.map((feat) => (
+                {leftFeatures.map((feat) => (
                   <li
                     key={`left-feat-${feat}`}
                     className="flex items-start gap-2 text-base opacity-85"
@@ -74,7 +78,7 @@ export function SplitComparisonCards({
                 )}
               </div>
               <ul className="space-y-3 mb-6">
-                {right.features.map((feat) => (
+                {rightFeatures.map((feat) => (
                   <li
                     key={`right-feat-${feat}`}
                     className="flex items-start gap-2 text-base opacity-85"
