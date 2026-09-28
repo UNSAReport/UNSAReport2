@@ -592,11 +592,18 @@ export function validateUnsareportToml(
       );
     }
     if (!isRecord(raw['root-files'])) {
-      throw new ValidationError('unsareport.toml [root-files] must be a table', {
-        field: 'root-files',
-      });
+      throw new ValidationError(
+        'unsareport.toml [root-files] must be a table',
+        {
+          field: 'root-files',
+        },
+      );
     }
-    const files = validateGlobList(raw['root-files'].files, 'root-files.files', false);
+    const files = validateGlobList(
+      raw['root-files'].files,
+      'root-files.files',
+      false,
+    );
     rootFiles = { files };
   }
 

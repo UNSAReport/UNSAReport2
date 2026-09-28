@@ -1464,7 +1464,7 @@ func TestFormatFilePreview(t *testing.T) {
 
 	var longText strings.Builder
 	for i := 1; i <= 60; i++ {
-		longText.WriteString(fmt.Sprintf("line %d\n", i))
+		fmt.Fprintf(&longText, "line %d\n", i)
 	}
 	formatted := formatFilePreview([]byte(longText.String()))
 	if !strings.Contains(formatted, "... (20 more lines)") {
