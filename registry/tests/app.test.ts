@@ -240,6 +240,7 @@ describe('App API Routes', () => {
         status: string;
         version: string;
         versions: string[];
+        has_templates: boolean;
       }[];
     };
     expect(data.total).toBe(1);
@@ -249,6 +250,17 @@ describe('App API Routes', () => {
     expect(data.packages[0].status).toBe('approved');
     expect(data.packages[0].version).toBe('1.0.0');
     expect(data.packages[0].versions).toEqual(['1.0.0']);
+    expect(data.packages[0].has_templates).toBe(false);
+  });
+
+  it('GET /v1/packages?type=template filters packages without templates', async () => {
+    const res = await app.fetch(
+      new Request('http://localhost/v1/packages?type=template'),
+    );
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as { total: number; packages: unknown[] };
+    expect(data.total).toBe(0);
+    expect(data.packages).toHaveLength(0);
   });
 
   it('POST /v1/packages rejects unauthorized request with 401', async () => {

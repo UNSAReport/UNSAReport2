@@ -56,6 +56,7 @@ const (
 const (
 	ActionSearchRegistry = "__search_registry__"
 	ActionManualPackage  = "__manual_package__"
+	TemplateBlank        = "blank"
 )
 
 const (

@@ -77,6 +77,7 @@ export interface UnsareportToml {
   componentGlobs: string[];
   dependencies: Record<string, string>;
   templateGlobs: string[];
+  hasTemplatesSection?: boolean;
   commands: Record<string, PkgCommandDef>;
   hooks: Record<string, HookTiming>;
   configSchema: Record<string, PkgConfigSchemaEntry>;
@@ -868,6 +869,7 @@ export function validateUnsareportToml(
     componentGlobs,
     dependencies,
     templateGlobs,
+    hasTemplatesSection: raw.templates !== undefined,
     commands,
     hooks,
     configSchema,

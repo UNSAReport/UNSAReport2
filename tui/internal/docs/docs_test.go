@@ -252,6 +252,70 @@ func TestInitNonEmptyDirNoConflicts(t *testing.T) {
 	}
 }
 
+func TestInitBlankTemplate(t *testing.T) {
+	tmp := t.TempDir()
+
+	err := Init(context.Background(), tmp, InitOptions{Template: "blank", Report: "lab-01"})
+	if err != nil {
+		t.Fatalf("expected Init with blank template to succeed, got %v", err)
+	}
+
+	cfgPath := filepath.Join(tmp, "unsareport.toml")
+	if _, err := os.Stat(cfgPath); err != nil {
+		t.Fatalf("expected unsareport.toml to exist: %v", err)
+	}
+	rawToml, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rawToml), "config_version = 1") {
+		t.Fatalf("expected config_version = 1, got: %s", string(rawToml))
+	}
+	if !strings.Contains(string(rawToml), `typst_entry = "main.typ"`) {
+		t.Fatalf("expected typst_entry = main.typ, got: %s", string(rawToml))
+	}
+
+	mainTyp := filepath.Join(tmp, "lab-01", "main.typ")
+	if _, err := os.Stat(mainTyp); err != nil {
+		t.Fatalf("expected lab-01/main.typ to exist: %v", err)
+	}
+	content, err := os.ReadFile(mainTyp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "= Document") {
+		t.Fatalf("unexpected content in main.typ: %s", string(content))
+	}
+
+	compDir := filepath.Join(tmp, "components")
+	if _, err := os.Stat(compDir); !os.IsNotExist(err) {
+		t.Fatalf("expected components/ to not exist for blank template")
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Pkg) != 0 {
+		t.Fatalf("expected lockfile to have 0 packages, got %d", len(l.Pkg))
+	}
+
+	if err := runCheck(tmp); err != nil {
+		t.Fatalf("expected runCheck to succeed, got %v", err)
+	}
+
+	err2 := Init(context.Background(), tmp, InitOptions{
+		Template: "blank",
+		Report:   "lab-01",
+		Confirm: func(conflicts []string) (bool, error) {
+			return false, nil
+		},
+	})
+	if err2 == nil || !strings.Contains(err2.Error(), ErrInitCancelled) {
+		t.Fatalf("expected ErrInitCancelled when conflict rejected, got %v", err2)
+	}
+}
+
 func TestInitNonEmptyDirWithConflicts(t *testing.T) {
 	srv := testutil.MockRegistry(t)
 	defer srv.Close()
@@ -1471,5 +1535,3 @@ func TestFormatFilePreview(t *testing.T) {
 		t.Fatalf("expected truncation, got:\n%s", formatted)
 	}
 }
-
-

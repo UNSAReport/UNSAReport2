@@ -672,10 +672,11 @@ func normalizeTemplateFiles(files map[string][]byte) (map[string][]byte, error) 
 }
 
 func Init(ctx context.Context, cwd string, opt InitOptions) error {
-	name, rng := parseNameRange(opt.Template)
-	if name == "" {
+	tmpl := strings.TrimSpace(opt.Template)
+	if tmpl == "" {
 		return fmt.Errorf("template name must not be empty")
 	}
+
 	report := opt.Report
 	if report == "" {
 		report = "t1"
@@ -686,6 +687,83 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		root = r
 		existing = &cfg
 	}
+
+	if strings.EqualFold(tmpl, config.TemplateBlank) {
+		reportDir := filepath.Join(root, report)
+		mainTypPath := filepath.Join(reportDir, config.DefaultTypstEntry)
+
+		var conflicts []string
+		if existing == nil {
+			cfgPath := filepath.Join(root, config.ConfigFileName)
+			if _, err := os.Stat(cfgPath); err == nil {
+				conflicts = append(conflicts, config.ConfigFileName)
+			}
+		}
+		if _, err := os.Stat(mainTypPath); err == nil {
+			rel, err := filepath.Rel(root, mainTypPath)
+			if err != nil {
+				rel = mainTypPath
+			}
+			conflicts = append(conflicts, filepath.ToSlash(rel))
+		}
+		sort.Strings(conflicts)
+
+		if len(conflicts) > 0 {
+			if opt.Confirm != nil {
+				confirmed, err := opt.Confirm(conflicts)
+				if err != nil {
+					return err
+				}
+				if !confirmed {
+					return errors.New(ErrInitCancelled)
+				}
+			} else if opt.Yes {
+				fmt.Println(WarnConflictingFiles)
+				for _, f := range conflicts {
+					fmt.Printf("  - %s\n", f)
+				}
+			} else {
+				fmt.Println(WarnConflictingFiles)
+				for _, f := range conflicts {
+					fmt.Printf("  - %s\n", f)
+				}
+				if !isTTY() {
+					return errors.New(ErrNonTTYRequiresYes)
+				}
+				ans, err := promptLine(PromptReplaceFiles)
+				if err != nil {
+					return err
+				}
+				if strings.ToLower(ans) != "y" && strings.ToLower(ans) != "yes" {
+					return errors.New(ErrInitCancelled)
+				}
+			}
+		}
+
+		if existing == nil {
+			cfg := project.SpecConfig{}
+			cfg.Project.TypstEntry = config.DefaultTypstEntry
+			cfg.Project.ConfigVersion = config.ConfigVersion
+			cfg.Scripts = map[string]project.ScriptDef{}
+			cfg.Hooks = map[string]project.HookTiming{}
+			cfg.Dependencies = map[string]string{}
+			if err := saveConfig(root, cfg); err != nil {
+				return err
+			}
+		}
+
+		if err := os.MkdirAll(reportDir, config.PermDirPublic); err != nil {
+			return err
+		}
+		starterTypst := "= Document\n"
+		if err := os.WriteFile(mainTypPath, []byte(starterTypst), config.PermFilePublic); err != nil {
+			return err
+		}
+
+		return runCheck(root)
+	}
+
+	name, rng := parseNameRange(opt.Template)
 
 	client, err := registry.NewClient()
 	if err != nil {

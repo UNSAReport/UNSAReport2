@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { DEFAULT_PACKAGES_LIMIT } from '@unsa/schemas/constants';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import JSZip from 'jszip';
 import { config } from '@/config';
@@ -51,6 +51,10 @@ packagesRouter.get('/', optionalAuth, async (c) => {
   const q = (c.req.query('q') ?? c.req.query('search'))?.trim();
   const tagFilter = c.req.query('tag')?.trim();
   const statusFilter = c.req.query('status')?.trim() || 'approved';
+  const typeFilter = c.req.query('type')?.trim();
+  const hasTemplatesParam = c.req.query('has_templates')?.trim();
+  const templateOnly =
+    typeFilter === 'template' || hasTemplatesParam === 'true';
   const limit = Math.min(
     Number.parseInt(c.req.query('limit') || '20', 10),
     DEFAULT_PACKAGES_LIMIT,
@@ -74,6 +78,28 @@ packagesRouter.get('/', optionalAuth, async (c) => {
     }
   } else if (statusFilter !== 'all') {
     conditions.push(eq(packages.status, statusFilter));
+  }
+
+  if (templateOnly) {
+    const versionConditions = [
+      isNotNull(packageVersions.templatesS3Key),
+      ne(packageVersions.templatesS3Key, ''),
+    ];
+    if (statusFilter === 'approved' || (statusFilter === 'all' && !isAdmin)) {
+      versionConditions.push(eq(packageVersions.status, 'approved'));
+    }
+    const pkgIdsWithTemplates = await db
+      .select({ packageId: packageVersions.packageId })
+      .from(packageVersions)
+      .where(and(...versionConditions));
+
+    const ids = Array.from(
+      new Set(pkgIdsWithTemplates.map((p) => p.packageId)),
+    );
+    if (ids.length === 0) {
+      return c.json({ total: 0, offset, limit, packages: [] });
+    }
+    conditions.push(inArray(packages.id, ids));
   }
 
   if (q) {
@@ -135,12 +161,16 @@ packagesRouter.get('/', optionalAuth, async (c) => {
         versionConditions.push(eq(packageVersions.status, 'approved'));
       }
       const versionRows = await db
-        .select({ version: packageVersions.version })
+        .select({
+          version: packageVersions.version,
+          templatesS3Key: packageVersions.templatesS3Key,
+        })
         .from(packageVersions)
         .where(and(...versionConditions))
         .orderBy(desc(packageVersions.createdAt));
 
       const versionList = versionRows.map((v) => v.version);
+      const hasTemplates = versionRows.some((v) => Boolean(v.templatesS3Key));
       let effectiveVersion = '';
       if (
         pkg.latestVersion !== null &&
@@ -159,15 +189,21 @@ packagesRouter.get('/', optionalAuth, async (c) => {
         version: effectiveVersion,
         versions: versionList,
         tags: tagRows.map((t) => t.name),
+        has_templates: hasTemplates,
+        hasTemplates,
       };
     }),
   );
 
+  const finalPackages = templateOnly
+    ? packageList.filter((p) => p.has_templates)
+    : packageList;
+
   return c.json({
-    total: packageList.length,
+    total: finalPackages.length,
     offset,
     limit,
-    packages: packageList,
+    packages: finalPackages,
   });
 });
 
@@ -199,16 +235,21 @@ packagesRouter.on(
       .select({
         version: packageVersions.version,
         status: packageVersions.status,
+        templatesS3Key: packageVersions.templatesS3Key,
         createdAt: packageVersions.createdAt,
       })
       .from(packageVersions)
       .where(eq(packageVersions.packageId, pkg.id))
       .orderBy(desc(packageVersions.createdAt));
 
+    const hasTemplates = versionRows.some((v) => Boolean(v.templatesS3Key));
+
     return c.json({
       ...pkg,
       tags: tagRows.map((t) => t.name),
       versions: versionRows.map((v) => v.version),
+      has_templates: hasTemplates,
+      hasTemplates,
     });
   },
 );
