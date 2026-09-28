@@ -47,18 +47,18 @@ export function SlideSection({
 
       {/* Header institucional */}
       {(tag || title || subtitle) && (
-        <header className="mb-6 flex flex-col items-start gap-2 z-10 shrink-0">
+        <header className="mb-6 flex flex-col items-start gap-2 z-10 shrink-0 min-w-0 max-w-full overflow-hidden">
           {tag && <SlideBadge>{tag}</SlideBadge>}
           {title && (
             <h2
-              className="text-4xl font-bold tracking-tight text-[var(--slide-text,#f1f5f9)] leading-tight"
+              className="text-4xl font-bold tracking-tight text-[var(--slide-text,#f1f5f9)] leading-tight line-clamp-2 break-words min-w-0 max-w-full overflow-hidden"
               style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
             >
               {title}
             </h2>
           )}
           {subtitle && (
-            <p className="text-lg text-[var(--slide-text-muted,#94a3b8)] max-w-3xl">
+            <p className="text-lg text-[var(--slide-text-muted,#94a3b8)] max-w-3xl line-clamp-2 break-words min-w-0 overflow-hidden">
               {subtitle}
             </p>
           )}
