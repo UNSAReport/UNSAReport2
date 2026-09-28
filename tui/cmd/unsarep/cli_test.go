@@ -89,3 +89,81 @@ func TestSelectFlags(t *testing.T) {
 		t.Fatalf("all: %v", got)
 	}
 }
+
+func TestDocsUpdateCmdFlags(t *testing.T) {
+	cmd := newDocsUpdateCmd()
+	if f := cmd.Flags().Lookup("deps"); f == nil {
+		t.Fatal("expected --deps flag on update command")
+	} else if f.Shorthand != "d" {
+		t.Fatalf("expected -d shorthand for deps, got %q", f.Shorthand)
+	}
+}
+
+func TestDocsWatchCmdFlags(t *testing.T) {
+	cmd := newDocsWatchCmd()
+	f := cmd.Flags().Lookup("open")
+	if f == nil {
+		t.Fatal("expected --open flag on watch command")
+	}
+	if f.DefValue != "true" {
+		t.Fatalf("expected --open default value to be 'true', got %q", f.DefValue)
+	}
+}
+
+func TestDocsInitCmdFlags(t *testing.T) {
+	cmd := newDocsInitCmd()
+	f := cmd.Flags().Lookup("search")
+	if f == nil {
+		t.Fatal("expected --search flag on init command")
+	}
+	if f.Shorthand != "s" {
+		t.Fatalf("expected -s shorthand for search, got %q", f.Shorthand)
+	}
+}
+
+func TestRegistryBuildCmdFlags(t *testing.T) {
+	cmd := newRegistryBuildCmd()
+	if f := cmd.Flags().Lookup("target"); f == nil {
+		t.Fatal("expected --target flag on registry build command")
+	}
+	if f := cmd.Flags().Lookup("output"); f == nil {
+		t.Fatal("expected --output flag on registry build command")
+	} else if f.Shorthand != "o" {
+		t.Fatalf("expected -o shorthand for output, got %q", f.Shorthand)
+	}
+	if f := cmd.Flags().Lookup("no-hooks"); f == nil {
+		t.Fatal("expected --no-hooks flag on registry build command")
+	}
+}
+
+func TestRegistryWatchCmdFlags(t *testing.T) {
+	cmd := newRegistryWatchCmd()
+	if f := cmd.Flags().Lookup("target"); f == nil {
+		t.Fatal("expected --target flag on registry watch command")
+	}
+	if f := cmd.Flags().Lookup("open"); f == nil {
+		t.Fatal("expected --open flag on registry watch command")
+	} else if f.DefValue != "true" {
+		t.Fatalf("expected --open default value to be 'true', got %q", f.DefValue)
+	}
+}
+func TestDocsRemoveCmdFlags(t *testing.T) {
+	cmd := newDocsRemoveCmd()
+	if f := cmd.Flags().Lookup("yes"); f == nil {
+		t.Fatal("expected --yes flag on docs remove command")
+	} else if f.Shorthand != "y" {
+		t.Fatalf("expected -y shorthand for yes, got %q", f.Shorthand)
+	}
+	if f := cmd.Flags().Lookup("package"); f == nil {
+		t.Fatal("expected --package flag on docs remove command")
+	}
+}
+
+func TestLogoutCmdFlags(t *testing.T) {
+	cmd := newLogoutCmd()
+	if f := cmd.Flags().Lookup("yes"); f == nil {
+		t.Fatal("expected --yes flag on logout command")
+	} else if f.Shorthand != "y" {
+		t.Fatalf("expected -y shorthand for yes, got %q", f.Shorthand)
+	}
+}

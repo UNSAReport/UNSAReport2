@@ -1,0 +1,456 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+readonly PAT_PREFIX="unsareport_pat_"
+readonly DUMMY_PAT="unsareport_pat_00000000000000000000000000000000"
+readonly CONFIG_FILENAME="unsareport.toml"
+readonly CACHE_FILE_NAME="manifest-cache.json"
+readonly DEFAULT_REGISTRY_URL="https://unsareport.ynoacamino.tech/api/registry"
+readonly WEB_ORIGIN="https://unsareport.ynoacamino.tech"
+readonly WEB_ORIGIN_SLASH="https://unsareport.ynoacamino.tech/"
+readonly DEFAULT_PACKAGES_DIR="packages"
+readonly DEFAULT_DIR="."
+readonly MODE_PACKAGE="package"
+readonly MODE_SCOPE="scope"
+readonly MODE_AUTO="auto"
+readonly TRUE_VAL="true"
+readonly FALSE_VAL="false"
+
+INPUT_TOKEN="${INPUT_TOKEN:-}"
+INPUT_DIR="${INPUT_DIR:-${DEFAULT_DIR}}"
+INPUT_MODE="${INPUT_MODE:-${MODE_AUTO}}"
+INPUT_PACKAGES_DIR="${INPUT_PACKAGES_DIR:-${DEFAULT_PACKAGES_DIR}}"
+INPUT_REGISTRY_URL="${INPUT_REGISTRY_URL:-${DEFAULT_REGISTRY_URL}}"
+INPUT_CHECK="${INPUT_CHECK:-${TRUE_VAL}}"
+INPUT_DRY_RUN="${INPUT_DRY_RUN:-${FALSE_VAL}}"
+INPUT_CACHE="${INPUT_CACHE:-${TRUE_VAL}}"
+INPUT_PUSH_SCOPE="${INPUT_PUSH_SCOPE:-${TRUE_VAL}}"
+CACHE_DIR="${CACHE_DIR:-${RUNNER_TEMP:-/tmp}/unsarep-cache}"
+OUTPUT_FILE="${GITHUB_OUTPUT:-/dev/null}"
+
+if [ "${INPUT_REGISTRY_URL}" = "${WEB_ORIGIN}" ] || [ "${INPUT_REGISTRY_URL}" = "${WEB_ORIGIN_SLASH}" ]; then
+  INPUT_REGISTRY_URL="${DEFAULT_REGISTRY_URL}"
+fi
+
+if [ -z "${INPUT_TOKEN}" ] || [ "${INPUT_TOKEN}" = "${DUMMY_PAT}" ]; then
+  if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
+    echo "Dry-run mode active without authentication token."
+  else
+    echo "::warning::UNSAReport PAT token is missing or placeholder. Running in dry-run mode instead of publishing."
+    INPUT_DRY_RUN="${TRUE_VAL}"
+  fi
+else
+  echo "::add-mask::${INPUT_TOKEN}"
+  if [[ ! "${INPUT_TOKEN}" =~ ^${PAT_PREFIX} ]]; then
+    echo "::error::Invalid token format. Personal Access Tokens must begin with '${PAT_PREFIX}'."
+    exit 1
+  fi
+fi
+
+if [ ! -d "${INPUT_DIR}" ]; then
+  echo "::error::Specified directory '${INPUT_DIR}' does not exist."
+  exit 1
+fi
+
+if [ "${INPUT_MODE}" != "${MODE_AUTO}" ] && [ "${INPUT_MODE}" != "${MODE_PACKAGE}" ] && [ "${INPUT_MODE}" != "${MODE_SCOPE}" ]; then
+  echo "::error::Invalid mode '${INPUT_MODE}'. Supported modes are '${MODE_AUTO}', '${MODE_PACKAGE}', and '${MODE_SCOPE}'."
+  exit 1
+fi
+
+compute_content_hash() {
+  local target_dir="$1"
+  shift
+  local exclude_args=()
+  while [ "$#" -gt 0 ]; do
+    exclude_args+=(! -path "$1")
+    shift
+  done
+
+  if [ ! -d "${target_dir}" ]; then
+    echo "::error::Directory '${target_dir}' does not exist for hash computation."
+    exit 1
+  fi
+
+  (
+    cd "${target_dir}"
+    if command -v sha256sum >/dev/null 2>&1; then
+      find . -type f ! -path '*/.git*' "${exclude_args[@]}" -print0 | sort -z | xargs -0 sha256sum 2>/dev/null | sha256sum | awk '{print $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+      find . -type f ! -path '*/.git*' "${exclude_args[@]}" -print0 | sort -z | xargs -0 shasum -a 256 2>/dev/null | shasum -a 256 | awk '{print $1}'
+    else
+      echo "::error::Neither sha256sum nor shasum is available on runner for content hashing."
+      exit 1
+    fi
+  )
+}
+
+extract_manifest_val() {
+  local file="$1"
+  local section="$2"
+  local key="$3"
+
+  if [ ! -f "${file}" ]; then
+    echo ""
+    return
+  fi
+
+  awk -v sec="${section}" -v k="${key}" '
+    BEGIN { in_sec = 0 }
+    /^[[:space:]]*\[.*\]/ {
+      gsub(/[[:space:]\[\]]/, "", $0)
+      if ($0 == sec) { in_sec = 1 } else { in_sec = 0 }
+      next
+    }
+    in_sec && $0 ~ "^[[:space:]]*" k "[[:space:]]*=" {
+      split($0, parts, "=")
+      val = parts[2]
+      gsub(/["'\''[:space:]]/, "", val)
+      print val
+      exit
+    }
+  ' "${file}"
+}
+
+readonly HTTP_STATUS_OK="200"
+readonly HTTP_STATUS_NOT_FOUND="404"
+readonly HTTP_STATUS_CONFLICT="409"
+readonly HTTP_STATUS_NETWORK_ERROR="000"
+readonly REGISTRY_CONNECT_TIMEOUT_SEC="10"
+readonly REGISTRY_MAX_TIME_SEC="30"
+readonly REGISTRY_RETRY_COUNT="3"
+readonly VERIFY_STATUS_MATCH=0
+readonly VERIFY_STATUS_NOT_FOUND=1
+readonly VERIFY_STATUS_MISMATCH=2
+
+verify_remote_package_content() {
+  local pkg_dir="$1"
+  local pkg_name="$2"
+  local pkg_version="$3"
+  local cached_hash="$4"
+  local current_hash="$5"
+
+  local resp_file
+  resp_file=$(mktemp)
+  local raw_status
+  raw_status=$(curl -s \
+    --connect-timeout "${REGISTRY_CONNECT_TIMEOUT_SEC}" \
+    --max-time "${REGISTRY_MAX_TIME_SEC}" \
+    --retry "${REGISTRY_RETRY_COUNT}" \
+    -o "${resp_file}" \
+    -w "%{http_code}" \
+    "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || true)
+  local status_code
+  status_code=$(echo "${raw_status}" | tr -d '[:space:]')
+  if [ -z "${status_code}" ]; then
+    status_code="${HTTP_STATUS_NETWORK_ERROR}"
+  elif [ ${#status_code} -gt 3 ]; then
+    status_code="${status_code: -3}"
+  fi
+
+  if [ "${status_code}" = "${HTTP_STATUS_NOT_FOUND}" ]; then
+    rm -f "${resp_file}"
+    return "${VERIFY_STATUS_NOT_FOUND}"
+  elif [ "${status_code}" != "${HTTP_STATUS_OK}" ]; then
+    local err_body
+    err_body=$(cat "${resp_file}" 2>/dev/null || echo "")
+    rm -f "${resp_file}"
+    echo "::error::Failed to query registry at '${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}' (HTTP ${status_code}): ${err_body}" >&2
+    exit 1
+  fi
+
+  local mismatch_reason=""
+
+  if [ -n "${cached_hash}" ] && [ "${cached_hash}" != "${current_hash}" ]; then
+    mismatch_reason="package content hash changed (${cached_hash:0:12} -> ${current_hash:0:12}) while version remained '${pkg_version}'"
+  fi
+
+  if [ -z "${mismatch_reason}" ]; then
+    while IFS=$'\t' read -r rel_path expected_checksum; do
+      if [ -z "${rel_path}" ]; then
+        continue
+      fi
+      local local_file="${pkg_dir}/${rel_path}"
+      if [ ! -f "${local_file}" ]; then
+        mismatch_reason="file '${rel_path}' is present in published package version '${pkg_version}' but missing locally"
+        break
+      fi
+
+      local actual_checksum
+      if command -v sha256sum >/dev/null 2>&1; then
+        actual_checksum=$(sha256sum "${local_file}" | awk '{print $1}')
+      elif command -v shasum >/dev/null 2>&1; then
+        actual_checksum=$(shasum -a 256 "${local_file}" | awk '{print $1}')
+      else
+        echo "::error::Neither sha256sum nor shasum is available on runner for checksum comparison." >&2
+        rm -f "${resp_file}"
+        exit 1
+      fi
+
+      if [ "${actual_checksum}" != "${expected_checksum}" ]; then
+        mismatch_reason="file '${rel_path}' checksum mismatch (local: ${actual_checksum:0:12}..., published: ${expected_checksum:0:12}...)"
+        break
+      fi
+    done < <(jq -r '.files[]? | "\(.path)\t\(.checksum)"' "${resp_file}")
+  fi
+
+  if [ -z "${mismatch_reason}" ]; then
+    local remote_files_tsv
+    remote_files_tsv=$(jq -r '.files[]?.path' "${resp_file}")
+    if command -v git >/dev/null 2>&1 && git -C "${pkg_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      while IFS= read -r tracked_file; do
+        if [ -z "${tracked_file}" ]; then
+          continue
+        fi
+        if [ "${tracked_file}" = "${CONFIG_FILENAME}" ] || [[ "${tracked_file}" =~ ^README.* ]] || [[ "${tracked_file}" =~ ^\..* ]]; then
+          continue
+        fi
+        if ! grep -Fxq "${tracked_file}" <<< "${remote_files_tsv}"; then
+          mismatch_reason="local tracked file '${tracked_file}' is not present in published package version '${pkg_version}'"
+          break
+        fi
+      done < <(git -C "${pkg_dir}" ls-files .)
+    fi
+  fi
+
+  rm -f "${resp_file}"
+
+  if [ -n "${mismatch_reason}" ]; then
+    REMOTE_MISMATCH_DETAIL="${mismatch_reason}"
+    return "${VERIFY_STATUS_MISMATCH}"
+  fi
+
+  return "${VERIFY_STATUS_MATCH}"
+}
+
+RESOLVED_MODE="${INPUT_MODE}"
+ROOT_MANIFEST="${INPUT_DIR}/${CONFIG_FILENAME}"
+PACKAGES_SEARCH_DIR="${INPUT_DIR}/${INPUT_PACKAGES_DIR}"
+
+if [ "${RESOLVED_MODE}" = "${MODE_AUTO}" ]; then
+  if [ -f "${ROOT_MANIFEST}" ] && grep -q '^[[:space:]]*\[scope\]' "${ROOT_MANIFEST}"; then
+    RESOLVED_MODE="${MODE_SCOPE}"
+  elif [ -f "${ROOT_MANIFEST}" ] && grep -q '^[[:space:]]*\[package\]' "${ROOT_MANIFEST}"; then
+    RESOLVED_MODE="${MODE_PACKAGE}"
+  elif [ -d "${PACKAGES_SEARCH_DIR}" ]; then
+    RESOLVED_MODE="${MODE_SCOPE}"
+  else
+    echo "::error::Auto-detection failed: '${ROOT_MANIFEST}' not found or lacks [package]/[scope], and '${PACKAGES_SEARCH_DIR}' does not exist."
+    exit 1
+  fi
+fi
+
+echo "Operating in '${RESOLVED_MODE}' mode."
+
+mkdir -p "${CACHE_DIR}"
+CACHE_FILE_PATH="${CACHE_DIR}/${CACHE_FILE_NAME}"
+
+if [ -f "${CACHE_FILE_PATH}" ]; then
+  CACHE_DATA=$(cat "${CACHE_FILE_PATH}")
+  if ! echo "${CACHE_DATA}" | jq . >/dev/null 2>&1; then
+    echo "::warning::Corrupted cache file found at ${CACHE_FILE_PATH}. Reinitializing empty cache."
+    CACHE_DATA='{"version":1,"scope":{},"packages":{}}'
+  fi
+else
+  CACHE_DATA='{"version":1,"scope":{},"packages":{}}'
+fi
+
+CACHE_UPDATED="${FALSE_VAL}"
+SCOPE_NAME=""
+PUBLISHED_PKGS=()
+SKIPPED_PKGS=()
+TOTAL_PKGS=0
+LAST_PKG_NAME=""
+LAST_PKG_VERSION=""
+
+if [ "${RESOLVED_MODE}" = "${MODE_SCOPE}" ]; then
+  if [ -f "${ROOT_MANIFEST}" ] && grep -q '^[[:space:]]*\[scope\]' "${ROOT_MANIFEST}"; then
+    SCOPE_NAME=$(extract_manifest_val "${ROOT_MANIFEST}" "scope" "name")
+    if [ -z "${SCOPE_NAME}" ]; then
+      echo "::error::[scope] table found in ${ROOT_MANIFEST} but 'name' is missing."
+      exit 1
+    fi
+    echo "Scope manifest detected for '${SCOPE_NAME}'."
+
+    REL_PACKAGES_PATH="./${INPUT_PACKAGES_DIR}/*"
+    SCOPE_HASH=$(compute_content_hash "${INPUT_DIR}" "${REL_PACKAGES_PATH}")
+    CACHED_SCOPE_HASH=$(echo "${CACHE_DATA}" | jq -r --arg s "${SCOPE_NAME}" '.scope[$s].content_hash // empty')
+
+    if [ "${INPUT_CACHE}" = "${TRUE_VAL}" ] && [ "${CACHED_SCOPE_HASH}" = "${SCOPE_HASH}" ]; then
+      echo "Scope '${SCOPE_NAME}' has not changed (cached hash: ${SCOPE_HASH:0:12}). Skipping scope push."
+    else
+      echo "Scope '${SCOPE_NAME}' changed or not cached (hash: ${SCOPE_HASH:0:12})."
+      if [ "${INPUT_PUSH_SCOPE}" = "${TRUE_VAL}" ]; then
+        if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
+          echo "[dry-run] Validated scope '${SCOPE_NAME}'. Skipping scope push."
+        else
+          echo "Pushing scope '${SCOPE_NAME}' configuration from '${INPUT_DIR}'..."
+          UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry scope push "${INPUT_DIR}"
+          CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg s "${SCOPE_NAME}" --arg h "${SCOPE_HASH}" '.scope[$s] = {"content_hash": $h}')
+          CACHE_UPDATED="${TRUE_VAL}"
+        fi
+      else
+        echo "Scope push disabled via input push-scope=false."
+      fi
+    fi
+  fi
+fi
+
+TARGET_PKG_DIRS=()
+
+if [ "${RESOLVED_MODE}" = "${MODE_PACKAGE}" ]; then
+  if [ ! -f "${ROOT_MANIFEST}" ]; then
+    echo "::error::Package manifest '${CONFIG_FILENAME}' not found in '${INPUT_DIR}'."
+    exit 1
+  fi
+  if ! grep -q '^[[:space:]]*\[package\]' "${ROOT_MANIFEST}"; then
+    echo "::error::Manifest '${ROOT_MANIFEST}' does not declare a [package] table."
+    exit 1
+  fi
+  TARGET_PKG_DIRS+=("${INPUT_DIR}")
+elif [ "${RESOLVED_MODE}" = "${MODE_SCOPE}" ]; then
+  if [ ! -d "${PACKAGES_SEARCH_DIR}" ]; then
+    echo "::error::Packages directory '${PACKAGES_SEARCH_DIR}' does not exist for scope '${SCOPE_NAME:-unknown}'."
+    exit 1
+  fi
+
+  while IFS= read -r manifest_file; do
+    if [ -n "${manifest_file}" ]; then
+      pkg_dir=$(dirname "${manifest_file}")
+      if grep -q '^[[:space:]]*\[package\]' "${manifest_file}"; then
+        TARGET_PKG_DIRS+=("${pkg_dir}")
+      fi
+    fi
+  done < <(find "${PACKAGES_SEARCH_DIR}" -type f -name "${CONFIG_FILENAME}" | sort)
+
+  if [ ${#TARGET_PKG_DIRS[@]} -eq 0 ]; then
+    echo "::error::No package manifests containing [package] were found under '${PACKAGES_SEARCH_DIR}'."
+    exit 1
+  fi
+fi
+
+TOTAL_PKGS=${#TARGET_PKG_DIRS[@]}
+echo "Found ${TOTAL_PKGS} package(s) to evaluate."
+
+for pkg_dir in "${TARGET_PKG_DIRS[@]}"; do
+  manifest="${pkg_dir}/${CONFIG_FILENAME}"
+  PKG_NAME=$(extract_manifest_val "${manifest}" "package" "name")
+  PKG_VERSION=$(extract_manifest_val "${manifest}" "package" "version")
+
+  if [ -z "${PKG_NAME}" ]; then
+    echo "::error::Missing 'name' under [package] in '${manifest}'."
+    exit 1
+  fi
+  if [ -z "${PKG_VERSION}" ]; then
+    echo "::error::Missing 'version' under [package] in '${manifest}'."
+    exit 1
+  fi
+
+  LAST_PKG_NAME="${PKG_NAME}"
+  LAST_PKG_VERSION="${PKG_VERSION}"
+
+  PKG_HASH=$(compute_content_hash "${pkg_dir}")
+  CACHED_VERSION=$(echo "${CACHE_DATA}" | jq -r --arg pkg "${PKG_NAME}" '.packages[$pkg].version // empty')
+  CACHED_HASH=$(echo "${CACHE_DATA}" | jq -r --arg pkg "${PKG_NAME}" '.packages[$pkg].content_hash // empty')
+
+  if [ "${INPUT_CACHE}" = "${TRUE_VAL}" ] && [ "${CACHED_VERSION}" = "${PKG_VERSION}" ] && [ "${CACHED_HASH}" = "${PKG_HASH}" ]; then
+    echo "Package '${PKG_NAME}@${PKG_VERSION}' is unchanged (cached hash: ${PKG_HASH:0:12}). Skipping publish."
+    SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+  else
+    echo "Package '${PKG_NAME}@${PKG_VERSION}' changed or not cached (hash: ${PKG_HASH:0:12})."
+
+    if [ "${INPUT_CHECK}" = "${TRUE_VAL}" ]; then
+      echo "Checking package validity for '${pkg_dir}'..."
+      unsarep registry check "${pkg_dir}"
+    fi
+
+    REMOTE_MISMATCH_DETAIL=""
+    verify_status=0
+    verify_remote_package_content "${pkg_dir}" "${PKG_NAME}" "${PKG_VERSION}" "${CACHED_HASH}" "${PKG_HASH}" || verify_status=$?
+
+    if [ ${verify_status} -eq "${VERIFY_STATUS_MISMATCH}" ]; then
+      echo "::error::Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry (${INPUT_REGISTRY_URL}) but local content has changed (${REMOTE_MISMATCH_DETAIL}). You must bump the version in '${manifest}' before publishing."
+      exit 1
+    elif [ ${verify_status} -eq "${VERIFY_STATUS_MATCH}" ]; then
+      echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry with matching content. Skipping publish."
+      CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+        '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+      CACHE_UPDATED="${TRUE_VAL}"
+      SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      continue
+    elif [ ${verify_status} -eq "${VERIFY_STATUS_NOT_FOUND}" ]; then
+      if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
+        echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' passed check. Skipping publish step."
+        PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      else
+        echo "Publishing '${PKG_NAME}@${PKG_VERSION}' from '${pkg_dir}' to registry '${INPUT_REGISTRY_URL}'..."
+        set +e
+        publish_out=$(UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry publish "${pkg_dir}" 2>&1)
+        publish_status=$?
+        set -e
+
+        if [ ${publish_status} -ne 0 ]; then
+          if [[ "${publish_out}" =~ "already exists" ]] || [[ "${publish_out}" =~ "(409)" ]]; then
+            verify_after_status=0
+            verify_remote_package_content "${pkg_dir}" "${PKG_NAME}" "${PKG_VERSION}" "${CACHED_HASH}" "${PKG_HASH}" || verify_after_status=$?
+            if [ ${verify_after_status} -eq "${VERIFY_STATUS_MISMATCH}" ]; then
+              echo "::error::Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry with different content: ${publish_out}. You must bump the version in '${manifest}'."
+              exit 1
+            fi
+            echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry: ${publish_out}. Skipping publish."
+            CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+              '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+            CACHE_UPDATED="${TRUE_VAL}"
+            SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+          else
+            echo "${publish_out}" >&2
+            echo "::error::Publishing '${PKG_NAME}@${PKG_VERSION}' failed: ${publish_out}"
+            exit ${publish_status}
+          fi
+        else
+          echo "${publish_out}"
+          CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+            '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+          CACHE_UPDATED="${TRUE_VAL}"
+          PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+        fi
+      fi
+    else
+      echo "::error::Unexpected verify status ${verify_status} for package '${PKG_NAME}@${PKG_VERSION}'."
+      exit 1
+    fi
+  fi
+done
+
+if [ "${CACHE_UPDATED}" = "${TRUE_VAL}" ] && [ "${INPUT_DRY_RUN}" != "${TRUE_VAL}" ] && [ "${INPUT_CACHE}" = "${TRUE_VAL}" ]; then
+  echo "${CACHE_DATA}" > "${CACHE_FILE_PATH}"
+  echo "Cache updated successfully at ${CACHE_FILE_PATH}."
+fi
+
+PUBLISHED_COUNT=${#PUBLISHED_PKGS[@]}
+SKIPPED_COUNT=${#SKIPPED_PKGS[@]}
+
+if [ ${PUBLISHED_COUNT} -eq 0 ]; then
+  PUBLISHED_JSON="[]"
+else
+  PUBLISHED_JSON=$(printf '%s\n' "${PUBLISHED_PKGS[@]}" | jq -R . | jq -s -c .)
+fi
+
+if [ ${SKIPPED_COUNT} -eq 0 ]; then
+  SKIPPED_JSON="[]"
+else
+  SKIPPED_JSON=$(printf '%s\n' "${SKIPPED_PKGS[@]}" | jq -R . | jq -s -c .)
+fi
+
+{
+  echo "package-name=${LAST_PKG_NAME}"
+  echo "package-version=${LAST_PKG_VERSION}"
+  echo "scope-name=${SCOPE_NAME}"
+  echo "published-packages=${PUBLISHED_JSON}"
+  echo "skipped-packages=${SKIPPED_JSON}"
+  echo "published-count=${PUBLISHED_COUNT}"
+  echo "skipped-count=${SKIPPED_COUNT}"
+  echo "total-packages=${TOTAL_PKGS}"
+  echo "cache-updated=${CACHE_UPDATED}"
+} >> "${OUTPUT_FILE}"
+
+echo "Publish run finished: ${PUBLISHED_COUNT} published/validated, ${SKIPPED_COUNT} skipped from cache (Total: ${TOTAL_PKGS})."

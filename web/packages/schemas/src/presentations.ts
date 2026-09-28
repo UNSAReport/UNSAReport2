@@ -26,7 +26,7 @@ export const PresentationSchema = z.object({
   ownerId: z.string().uuid(),
   visibility: PresentationVisibilitySchema.default('private'),
   activeVersion: z.number().int().nonnegative().default(1),
-  thumbnailUrl: z.string().url().nullable().optional(),
+  thumbnailUrl: z.url().nullable().optional(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

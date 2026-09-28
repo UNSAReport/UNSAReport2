@@ -338,6 +338,47 @@ files = ["tsconfig.json"]
     expect(body.scope.files).toEqual(['tsconfig.json']);
   });
 
+  it('pushes scope contents without scope files when workspace is declared', async () => {
+    currentUser = {
+      id: USER_A_ID,
+      email: USER_A_EMAIL,
+      roles: { registry: 'user' },
+    };
+    const zip = new JSZip();
+    const zipBuf = await zip.generateAsync({ type: 'uint8array' });
+
+    const form = new FormData();
+    form.append(
+      'manifest',
+      `
+[project]
+config_version = 1
+
+[workspace]
+packages = ["*"]
+
+[scope]
+name = "@unsareport"
+description = "Official UNSAReport scope without root files"
+`,
+    );
+    form.append(
+      'files',
+      new File([zipBuf as unknown as BlobPart], 'scope.zip'),
+    );
+
+    const res = await app.fetch(
+      new Request('http://localhost/v1/scopes/@unsareport/contents', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer valid-token' },
+        body: form,
+      }),
+    );
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { scope: { files: string[] } };
+    expect(body.scope.files).toEqual([]);
+  });
+
   it('allows scope admin to invite contributor and contributor to publish', async () => {
     currentUser = {
       id: USER_A_ID,

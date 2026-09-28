@@ -1,0 +1,7 @@
+[project]
+config_version = 1
+
+[scope]
+name = "@testscope"
+description = "Sample scope fixture for GitHub Action verification"
+files = ["README.md"]

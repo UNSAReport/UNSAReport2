@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -247,6 +249,70 @@ func TestInitNonEmptyDirNoConflicts(t *testing.T) {
 	}
 	if _, ok := l.Find("@scope/utils"); !ok {
 		t.Fatal("utils not in lock")
+	}
+}
+
+func TestInitBlankTemplate(t *testing.T) {
+	tmp := t.TempDir()
+
+	err := Init(context.Background(), tmp, InitOptions{Template: "blank", Report: "lab-01"})
+	if err != nil {
+		t.Fatalf("expected Init with blank template to succeed, got %v", err)
+	}
+
+	cfgPath := filepath.Join(tmp, "unsareport.toml")
+	if _, err := os.Stat(cfgPath); err != nil {
+		t.Fatalf("expected unsareport.toml to exist: %v", err)
+	}
+	rawToml, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(rawToml), "config_version = 1") {
+		t.Fatalf("expected config_version = 1, got: %s", string(rawToml))
+	}
+	if !strings.Contains(string(rawToml), `typst_entry = "main.typ"`) {
+		t.Fatalf("expected typst_entry = main.typ, got: %s", string(rawToml))
+	}
+
+	mainTyp := filepath.Join(tmp, "lab-01", "main.typ")
+	if _, err := os.Stat(mainTyp); err != nil {
+		t.Fatalf("expected lab-01/main.typ to exist: %v", err)
+	}
+	content, err := os.ReadFile(mainTyp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(content), "= Document") {
+		t.Fatalf("unexpected content in main.typ: %s", string(content))
+	}
+
+	compDir := filepath.Join(tmp, "components")
+	if _, err := os.Stat(compDir); !os.IsNotExist(err) {
+		t.Fatalf("expected components/ to not exist for blank template")
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Pkg) != 0 {
+		t.Fatalf("expected lockfile to have 0 packages, got %d", len(l.Pkg))
+	}
+
+	if err := runCheck(tmp); err != nil {
+		t.Fatalf("expected runCheck to succeed, got %v", err)
+	}
+
+	err2 := Init(context.Background(), tmp, InitOptions{
+		Template: "blank",
+		Report:   "lab-01",
+		Confirm: func(conflicts []string) (bool, error) {
+			return false, nil
+		},
+	})
+	if err2 == nil || !strings.Contains(err2.Error(), ErrInitCancelled) {
+		t.Fatalf("expected ErrInitCancelled when conflict rejected, got %v", err2)
 	}
 }
 
@@ -728,3 +794,784 @@ func TestScopeDownloadAndRemove(t *testing.T) {
 		t.Fatal("expected @myscope to be removed from lock scopes")
 	}
 }
+
+func mockUpdatableRegistry(t *testing.T, versions map[string]string) *httptest.Server {
+	t.Helper()
+	var srv *httptest.Server
+
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
+			var body struct {
+				Packages map[string]string `json:"packages"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			var resolved []map[string]any
+			for pkgName := range body.Packages {
+				ver := versions[pkgName]
+				if ver == "" {
+					ver = "1.0.0"
+				}
+				resolved = append(resolved, map[string]any{
+					"name":        pkgName,
+					"version":     ver,
+					"archive_url": srv.URL + "/dl/" + url.PathEscape(pkgName) + "/components.zip",
+					"files":       []string{"lib.typ"},
+				})
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"resolved": resolved})
+			return
+		}
+
+		if strings.HasSuffix(r.URL.Path, "/archive") {
+			sec := r.URL.Query().Get("section")
+			trimmed := strings.TrimPrefix(strings.TrimSuffix(r.URL.Path, "/archive"), "/v1/")
+			parts := strings.Split(trimmed, "/")
+			if len(parts) >= 2 {
+				pkgName := strings.Join(parts[:len(parts)-1], "/")
+				_ = json.NewEncoder(w).Encode(map[string]any{
+					"archive_url": fmt.Sprintf("%s/dl/%s/%s.zip", srv.URL, url.PathEscape(pkgName), sec),
+				})
+				return
+			}
+		}
+
+		if strings.HasPrefix(r.URL.Path, "/dl/") {
+			rest := strings.TrimPrefix(r.URL.Path, "/dl/")
+			lastSlash := strings.LastIndex(rest, "/")
+			if lastSlash > 0 {
+				rawPkg := rest[:lastSlash]
+				pkgName, _ := url.PathUnescape(rawPkg)
+				ver := versions[pkgName]
+				if ver == "" {
+					ver = "1.0.0"
+				}
+				var depsToml string
+				switch pkgName {
+				case "@scope/cardo":
+					depsToml = "\n[dependencies]\n\"@scope/theme\" = \"^1.0.0\"\n"
+				case "@scope/theme":
+					depsToml = "\n[dependencies]\n\"@scope/utils\" = \"^1.0.0\"\n"
+				default:
+					depsToml = ""
+				}
+				manifest := fmt.Sprintf("[project]\nconfig_version = 1\n\n[package]\nname = %q\nversion = %q%s\n[components]\nfiles = [\"lib.typ\"]\n", pkgName, ver, depsToml)
+				libContent := fmt.Sprintf("// %s v%s\n", pkgName, ver)
+				zipBytes := testutil.CreateZip(map[string]string{
+					"unsareport.toml": manifest,
+					"lib.typ":         libContent,
+				})
+				_, _ = w.Write(zipBytes)
+				return
+			}
+		}
+
+		w.WriteHeader(404)
+	}))
+
+	t.Setenv(config.EnvRegistryURL, srv.URL)
+	return srv
+}
+
+func setupTestProject(t *testing.T) string {
+	t.Helper()
+	tmp := t.TempDir()
+	cfg := "[project]\ntypst_entry = \"report.typ\"\nconfig_version = 1\n\n[dependencies]\n\"@scope/cardo\" = \"^1.0.0\"\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(tmp, "report.typ"), []byte("= Report\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return tmp
+}
+
+func TestUpdatePackageDepsOption(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	versions["@scope/cardo"] = "1.1.0"
+	versions["@scope/theme"] = "1.1.0"
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Deps:    false,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Update without deps failed: %v", err)
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cardoEntry, ok := l.Find("@scope/cardo")
+	if !ok || cardoEntry.Version != "1.1.0" {
+		t.Fatalf("expected cardo 1.1.0, got %+v", cardoEntry)
+	}
+	themeEntry, ok := l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.0.0" {
+		t.Fatalf("expected theme to remain 1.0.0 when Deps=false, got %+v", themeEntry)
+	}
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Deps:    true,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Update with deps failed: %v", err)
+	}
+
+	l, err = lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	themeEntry, ok = l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.1.0" {
+		t.Fatalf("expected theme to update to 1.1.0 when Deps=true, got %+v", themeEntry)
+	}
+}
+
+func TestUpdateDependencyPackageDirectly(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	versions["@scope/theme"] = "1.1.0"
+
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/theme",
+		Deps:    false,
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("expected updating dependency package directly to succeed, got %v", err)
+	}
+
+	l, err := lock.Load(tmp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	themeEntry, ok := l.Find("@scope/theme")
+	if !ok || themeEntry.Version != "1.1.0" {
+		t.Fatalf("expected theme to update to 1.1.0, got %+v", themeEntry)
+	}
+}
+
+func TestUpdateInteractiveDiffReview(t *testing.T) {
+	versions := map[string]string{
+		"@scope/cardo": "1.0.0",
+		"@scope/theme": "1.0.0",
+		"@scope/utils": "1.0.0",
+	}
+	srv := mockUpdatableRegistry(t, versions)
+	defer srv.Close()
+
+	tmp := setupTestProject(t)
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@scope/cardo",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	localContent := "// local custom modification\n"
+	cardoLibPath := filepath.Join(tmp, "components", "@scope", "cardo", "lib.typ")
+	if err := os.WriteFile(cardoLibPath, []byte(localContent), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	versions["@scope/cardo"] = "1.1.0"
+
+	origTTY := isTTYFunc
+	isTTYFunc = func() bool { return true }
+	defer func() { isTTYFunc = origTTY }()
+
+	origStdin := stdinReader
+	defer func() { stdinReader = origStdin }()
+
+	stdinReader = strings.NewReader("n\n")
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Flags:   nil,
+	})
+	if err != nil {
+		t.Fatalf("interactive Update failed: %v", err)
+	}
+
+	content, err := os.ReadFile(cardoLibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(content) != localContent {
+		t.Fatalf("expected local modification to be preserved on 'n', got %q", string(content))
+	}
+
+	stdinReader = strings.NewReader("y\n")
+	err = Update(context.Background(), tmp, UpdateOptions{
+		Package: "@scope/cardo",
+		Flags:   nil,
+	})
+	if err != nil {
+		t.Fatalf("interactive Update failed: %v", err)
+	}
+
+	content, err = os.ReadFile(cardoLibPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectedUpstream := "// @scope/cardo v1.1.0\n"
+	if string(content) != expectedUpstream {
+		t.Fatalf("expected file to be updated on 'y', got %q", string(content))
+	}
+}
+
+func TestBuildWatchArgs(t *testing.T) {
+	argsOpen := buildWatchArgs("/root", "/root/in.typ", "/root/out.pdf", true)
+	expectedOpen := []string{"watch", "--root", "/root", "/root/in.typ", "/root/out.pdf", "--open"}
+	if len(argsOpen) != len(expectedOpen) {
+		t.Fatalf("expected %d args with open, got %d: %v", len(expectedOpen), len(argsOpen), argsOpen)
+	}
+	for i := range argsOpen {
+		if argsOpen[i] != expectedOpen[i] {
+			t.Errorf("arg[%d] = %q, want %q", i, argsOpen[i], expectedOpen[i])
+		}
+	}
+
+	argsNoOpen := buildWatchArgs("/root", "/root/in.typ", "/root/out.pdf", false)
+	expectedNoOpen := []string{"watch", "--root", "/root", "/root/in.typ", "/root/out.pdf"}
+	if len(argsNoOpen) != len(expectedNoOpen) {
+		t.Fatalf("expected %d args without open, got %d: %v", len(expectedNoOpen), len(argsNoOpen), argsNoOpen)
+	}
+	for i := range argsNoOpen {
+		if argsNoOpen[i] != expectedNoOpen[i] {
+			t.Errorf("arg[%d] = %q, want %q", i, argsNoOpen[i], expectedNoOpen[i])
+		}
+	}
+}
+
+func TestTypstEntryToPDF(t *testing.T) {
+	validCases := []struct {
+		entry    string
+		expected string
+	}{
+		{"report.typ", "report.pdf"},
+		{"main.typ", "main.pdf"},
+		{"lab-01.typ", "lab-01.pdf"},
+		{"subdir/report.typ", "subdir/report.pdf"},
+	}
+
+	for _, tc := range validCases {
+		got, err := typstEntryToPDF(tc.entry)
+		if err != nil {
+			t.Fatalf("typstEntryToPDF(%q) returned unexpected error: %v", tc.entry, err)
+		}
+		if got != tc.expected {
+			t.Errorf("typstEntryToPDF(%q) = %q, want %q", tc.entry, got, tc.expected)
+		}
+	}
+
+	invalidCases := []string{
+		"",
+		"report.pdf",
+		"report.txt",
+		"main",
+		".typ",
+	}
+
+	for _, entry := range invalidCases {
+		got, err := typstEntryToPDF(entry)
+		if err == nil {
+			t.Errorf("typstEntryToPDF(%q) expected error, got %q", entry, got)
+		}
+	}
+}
+
+func TestRootFilesSelection(t *testing.T) {
+	pkgManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/rootpkg"
+version = "1.0.0"
+
+[root-files]
+files = ["tsconfig.unsareport.json"]
+
+[components]
+files = ["lib.typ"]
+`
+	pkgArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml":          pkgManifest,
+		"lib.typ":                  "#let v = 10\n",
+		"tsconfig.unsareport.json": `{"compilerOptions":{"baseUrl":"."}}`,
+	})
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/resolve" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resolved": []map[string]any{
+					{
+						"name":        "@testscope/rootpkg",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/pkg.zip",
+					},
+				},
+			})
+			return
+		}
+		if r.URL.Path == "/v1/@testscope/rootpkg/1.0.0/archive" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"archive_url": srv.URL + "/dl/pkg.zip",
+			})
+			return
+		}
+		if r.URL.Path == "/dl/pkg.zip" {
+			_, _ = w.Write(pkgArchive)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+	t.Setenv(config.EnvRegistryURL, srv.URL)
+
+	t.Run("user approves root file", func(t *testing.T) {
+		tmp := t.TempDir()
+		cfg := "[project]\nconfig_version = 1\n\n[dependencies]\n"
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := Add(context.Background(), tmp, AddOptions{
+			Package: "@testscope/rootpkg",
+			Flags:   []string{"--yes"},
+			SelectRootFiles: func(files []string) ([]string, error) {
+				return files, nil
+			},
+		})
+		if err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+
+		rootTsPath := filepath.Join(tmp, "tsconfig.unsareport.json")
+		if _, err := os.Stat(rootTsPath); err != nil {
+			t.Fatalf("expected root tsconfig to exist at %s: %v", rootTsPath, err)
+		}
+
+		compTsPath := filepath.Join(tmp, "components", "@testscope", "rootpkg", "tsconfig.unsareport.json")
+		if _, err := os.Stat(compTsPath); !os.IsNotExist(err) {
+			t.Fatalf("did not expect root file inside components dir: %s", compTsPath)
+		}
+
+		compLibPath := filepath.Join(tmp, "components", "@testscope", "rootpkg", "lib.typ")
+		if _, err := os.Stat(compLibPath); err != nil {
+			t.Fatalf("expected component lib.typ to exist: %v", err)
+		}
+	})
+
+	t.Run("user declines root file", func(t *testing.T) {
+		tmp := t.TempDir()
+		cfg := "[project]\nconfig_version = 1\n\n[dependencies]\n"
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := Add(context.Background(), tmp, AddOptions{
+			Package: "@testscope/rootpkg",
+			Flags:   []string{"--yes"},
+			SelectRootFiles: func(files []string) ([]string, error) {
+				return []string{}, nil
+			},
+		})
+		if err != nil {
+			t.Fatalf("Add failed: %v", err)
+		}
+
+		rootTsPath := filepath.Join(tmp, "tsconfig.unsareport.json")
+		if _, err := os.Stat(rootTsPath); !os.IsNotExist(err) {
+			t.Fatalf("did not expect root tsconfig when user declined: %s", rootTsPath)
+		}
+
+		compLibPath := filepath.Join(tmp, "components", "@testscope", "rootpkg", "lib.typ")
+		if _, err := os.Stat(compLibPath); err != nil {
+			t.Fatalf("expected component lib.typ to exist: %v", err)
+		}
+	})
+}
+
+func TestRootFilesPrecedenceAncestorShadowsDescendant(t *testing.T) {
+	parentManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/parent"
+version = "1.0.0"
+
+[dependencies]
+"@testscope/child" = "^1.0.0"
+
+[root-files]
+files = ["tsconfig.unsareport.json"]
+
+[components]
+files = ["lib.typ"]
+`
+	childManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/child"
+version = "1.0.0"
+
+[root-files]
+files = ["tsconfig.unsareport.json"]
+
+[components]
+files = ["lib.typ"]
+`
+	parentArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml":          parentManifest,
+		"lib.typ":                  "#let parent = true\n",
+		"tsconfig.unsareport.json": `{"source":"parent"}`,
+	})
+	childArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml":          childManifest,
+		"lib.typ":                  "#let child = true\n",
+		"tsconfig.unsareport.json": `{"source":"child"}`,
+	})
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/resolve" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resolved": []map[string]any{
+					{
+						"name":        "@testscope/parent",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/parent.zip",
+					},
+					{
+						"name":        "@testscope/child",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/child.zip",
+					},
+				},
+			})
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/archive") {
+			if strings.Contains(r.URL.Path, "parent") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl/parent.zip"})
+				return
+			}
+			if strings.Contains(r.URL.Path, "child") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl/child.zip"})
+				return
+			}
+		}
+		if r.URL.Path == "/dl/parent.zip" {
+			_, _ = w.Write(parentArchive)
+			return
+		}
+		if r.URL.Path == "/dl/child.zip" {
+			_, _ = w.Write(childArchive)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+	t.Setenv(config.EnvRegistryURL, srv.URL)
+
+	tmp := t.TempDir()
+	cfg := "[project]\nconfig_version = 1\n\n[dependencies]\n"
+	if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := Add(context.Background(), tmp, AddOptions{
+		Package: "@testscope/parent",
+		Flags:   []string{"--yes"},
+	})
+	if err != nil {
+		t.Fatalf("Add failed: %v", err)
+	}
+
+	rootTsPath := filepath.Join(tmp, "tsconfig.unsareport.json")
+	content, err := os.ReadFile(rootTsPath)
+	if err != nil {
+		t.Fatalf("expected tsconfig.unsareport.json: %v", err)
+	}
+	if !strings.Contains(string(content), `"source":"parent"`) {
+		t.Fatalf("expected topmost package's file to win, got: %s", string(content))
+	}
+}
+
+func TestRootFilesConflictUnrelatedPackages(t *testing.T) {
+	appManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/app"
+version = "1.0.0"
+
+[dependencies]
+"@testscope/mod-a" = "^1.0.0"
+"@testscope/mod-b" = "^1.0.0"
+
+[components]
+files = ["lib.typ"]
+`
+	modAManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/mod-a"
+version = "1.0.0"
+
+[root-files]
+files = ["shared.json"]
+
+[components]
+files = ["lib.typ"]
+`
+	modBManifest := `[project]
+config_version = 1
+
+[package]
+name = "@testscope/mod-b"
+version = "1.0.0"
+
+[root-files]
+files = ["shared.json"]
+
+[components]
+files = ["lib.typ"]
+`
+	appArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml": appManifest,
+		"lib.typ":         "#let app = true\n",
+	})
+	modAArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml": modAManifest,
+		"lib.typ":         "#let a = true\n",
+		"shared.json":     `{"mod":"a"}`,
+	})
+	modBArchive := testutil.CreateZip(map[string]string{
+		"unsareport.toml": modBManifest,
+		"lib.typ":         "#let b = true\n",
+		"shared.json":     `{"mod":"b"}`,
+	})
+
+	var srv *httptest.Server
+	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/resolve" {
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"resolved": []map[string]any{
+					{
+						"name":        "@testscope/app",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/app.zip",
+					},
+					{
+						"name":        "@testscope/mod-a",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/mod-a.zip",
+					},
+					{
+						"name":        "@testscope/mod-b",
+						"version":     "1.0.0",
+						"archive_url": srv.URL + "/dl/mod-b.zip",
+					},
+				},
+			})
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/archive") {
+			if strings.Contains(r.URL.Path, "app") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl/app.zip"})
+				return
+			}
+			if strings.Contains(r.URL.Path, "mod-a") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl/mod-a.zip"})
+				return
+			}
+			if strings.Contains(r.URL.Path, "mod-b") {
+				_ = json.NewEncoder(w).Encode(map[string]any{"archive_url": srv.URL + "/dl/mod-b.zip"})
+				return
+			}
+		}
+		if r.URL.Path == "/dl/app.zip" {
+			_, _ = w.Write(appArchive)
+			return
+		}
+		if r.URL.Path == "/dl/mod-a.zip" {
+			_, _ = w.Write(modAArchive)
+			return
+		}
+		if r.URL.Path == "/dl/mod-b.zip" {
+			_, _ = w.Write(modBArchive)
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+	t.Setenv(config.EnvRegistryURL, srv.URL)
+
+	t.Run("fails fast on unattended conflict between differing unrelated files", func(t *testing.T) {
+		tmp := t.TempDir()
+		cfg := "[project]\nconfig_version = 1\n\n[dependencies]\n"
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		err := Add(context.Background(), tmp, AddOptions{
+			Package: "@testscope/app",
+			Flags:   []string{"--yes"},
+		})
+		if err == nil {
+			t.Fatalf("expected conflict error for unrelated packages declaring differing root file")
+		}
+		if !strings.Contains(err.Error(), "conflict: unrelated packages declare differing shared.json") {
+			t.Fatalf("unexpected error message: %v", err)
+		}
+	})
+
+	t.Run("allows picking at most one candidate via resolver", func(t *testing.T) {
+		tmp := t.TempDir()
+		cfg := "[project]\nconfig_version = 1\n\n[dependencies]\n"
+		if err := os.WriteFile(filepath.Join(tmp, "unsareport.toml"), []byte(cfg), 0o644); err != nil {
+			t.Fatal(err)
+		}
+
+		sawConflict := false
+		err := Add(context.Background(), tmp, AddOptions{
+			Package: "@testscope/app",
+			Flags:   []string{"--yes"},
+			ResolveRootFiles: func(singles []RootFileCandidate, conflicts []RootFileConflict) (RootFileResolution, error) {
+				if len(conflicts) != 1 {
+					t.Fatalf("expected 1 conflict, got %d", len(conflicts))
+				}
+				sawConflict = true
+				if conflicts[0].Path != "shared.json" {
+					t.Fatalf("expected conflict on shared.json, got %s", conflicts[0].Path)
+				}
+				if len(conflicts[0].Candidates) != 2 {
+					t.Fatalf("expected 2 candidates in conflict, got %d", len(conflicts[0].Candidates))
+				}
+				return RootFileResolution{
+					SelectedWinners: map[string]string{
+						"shared.json": "@testscope/mod-b",
+					},
+				}, nil
+			},
+		})
+		if err != nil {
+			t.Fatalf("Add with resolver failed: %v", err)
+		}
+		if !sawConflict {
+			t.Fatal("expected conflict resolver to be called")
+		}
+
+		content, err := os.ReadFile(filepath.Join(tmp, "shared.json"))
+		if err != nil {
+			t.Fatalf("expected shared.json to be written: %v", err)
+		}
+		if !strings.Contains(string(content), `"mod":"b"`) {
+			t.Fatalf("expected chosen candidate mod-b, got: %s", string(content))
+		}
+	})
+}
+
+func TestFormatFilePreview(t *testing.T) {
+	binaryContent := []byte{0xff, 0xfe, 0x00, 0x01}
+	if !strings.Contains(formatFilePreview(binaryContent), "[binary file") {
+		t.Fatalf("expected binary file notice, got %s", formatFilePreview(binaryContent))
+	}
+
+	shortText := []byte("line1\nline2\n")
+	if formatFilePreview(shortText) != "line1\nline2" {
+		t.Fatalf("unexpected formatted short text: %q", formatFilePreview(shortText))
+	}
+
+	var longText strings.Builder
+	for i := 1; i <= 60; i++ {
+		fmt.Fprintf(&longText, "line %d\n", i)
+	}
+	formatted := formatFilePreview([]byte(longText.String()))
+	if !strings.Contains(formatted, "... (20 more lines)") {
+		t.Fatalf("expected truncation, got:\n%s", formatted)
+	}
+}
+
+func TestInitSelectiveConflictOverwrite(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, config.ConfigFileName)
+	_ = os.WriteFile(cfgPath, []byte("[project]\nconfig_version = 1\n"), 0o644)
+
+	reportDir := filepath.Join(dir, "t1")
+	_ = os.MkdirAll(reportDir, 0o755)
+	mainTyp := filepath.Join(reportDir, config.DefaultTypstEntry)
+	origTypContent := "= Original Document\n"
+	_ = os.WriteFile(mainTyp, []byte(origTypContent), 0o644)
+
+	err := Init(context.Background(), dir, InitOptions{
+		Template: config.TemplateBlank,
+		Report:   "t1",
+		ResolveConflicts: func(conflicts []string) ([]string, error) {
+			return []string{"t1/main.typ"}, nil
+		},
+	})
+	if err != nil {
+		t.Fatalf("Init with ResolveConflicts failed: %v", err)
+	}
+
+	typContent, err := os.ReadFile(mainTyp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(typContent) != "= Document\n" {
+		t.Fatalf("expected main.typ to be overwritten with template, got: %s", string(typContent))
+	}
+
+	cfgContent, err := os.ReadFile(cfgPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(cfgContent) != "[project]\nconfig_version = 1\n" {
+		t.Fatalf("expected unsareport.toml to be preserved, got: %s", string(cfgContent))
+	}
+}
+
