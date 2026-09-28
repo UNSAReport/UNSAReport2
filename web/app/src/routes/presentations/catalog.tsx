@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import {
+  type LayoutCategory,
   type LayoutDefinition,
-  layoutRegistry,
   listCategories,
+  listLayouts,
 } from '@unsa/slides-kit/layouts';
 import { ThemeProvider } from '@unsa/slides-kit/renderer/ThemeProvider';
-import { listThemes } from '@unsa/slides-kit/themes';
+import { type ThemeDefinition, listThemes } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
 
 export const Route = createFileRoute('/presentations/catalog')({
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/presentations/catalog')({
 function PresentationsCatalog() {
   const themes = useMemo(() => listThemes(), []);
   const categories = useMemo(() => listCategories(), []);
-  const allLayouts = useMemo(() => layoutRegistry.listLayouts(), []);
+  const allLayouts = useMemo(() => listLayouts(), []);
 
   const [selectedThemeId, setSelectedThemeId] = useState<string>('unsa-dark');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
@@ -24,7 +25,7 @@ function PresentationsCatalog() {
     useState<LayoutDefinition | null>(null);
 
   const filteredLayouts = useMemo(() => {
-    return allLayouts.filter((l) => {
+    return allLayouts.filter((l: LayoutDefinition) => {
       if (selectedCategory !== 'all' && l.category !== selectedCategory) {
         return false;
       }
@@ -80,7 +81,7 @@ function PresentationsCatalog() {
               Tema Activo:
             </span>
             <div className="flex items-center gap-2">
-              {themes.map((t) => (
+              {themes.map((t: ThemeDefinition) => (
                 <button
                   key={t.id}
                   type="button"
@@ -113,7 +114,7 @@ function PresentationsCatalog() {
               >
                 Todas ({allLayouts.length})
               </button>
-              {categories.map((cat) => (
+              {categories.map((cat: LayoutCategory) => (
                 <button
                   key={cat}
                   type="button"
@@ -144,7 +145,7 @@ function PresentationsCatalog() {
         {/* Layouts Grid */}
         <section aria-label="Lista de layouts">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredLayouts.map((def) => (
+            {filteredLayouts.map((def: LayoutDefinition) => (
               <LayoutCatalogCard
                 key={def.id}
                 def={def}

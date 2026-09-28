@@ -219,10 +219,13 @@ func ZipDirectory(srcDir string) ([]byte, error) {
 		if err != nil {
 			return err
 		}
-		defer file.Close()
 
-		_, err = io.Copy(w, file)
-		return err
+		_, copyErr := io.Copy(w, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
 	})
 
 	if err != nil {

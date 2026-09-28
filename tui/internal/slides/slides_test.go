@@ -273,9 +273,9 @@ func TestDeployMultipart(t *testing.T) {
 		if err := r.ParseMultipartForm(10 << 20); err == nil {
 			gotSlug = r.FormValue("slug")
 			if file, _, err := r.FormFile("bundle"); err == nil {
-				defer file.Close()
 				buf := new(bytes.Buffer)
 				_, _ = io.Copy(buf, file)
+				_ = file.Close()
 				fileBytesLen = buf.Len()
 			}
 		}
