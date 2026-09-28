@@ -1,7 +1,12 @@
 import { z } from 'zod';
+import { DEFAULT_SUB_APPS } from './constants';
 
 export const RoleSchema = z.enum(['user', 'admin']);
 export type Role = z.infer<typeof RoleSchema>;
+
+export const SubAppSchema = z.enum(DEFAULT_SUB_APPS);
+export type SubApp = z.infer<typeof SubAppSchema>;
+
 
 export const UserPayloadSchema = z.object({
   sub: z.string().min(1),
