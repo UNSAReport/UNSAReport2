@@ -17,3 +17,6 @@ dist/
 
 # sops decrypted scratch
 secrets/*.decrypted.env
+
+# demo scratch projects
+demo-*/
