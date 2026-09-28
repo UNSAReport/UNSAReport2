@@ -111,15 +111,98 @@ extract_manifest_val() {
   ' "${file}"
 }
 
-check_remote_version_exists() {
-  local pkg_name="$1"
-  local pkg_version="$2"
+readonly HTTP_STATUS_OK="200"
+readonly HTTP_STATUS_NOT_FOUND="404"
+readonly HTTP_STATUS_CONFLICT="409"
+readonly VERIFY_STATUS_MATCH=0
+readonly VERIFY_STATUS_NOT_FOUND=1
+readonly VERIFY_STATUS_MISMATCH=2
+
+verify_remote_package_content() {
+  local pkg_dir="$1"
+  local pkg_name="$2"
+  local pkg_version="$3"
+  local cached_hash="$4"
+  local current_hash="$5"
+
+  local resp_file
+  resp_file=$(mktemp)
   local status_code
-  status_code=$(curl -s -o /dev/null -w "%{http_code}" "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || echo "000")
-  if [ "${status_code}" = "200" ]; then
-    return 0
+  status_code=$(curl -s -o "${resp_file}" -w "%{http_code}" "${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}" 2>/dev/null || echo "000")
+
+  if [ "${status_code}" = "${HTTP_STATUS_NOT_FOUND}" ]; then
+    rm -f "${resp_file}"
+    return "${VERIFY_STATUS_NOT_FOUND}"
+  elif [ "${status_code}" != "${HTTP_STATUS_OK}" ]; then
+    local err_body
+    err_body=$(cat "${resp_file}" 2>/dev/null || echo "")
+    rm -f "${resp_file}"
+    echo "::error::Failed to query registry at '${INPUT_REGISTRY_URL}/v1/packages/${pkg_name}/${pkg_version}' (HTTP ${status_code}): ${err_body}" >&2
+    exit 1
   fi
-  return 1
+
+  local mismatch_reason=""
+
+  if [ -n "${cached_hash}" ] && [ "${cached_hash}" != "${current_hash}" ]; then
+    mismatch_reason="package content hash changed (${cached_hash:0:12} -> ${current_hash:0:12}) while version remained '${pkg_version}'"
+  fi
+
+  if [ -z "${mismatch_reason}" ]; then
+    while IFS=$'\t' read -r rel_path expected_checksum; do
+      if [ -z "${rel_path}" ]; then
+        continue
+      fi
+      local local_file="${pkg_dir}/${rel_path}"
+      if [ ! -f "${local_file}" ]; then
+        mismatch_reason="file '${rel_path}' is present in published package version '${pkg_version}' but missing locally"
+        break
+      fi
+
+      local actual_checksum
+      if command -v sha256sum >/dev/null 2>&1; then
+        actual_checksum=$(sha256sum "${local_file}" | awk '{print $1}')
+      elif command -v shasum >/dev/null 2>&1; then
+        actual_checksum=$(shasum -a 256 "${local_file}" | awk '{print $1}')
+      else
+        echo "::error::Neither sha256sum nor shasum is available on runner for checksum comparison." >&2
+        rm -f "${resp_file}"
+        exit 1
+      fi
+
+      if [ "${actual_checksum}" != "${expected_checksum}" ]; then
+        mismatch_reason="file '${rel_path}' checksum mismatch (local: ${actual_checksum:0:12}..., published: ${expected_checksum:0:12}...)"
+        break
+      fi
+    done < <(jq -r '.files[]? | "\(.path)\t\(.checksum)"' "${resp_file}")
+  fi
+
+  if [ -z "${mismatch_reason}" ]; then
+    local remote_files_tsv
+    remote_files_tsv=$(jq -r '.files[]?.path' "${resp_file}")
+    if command -v git >/dev/null 2>&1 && git -C "${pkg_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      while IFS= read -r tracked_file; do
+        if [ -z "${tracked_file}" ]; then
+          continue
+        fi
+        if [ "${tracked_file}" = "${CONFIG_FILENAME}" ] || [[ "${tracked_file}" =~ ^README.* ]] || [[ "${tracked_file}" =~ ^\..* ]]; then
+          continue
+        fi
+        if ! grep -Fxq "${tracked_file}" <<< "${remote_files_tsv}"; then
+          mismatch_reason="local tracked file '${tracked_file}' is not present in published package version '${pkg_version}'"
+          break
+        fi
+      done < <(git -C "${pkg_dir}" ls-files .)
+    fi
+  fi
+
+  rm -f "${resp_file}"
+
+  if [ -n "${mismatch_reason}" ]; then
+    REMOTE_MISMATCH_DETAIL="${mismatch_reason}"
+    return "${VERIFY_STATUS_MISMATCH}"
+  fi
+
+  return "${VERIFY_STATUS_MATCH}"
 }
 
 RESOLVED_MODE="${INPUT_MODE}"
@@ -263,49 +346,60 @@ for pkg_dir in "${TARGET_PKG_DIRS[@]}"; do
       unsarep registry check "${pkg_dir}"
     fi
 
-    if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
-      if check_remote_version_exists "${PKG_NAME}" "${PKG_VERSION}"; then
-        echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry. Skipping publish."
-        SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
-      else
+    REMOTE_MISMATCH_DETAIL=""
+    verify_status=0
+    verify_remote_package_content "${pkg_dir}" "${PKG_NAME}" "${PKG_VERSION}" "${CACHED_HASH}" "${PKG_HASH}" || verify_status=$?
+
+    if [ ${verify_status} -eq "${VERIFY_STATUS_MISMATCH}" ]; then
+      echo "::error::Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry (${INPUT_REGISTRY_URL}) but local content has changed (${REMOTE_MISMATCH_DETAIL}). You must bump the version in '${manifest}' before publishing."
+      exit 1
+    elif [ ${verify_status} -eq "${VERIFY_STATUS_MATCH}" ]; then
+      echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry with matching content. Skipping publish."
+      CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+        '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+      CACHE_UPDATED="${TRUE_VAL}"
+      SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+      continue
+    elif [ ${verify_status} -eq "${VERIFY_STATUS_NOT_FOUND}" ]; then
+      if [ "${INPUT_DRY_RUN}" = "${TRUE_VAL}" ]; then
         echo "[dry-run] Package '${PKG_NAME}@${PKG_VERSION}' passed check. Skipping publish step."
         PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
-      fi
-    else
-      if check_remote_version_exists "${PKG_NAME}" "${PKG_VERSION}"; then
-        echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry (${INPUT_REGISTRY_URL}). Skipping publish."
-        CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
-          '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
-        CACHE_UPDATED="${TRUE_VAL}"
-        SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
-        continue
-      fi
+      else
+        echo "Publishing '${PKG_NAME}@${PKG_VERSION}' from '${pkg_dir}' to registry '${INPUT_REGISTRY_URL}'..."
+        set +e
+        publish_out=$(UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry publish "${pkg_dir}" 2>&1)
+        publish_status=$?
+        set -e
 
-      echo "Publishing '${PKG_NAME}@${PKG_VERSION}' from '${pkg_dir}' to registry '${INPUT_REGISTRY_URL}'..."
-      set +e
-      publish_out=$(UNSAREP_TOKEN="${INPUT_TOKEN}" UNSAREP_REGISTRY_URL="${INPUT_REGISTRY_URL}" unsarep registry publish "${pkg_dir}" 2>&1)
-      publish_status=$?
-      set -e
-
-      if [ ${publish_status} -ne 0 ]; then
-        if [[ "${publish_out}" =~ "already exists" ]] || [[ "${publish_out}" =~ "(409)" ]]; then
-          echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry: ${publish_out}. Skipping publish."
+        if [ ${publish_status} -ne 0 ]; then
+          if [[ "${publish_out}" =~ "already exists" ]] || [[ "${publish_out}" =~ "(409)" ]]; then
+            verify_after_status=0
+            verify_remote_package_content "${pkg_dir}" "${PKG_NAME}" "${PKG_VERSION}" "${CACHED_HASH}" "${PKG_HASH}" || verify_after_status=$?
+            if [ ${verify_after_status} -eq "${VERIFY_STATUS_MISMATCH}" ]; then
+              echo "::error::Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry with different content: ${publish_out}. You must bump the version in '${manifest}'."
+              exit 1
+            fi
+            echo "Package '${PKG_NAME}@${PKG_VERSION}' already exists in registry: ${publish_out}. Skipping publish."
+            CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
+              '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
+            CACHE_UPDATED="${TRUE_VAL}"
+            SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
+          else
+            echo "${publish_out}" >&2
+            echo "::error::Publishing '${PKG_NAME}@${PKG_VERSION}' failed: ${publish_out}"
+            exit ${publish_status}
+          fi
+        else
+          echo "${publish_out}"
           CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
             '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
           CACHE_UPDATED="${TRUE_VAL}"
-          SKIPPED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
-        else
-          echo "${publish_out}" >&2
-          echo "::error::Publishing '${PKG_NAME}@${PKG_VERSION}' failed: ${publish_out}"
-          exit ${publish_status}
+          PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
         fi
-      else
-        echo "${publish_out}"
-        CACHE_DATA=$(echo "${CACHE_DATA}" | jq --arg pkg "${PKG_NAME}" --arg ver "${PKG_VERSION}" --arg hash "${PKG_HASH}" \
-          '.packages[$pkg] = {"version": $ver, "content_hash": $hash}')
-        CACHE_UPDATED="${TRUE_VAL}"
-        PUBLISHED_PKGS+=("${PKG_NAME}@${PKG_VERSION}")
       fi
+    else
+      echo "::error::Unexpected verify status ${verify_status} for package '${PKG_NAME}@${PKG_VERSION}'."
+      exit 1
     fi
   fi
 done
