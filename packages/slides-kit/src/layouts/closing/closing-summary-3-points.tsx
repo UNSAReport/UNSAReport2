@@ -27,32 +27,37 @@ export function ClosingSummary3Points({
   points = [],
   children,
 }: ClosingSummary3PointsProps) {
+  const visiblePoints = points.slice(0, 3);
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <SlideGrid
-        columns={3}
-        gap="2rem"
-        className="h-full items-stretch my-auto"
-      >
-        {points.map((pt, idx) => (
-          <SlideCard
-            key={`summary-pt-${pt.title || idx}`}
-            variant="elevated"
-            className="p-8 justify-between h-full"
-          >
-            <div>
-              <div className="mb-4">
-                <SlideBadge variant="secondary">0{idx + 1}</SlideBadge>
+      <div className="flex-1 min-h-0 min-w-0 w-full flex flex-col overflow-hidden">
+        <SlideGrid
+          columns={3}
+          gap="1.5rem"
+          className="flex-1 min-h-0 min-w-0 overflow-hidden items-stretch"
+        >
+          {visiblePoints.map((pt, idx) => (
+            <SlideCard
+              key={`summary-pt-${pt.title || idx}`}
+              variant="elevated"
+              className="p-8 min-h-0 min-w-0 overflow-hidden"
+            >
+              <div className="min-h-0 min-w-0 overflow-hidden">
+                <div className="mb-4 shrink-0">
+                  <SlideBadge variant="secondary">0{idx + 1}</SlideBadge>
+                </div>
+                <h3 className="text-2xl font-bold mb-3 line-clamp-2 break-words min-w-0">
+                  {pt.title}
+                </h3>
+                <p className="text-base opacity-80 leading-relaxed line-clamp-6 break-words min-w-0">
+                  {pt.description}
+                </p>
               </div>
-              <h3 className="text-2xl font-bold mb-3">{pt.title}</h3>
-              <p className="text-base opacity-80 leading-relaxed">
-                {pt.description}
-              </p>
-            </div>
-          </SlideCard>
-        ))}
-      </SlideGrid>
-      {children}
+            </SlideCard>
+          ))}
+        </SlideGrid>
+        {children}
+      </div>
     </SlideSection>
   );
 }

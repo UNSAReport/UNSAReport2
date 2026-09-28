@@ -24,37 +24,41 @@ export function ClosingCTACentered({
 }: ClosingCTACenteredProps) {
   return (
     <SlideSection withGradientBar={true}>
-      <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto my-auto p-6">
+      <div className="mx-auto flex w-full min-w-0 max-w-3xl flex-1 flex-col items-center justify-center overflow-hidden p-6 text-center">
         {tag && (
-          <div className="mb-6">
+          <div className="mb-4 shrink-0">
             <SlideBadge variant="secondary">{tag}</SlideBadge>
           </div>
         )}
 
         <h2
-          className="text-5xl font-black mb-4 tracking-tight leading-tight"
+          className="text-4xl font-black mb-4 tracking-tight leading-tight break-words line-clamp-3 min-w-0 shrink-0"
           style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
         >
           {title}
         </h2>
 
         {subtitle && (
-          <p className="text-xl opacity-80 mb-8 max-w-xl">{subtitle}</p>
+          <p className="text-lg opacity-80 mb-6 max-w-xl break-words line-clamp-3 min-w-0 shrink-0">
+            {subtitle}
+          </p>
         )}
 
         <SlideCard
           variant="elevated"
-          className="p-6 items-center w-full max-w-lg mb-6"
+          className="p-6 items-center w-full min-w-0 min-h-0 max-w-lg overflow-hidden shrink-0"
         >
-          <p className="text-xs uppercase font-mono opacity-60 mb-3">
+          <p className="text-xs uppercase font-mono opacity-60 mb-3 truncate w-full min-w-0">
             {actionText}
           </p>
           {linkUrl && (
-            <div className="text-xl font-mono font-bold break-all px-4 py-2 rounded border border-current/10 w-full mb-3">
+            <div className="text-lg font-mono font-bold break-all line-clamp-2 px-4 py-2 rounded border border-current/10 w-full min-w-0 mb-3 overflow-hidden">
               {linkUrl}
             </div>
           )}
-          <span className="text-xs opacity-75 font-medium">{linkLabel}</span>
+          <span className="text-xs opacity-75 font-medium truncate block w-full min-w-0">
+            {linkLabel}
+          </span>
         </SlideCard>
       </div>
     </SlideSection>

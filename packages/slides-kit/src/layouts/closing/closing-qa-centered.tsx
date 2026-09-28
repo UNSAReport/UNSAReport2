@@ -27,39 +27,44 @@ export function ClosingQACentered({
 }: ClosingQACenteredProps) {
   return (
     <SlideSection withGradientBar={true}>
-      <div className="flex flex-col items-center justify-center text-center max-w-3xl mx-auto my-auto px-6">
+      <div className="flex-1 min-h-0 min-w-0 w-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto overflow-hidden">
         {tag && (
-          <div className="mb-6">
+          <div className="mb-6 shrink-0">
             <SlideBadge variant="accent">{tag}</SlideBadge>
           </div>
         )}
 
         <h2
-          className="text-6xl font-black mb-4 tracking-tight leading-tight"
+          className="text-6xl font-black mb-4 tracking-tight leading-tight line-clamp-2 break-words min-w-0 max-w-full shrink-0"
           style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
         >
           {title}
         </h2>
 
-        <p className="text-xl opacity-80 mb-8">{subtitle}</p>
+        <p className="text-xl opacity-80 mb-8 line-clamp-3 break-words min-w-0 max-w-full shrink-0">
+          {subtitle}
+        </p>
 
         {(contactEmail || contactSpeaker) && (
-          <SlideCard variant="default" className="p-6 w-full max-w-md">
-            <div className="flex flex-col gap-2 text-sm">
+          <SlideCard
+            variant="default"
+            className="p-6 w-full max-w-md min-w-0 overflow-hidden shrink-0"
+          >
+            <div className="flex flex-col gap-2 text-sm min-w-0">
               {contactSpeaker && (
-                <div>
+                <div className="line-clamp-1 break-words min-w-0">
                   <span className="font-semibold">Expositor: </span>
                   <span>{contactSpeaker}</span>
                 </div>
               )}
               {contactEmail && (
-                <div>
+                <div className="line-clamp-1 break-words min-w-0">
                   <span className="font-semibold">Contacto: </span>
                   <span className="font-mono opacity-80">{contactEmail}</span>
                 </div>
               )}
               {organization && (
-                <p className="text-xs opacity-60 mt-2 pt-2 border-t border-current/10">
+                <p className="text-xs opacity-60 mt-2 pt-2 border-t border-current/10 line-clamp-2 break-words min-w-0">
                   {organization}
                 </p>
               )}
