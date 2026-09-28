@@ -18,6 +18,29 @@ Bun.serve({
     const url = new URL(req.url);
     const pathname = decodeURIComponent(url.pathname);
 
+    // Proxy /api/slides/* to the slides service (gateway path in prod,
+    // direct service URL locally). Strips the prefix like traefik does.
+    if (pathname === '/api/slides' || pathname.startsWith('/api/slides/')) {
+      const targetBase = (
+        process.env.SLIDES_URL || 'http://localhost:3002'
+      ).replace(/\/$/, '');
+      const stripped = pathname.replace(/^\/api\/slides/, '') || '/';
+      const target = new URL(stripped + url.search, targetBase);
+      const headers = new Headers(req.headers);
+      headers.delete('host');
+      const init: RequestInit = {
+        method: req.method,
+        headers,
+        redirect: 'manual',
+      };
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        init.body = req.body;
+        // @ts-expect-error Bun supports duplex streaming
+        init.duplex = 'half';
+      }
+      return fetch(target, init);
+    }
+
     const safeRelativePath = path
       .normalize(pathname)
       .replace(/^(\.\.[/\\])+/, '');

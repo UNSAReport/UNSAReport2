@@ -29,11 +29,22 @@ function aliasResolverPlugin(): Plugin {
   };
 }
 
+const slidesTarget = (
+  process.env.SLIDES_URL || 'http://localhost:3002'
+).replace(/\/api\/slides\/?$/, '');
+
 export default defineConfig({
   base: '/',
   server: {
     host: true,
     port: 3100,
+    proxy: {
+      '/api/slides': {
+        target: slidesTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/slides/, ''),
+      },
+    },
   },
   plugins: [aliasResolverPlugin(), tailwindcss(), tanstackStart(), react()],
 });
