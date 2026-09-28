@@ -32,42 +32,44 @@ export function HeroInstitutional({
 }: HeroInstitutionalProps) {
   return (
     <SlideSection withGradientBar={true}>
-      <div className="flex flex-col justify-between h-full text-center px-8 py-4">
+      <div className="flex flex-col justify-between w-full h-full min-h-0 min-w-0 overflow-hidden text-center">
         {/* Cabecera institucional */}
-        <div className="border-b border-current/10 pb-4">
-          <h4 className="text-sm font-bold uppercase tracking-wider opacity-90">
+        <div className="border-b border-current/10 pb-3 shrink-0 min-w-0">
+          <h4 className="text-sm font-bold uppercase tracking-wider opacity-90 truncate">
             {university}
           </h4>
-          <p className="text-xs opacity-60 mt-1">
+          <p className="text-xs opacity-60 mt-1 truncate">
             {faculty} — {department}
           </p>
         </div>
 
         {/* Título central */}
-        <div className="my-auto py-6">
+        <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-4 min-w-0 overflow-hidden">
           {course && (
-            <div className="mb-4">
+            <div className="mb-3 shrink-0">
               <SlideBadge variant="accent">{course}</SlideBadge>
             </div>
           )}
           <h1
-            className="text-5xl font-black mb-4 max-w-4xl mx-auto leading-tight"
+            className="text-5xl font-black mb-3 max-w-4xl mx-auto leading-tight line-clamp-2 break-words"
             style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
           >
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xl opacity-80 max-w-2xl mx-auto">{subtitle}</p>
+            <p className="text-xl opacity-80 max-w-2xl mx-auto line-clamp-3 break-words">
+              {subtitle}
+            </p>
           )}
         </div>
 
         {/* Metadatos inferiores de autores y asesor */}
-        <div className="grid grid-cols-2 gap-4 text-xs pt-4 border-t border-current/10 opacity-75">
-          <div className="text-left">
+        <div className="grid grid-cols-2 gap-4 text-xs pt-3 border-t border-current/10 opacity-75 shrink-0">
+          <div className="text-left min-w-0 truncate">
             <span className="font-semibold">Autor(es): </span>
             {author}
           </div>
-          <div className="text-right">
+          <div className="text-right min-w-0 truncate">
             {advisor && (
               <>
                 <span className="font-semibold">Docente / Asesor: </span>

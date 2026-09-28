@@ -26,38 +26,42 @@ export function HeroTwoLine({
 }: HeroTwoLineProps) {
   return (
     <SlideSection withGradientBar={true}>
-      <div className="flex flex-col justify-center h-full p-8 max-w-5xl">
-        {tag && (
-          <div className="mb-4">
-            <SlideBadge variant="secondary">{tag}</SlideBadge>
-          </div>
-        )}
+      <div className="flex flex-col justify-center w-full h-full min-h-0 min-w-0 overflow-hidden max-w-5xl">
+        <div className="flex-1 min-h-0 flex flex-col justify-center min-w-0 overflow-hidden">
+          {tag && (
+            <div className="mb-4 shrink-0">
+              <SlideBadge variant="secondary">{tag}</SlideBadge>
+            </div>
+          )}
 
-        <div
-          className="mb-6"
-          style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
-        >
-          <div className="text-4xl font-light opacity-70 tracking-tight">
-            {line1}
+          <div
+            className="mb-6 min-w-0 shrink-0"
+            style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
+          >
+            <div className="text-4xl font-light opacity-70 tracking-tight truncate">
+              {line1}
+            </div>
+            <div className="text-7xl font-black tracking-tight leading-none mt-2 line-clamp-2 break-words">
+              {line2}
+            </div>
           </div>
-          <div className="text-7xl font-black tracking-tight leading-none mt-2">
-            {line2}
-          </div>
+
+          {subtitle && (
+            <p className="text-xl opacity-80 max-w-2xl mb-8 leading-relaxed line-clamp-3 break-words">
+              {subtitle}
+            </p>
+          )}
+
+          {(author || date) && (
+            <div className="flex items-center gap-4 text-sm font-mono opacity-70 pt-4 border-t border-current/10 shrink-0 min-w-0 overflow-hidden">
+              {author && (
+                <span className="font-bold opacity-100 truncate">{author}</span>
+              )}
+              {author && date && <span className="shrink-0">/</span>}
+              {date && <span className="truncate">{date}</span>}
+            </div>
+          )}
         </div>
-
-        {subtitle && (
-          <p className="text-xl opacity-80 max-w-2xl mb-8 leading-relaxed">
-            {subtitle}
-          </p>
-        )}
-
-        {(author || date) && (
-          <div className="flex items-center gap-4 text-sm font-mono opacity-70 pt-4 border-t border-current/10">
-            {author && <span className="font-bold opacity-100">{author}</span>}
-            {author && date && <span>/</span>}
-            {date && <span>{date}</span>}
-          </div>
-        )}
 
         {children}
       </div>

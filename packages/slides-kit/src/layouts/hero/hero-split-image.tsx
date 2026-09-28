@@ -31,38 +31,41 @@ export function HeroSplitImage({
     <SlideSection withGradientBar={true}>
       <SlideSplit
         ratio="60-40"
-        gap="3rem"
+        gap="2rem"
+        className="min-h-0 min-w-0 overflow-hidden"
         left={
-          <div className="flex flex-col justify-center items-start text-left">
+          <div className="flex flex-col justify-center items-start text-left min-w-0 min-h-0 h-full overflow-hidden">
             {tag && (
-              <div className="mb-4">
+              <div className="mb-4 shrink-0">
                 <SlideBadge variant="accent">{tag}</SlideBadge>
               </div>
             )}
             <h1
-              className="text-5xl font-black tracking-tight mb-4 leading-tight"
+              className="text-5xl font-black tracking-tight mb-4 leading-tight line-clamp-2 break-words"
               style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
             >
               {title}
             </h1>
             {subtitle && (
-              <p className="text-xl opacity-80 mb-6 leading-relaxed">
+              <p className="text-xl opacity-80 mb-6 leading-relaxed line-clamp-3 break-words">
                 {subtitle}
               </p>
             )}
             {(author || date) && (
-              <div className="flex items-center gap-3 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full">
-                {author && <span>{author}</span>}
-                {author && date && <span>•</span>}
-                {date && <span className="opacity-70">{date}</span>}
+              <div className="flex items-center gap-3 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full shrink-0 min-w-0 overflow-hidden">
+                {author && <span className="truncate">{author}</span>}
+                {author && date && <span className="shrink-0">•</span>}
+                {date && (
+                  <span className="opacity-70 shrink-0 truncate">{date}</span>
+                )}
               </div>
             )}
             {children}
           </div>
         }
         right={
-          <div className="h-full flex items-center justify-center">
-            <div className="w-full h-80 rounded-[var(--slide-radius,12px)] overflow-hidden border border-current/10 shadow-2xl">
+          <div className="w-full h-full min-h-0 min-w-0 flex items-center justify-center overflow-hidden">
+            <div className="w-full h-full max-h-full rounded-[var(--slide-radius,12px)] overflow-hidden border border-current/10 shadow-2xl min-h-0">
               <img
                 src={imageUrl}
                 alt={imageAlt}

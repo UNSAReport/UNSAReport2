@@ -29,40 +29,46 @@ export function HeroKPIBanner({
 }: HeroKPIBannerProps) {
   return (
     <SlideSection withGradientBar={true}>
-      <div className="flex flex-col justify-between h-full p-6">
-        <div>
+      <div className="flex flex-col justify-between w-full h-full min-h-0 min-w-0 overflow-hidden">
+        <div className="min-w-0 shrink-0">
           {tag && (
-            <div className="mb-4">
+            <div className="mb-3">
               <SlideBadge variant="secondary">{tag}</SlideBadge>
             </div>
           )}
           <h1
-            className="text-5xl font-black mb-4 max-w-4xl leading-tight"
+            className="text-5xl font-black mb-3 max-w-4xl leading-tight line-clamp-2 break-words"
             style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
           >
             {title}
           </h1>
           {subtitle && (
-            <p className="text-xl opacity-80 max-w-2xl">{subtitle}</p>
+            <p className="text-xl opacity-80 max-w-2xl line-clamp-2 break-words">
+              {subtitle}
+            </p>
           )}
         </div>
 
         <SlideCard
           variant="glow"
-          className="p-8 my-6 flex-row items-center justify-between"
+          className="p-6 my-4 flex-row items-center justify-between gap-6 shrink-0 min-w-0 overflow-hidden"
         >
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="text-xs uppercase font-mono tracking-wider opacity-60 mb-1">
               Indicador Principal
             </div>
-            <div className="text-2xl font-bold">{kpiLabel}</div>
+            <div className="text-2xl font-bold truncate">{kpiLabel}</div>
           </div>
-          <div className="text-6xl font-black">{kpiNumber}</div>
+          <div className="text-6xl font-black shrink-0 truncate">
+            {kpiNumber}
+          </div>
         </SlideCard>
 
-        <div className="flex justify-between items-center text-xs opacity-60 pt-4 border-t border-current/10">
-          <div>{author && <span>Expositor: {author}</span>}</div>
-          <div>{date && <span>{date}</span>}</div>
+        <div className="flex justify-between items-center gap-4 text-xs opacity-60 pt-3 border-t border-current/10 shrink-0 min-w-0">
+          <div className="min-w-0 truncate">
+            {author && <span>Expositor: {author}</span>}
+          </div>
+          <div className="shrink-0">{date && <span>{date}</span>}</div>
         </div>
 
         {children}
