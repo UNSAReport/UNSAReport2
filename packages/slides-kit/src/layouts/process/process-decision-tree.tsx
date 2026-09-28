@@ -32,64 +32,69 @@ export function ProcessDecisionTree({
 }: ProcessDecisionTreeProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col items-center justify-between h-full my-auto max-w-4xl mx-auto w-full gap-6">
+      <div className="w-full h-full min-h-0 min-w-0 overflow-hidden flex flex-col items-center justify-center gap-4 max-w-4xl mx-auto flex-1">
         {/* Pregunta o Nodo de Decisión */}
-        <SlideCard variant="glow" className="w-full max-w-lg p-6 text-center">
-          <span className="text-xs uppercase font-mono opacity-60 block mb-1">
+        <SlideCard
+          variant="glow"
+          className="w-full max-w-lg p-4 text-center shrink-0 min-w-0 overflow-hidden"
+        >
+          <span className="text-xs uppercase font-mono opacity-60 block mb-1 truncate">
             Compuerta Condicional
           </span>
-          <h3 className="text-xl font-bold">{question}</h3>
+          <h3 className="text-lg font-bold line-clamp-2 break-words min-w-0">
+            {question}
+          </h3>
         </SlideCard>
 
         {/* Ramas Sí / No */}
-        <div className="w-full">
+        <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden">
           <SlideSplit
             ratio="50-50"
-            gap="2.5rem"
+            gap="1rem"
             left={
               <SlideCard
                 variant="default"
-                className="p-6 h-full justify-between border-t-4 border-t-current"
+                className="p-4 min-h-0 min-w-0 overflow-hidden border-t-4 border-t-current"
               >
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <SlideBadge variant="success">Opción: Sí</SlideBadge>
-                    {branchYes.resultBadge && (
-                      <span className="text-[10px] font-mono opacity-60">
-                        {branchYes.resultBadge}
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="text-base font-bold mb-2">
-                    {branchYes.condition}
-                  </h4>
-                  <p className="text-xs opacity-75 leading-relaxed">
-                    {branchYes.action}
-                  </p>
+                <div className="flex justify-between items-center gap-2 mb-2 min-w-0">
+                  <SlideBadge variant="success" className="shrink-0">
+                    Opción: Sí
+                  </SlideBadge>
+                  {branchYes.resultBadge && (
+                    <span className="text-[10px] font-mono opacity-60 truncate min-w-0">
+                      {branchYes.resultBadge}
+                    </span>
+                  )}
                 </div>
+                <h4 className="text-sm font-bold mb-1 line-clamp-2 break-words min-w-0">
+                  {branchYes.condition}
+                </h4>
+                <p className="text-xs opacity-75 leading-relaxed line-clamp-4 break-words min-w-0">
+                  {branchYes.action}
+                </p>
               </SlideCard>
             }
             right={
               <SlideCard
                 variant="default"
-                className="p-6 h-full justify-between border-t-4 border-t-current"
+                className="p-4 min-h-0 min-w-0 overflow-hidden border-t-4 border-t-current"
               >
-                <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <SlideBadge variant="error">Opción: No</SlideBadge>
-                    {branchNo.resultBadge && (
-                      <span className="text-[10px] font-mono opacity-60">
-                        {branchNo.resultBadge}
-                      </span>
-                    )}
-                  </div>
-                  <h4 className="text-base font-bold mb-2">
-                    {branchNo.condition}
-                  </h4>
-                  <p className="text-xs opacity-75 leading-relaxed">
-                    {branchNo.action}
-                  </p>
+                <div className="flex justify-between items-center gap-2 mb-2 min-w-0">
+                  <SlideBadge variant="error" className="shrink-0">
+                    Opción: No
+                  </SlideBadge>
+                  {branchNo.resultBadge && (
+                    <span className="text-[10px] font-mono opacity-60 truncate min-w-0">
+                      {branchNo.resultBadge}
+                    </span>
+                  )}
                 </div>
+                <h4 className="text-sm font-bold mb-1 line-clamp-2 break-words min-w-0">
+                  {branchNo.condition}
+                </h4>
+                <p className="text-xs opacity-75 leading-relaxed line-clamp-4 break-words min-w-0">
+                  {branchNo.action}
+                </p>
               </SlideCard>
             }
           />

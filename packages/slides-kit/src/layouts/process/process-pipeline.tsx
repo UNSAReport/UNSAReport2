@@ -40,45 +40,56 @@ export function ProcessPipeline({
         return 'muted';
     }
   };
+  const visible = stages.slice(0, 5);
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col justify-between h-full my-auto gap-6 max-w-5xl mx-auto w-full">
+      <div className="w-full flex-1 min-h-0 min-w-0 overflow-hidden flex flex-col justify-center gap-6 max-w-5xl mx-auto">
         <SlideCard
           variant="default"
-          className="p-4 flex-row items-center justify-between"
+          className="p-4 flex-row items-center justify-between shrink-0 min-w-0 overflow-hidden"
         >
-          <span className="font-mono text-sm font-bold">{pipelineName}</span>
-          <SlideBadge variant="secondary" className="text-xs">
+          <span className="font-mono text-sm font-bold truncate min-w-0">
+            {pipelineName}
+          </span>
+          <SlideBadge variant="secondary" className="text-xs shrink-0">
             Pipeline Activo
           </SlideBadge>
         </SlideCard>
 
-        <div className="relative">
-          <div className="absolute left-[5%] right-[5%] top-1/2 -translate-y-1/2 border-t border-current/20 z-0" />
+        <div className="relative flex-1 min-h-0 min-w-0 overflow-hidden">
+          <div className="absolute left-[5%] right-[5%] top-1/2 -translate-y-1/2 border-t border-current/20 z-0 pointer-events-none" />
 
-          <div className="relative z-10">
-            <SlideGrid cols={stages.length <= 4 ? 4 : 5} gap="1rem">
-              {stages.map((st, idx) => (
+          <div className="relative z-10 h-full min-h-0 min-w-0 overflow-hidden">
+            <SlideGrid
+              cols={visible.length <= 4 ? 4 : 5}
+              gap="1.5rem"
+              className="flex-1 min-h-0 min-w-0 overflow-hidden"
+            >
+              {visible.map((st, idx) => (
                 <SlideCard
                   key={`pipe-st-${st.name || idx}`}
                   variant="elevated"
-                  className="p-4 text-center items-center"
+                  className="p-4 text-center items-center justify-between h-full min-h-0 min-w-0 overflow-hidden"
                 >
-                  <SlideBadge
-                    variant={getStatusVariant(st.status)}
-                    className="text-[10px] uppercase mb-2"
-                  >
-                    {st.status}
-                  </SlideBadge>
-                  <h4 className="text-sm font-bold mb-1">{st.name}</h4>
-                  {st.tool && (
-                    <span className="text-[10px] opacity-60 font-mono block">
-                      {st.tool}
-                    </span>
-                  )}
+                  <div className="min-h-0 min-w-0 overflow-hidden flex flex-col items-center">
+                    <SlideBadge
+                      variant={getStatusVariant(st.status)}
+                      className="text-[10px] uppercase mb-2 shrink-0"
+                    >
+                      {st.status}
+                    </SlideBadge>
+                    <h4 className="text-sm font-bold mb-1 line-clamp-2 break-words min-w-0">
+                      {st.name}
+                    </h4>
+                    {st.tool && (
+                      <span className="text-[10px] opacity-60 font-mono truncate min-w-0 max-w-full">
+                        {st.tool}
+                      </span>
+                    )}
+                  </div>
                   {st.duration && (
-                    <span className="text-[10px] opacity-75 font-mono block mt-2">
+                    <span className="text-[10px] opacity-75 font-mono truncate min-w-0 max-w-full shrink-0">
                       {st.duration}
                     </span>
                   )}

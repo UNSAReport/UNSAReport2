@@ -34,38 +34,51 @@ export function ProcessConvergent({
 
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col items-center justify-between h-full my-auto max-w-5xl mx-auto w-full gap-6">
+      <div className="w-full h-full min-h-0 min-w-0 overflow-hidden flex flex-col items-center justify-center gap-4 max-w-5xl mx-auto flex-1">
         {/* Fuentes Superiores */}
-        <SlideGrid cols={cols as 3 | 4} gap="1.5rem" className="w-full">
-          {sources.map((s, idx) => (
+        <SlideGrid
+          cols={cols as 3 | 4}
+          gap="1rem"
+          className="w-full min-h-0 shrink-0"
+        >
+          {sources.slice(0, 4).map((s, idx) => (
             <SlideCard
               key={`src-${s.title || idx}`}
               variant="default"
-              className="p-4 text-center"
+              className="p-4 text-center min-w-0 min-h-0 overflow-hidden"
             >
-              <span className="text-[10px] uppercase font-mono opacity-60 block mb-1">
+              <span className="text-[10px] uppercase font-mono opacity-60 block mb-1 truncate">
                 Entrada 0{idx + 1}
               </span>
-              <h4 className="text-sm font-bold mb-1">{s.title}</h4>
-              <p className="text-xs opacity-75">{s.detail}</p>
+              <h4 className="text-sm font-bold mb-1 truncate break-words min-w-0">
+                {s.title}
+              </h4>
+              <p className="text-xs opacity-75 line-clamp-3 break-words min-w-0">
+                {s.detail}
+              </p>
             </SlideCard>
           ))}
         </SlideGrid>
 
         {/* Flecha o conector descendente */}
-        <div className="flex items-center gap-2 opacity-50 font-mono text-sm">
-          <span>↓↓↓ Convergencia e Integración ↓↓↓</span>
+        <div className="flex items-center gap-2 opacity-50 font-mono text-sm shrink-0 truncate">
+          <span className="truncate">↓↓↓ Convergencia e Integración ↓↓↓</span>
         </div>
 
         {/* Resultado Final Sintetizado */}
-        <SlideCard variant="glow" className="w-full max-w-2xl p-6 text-center">
+        <SlideCard
+          variant="glow"
+          className="w-full max-w-2xl p-5 text-center shrink-0 min-w-0 overflow-hidden"
+        >
           {outcomeBadge && (
             <div className="mb-2">
               <SlideBadge variant="accent">{outcomeBadge}</SlideBadge>
             </div>
           )}
-          <h3 className="text-2xl font-bold mb-2">{outcomeTitle}</h3>
-          <p className="text-sm opacity-85 leading-relaxed">
+          <h3 className="text-xl font-bold mb-2 truncate break-words">
+            {outcomeTitle}
+          </h3>
+          <p className="text-sm opacity-85 leading-relaxed line-clamp-3 break-words min-w-0">
             {outcomeDescription}
           </p>
         </SlideCard>

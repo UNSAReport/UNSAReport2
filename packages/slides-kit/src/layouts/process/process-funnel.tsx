@@ -27,24 +27,34 @@ export function ProcessFunnel({
 }: ProcessFunnelProps) {
   return (
     <SlideSection tag={tag} title={title} subtitle={subtitle}>
-      <div className="flex flex-col items-center justify-center h-full my-auto w-full">
-        <SlideStack spacing="0.75rem" className="w-full items-center">
-          {stages.map((st, idx) => (
+      <div className="w-full h-full min-h-0 min-w-0 overflow-hidden flex flex-col items-center justify-center gap-3 flex-1">
+        <SlideStack
+          spacing="0.75rem"
+          className="w-full min-h-0 overflow-hidden items-center flex-1 justify-center"
+        >
+          {stages.slice(0, 5).map((st, idx) => (
             <div
               key={`funnel-${st.stage || idx}`}
-              className="flex justify-center transition-all"
-              style={{ width: st.widthPercentage || '100%' }}
+              className="flex justify-center min-w-0 max-w-full mx-auto"
+              style={{
+                width: `min(${st.widthPercentage || '100%'}, 100%)`,
+                maxWidth: '36rem',
+              }}
             >
               <SlideCard
                 variant="default"
-                className="w-full p-4 flex-row items-center justify-between"
+                className="w-full p-3 flex-row items-center justify-between min-w-0 overflow-hidden gap-2"
               >
-                <div>
-                  <h4 className="text-sm font-bold">{st.stage}</h4>
-                  <p className="text-xs opacity-75">{st.description}</p>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-bold truncate break-words">
+                    {st.stage}
+                  </h4>
+                  <p className="text-xs opacity-75 truncate break-words">
+                    {st.description}
+                  </p>
                 </div>
                 {st.countOrMetric && (
-                  <span className="font-mono text-lg font-black shrink-0 ml-4">
+                  <span className="font-mono text-base font-black shrink-0 ml-4 truncate">
                     {st.countOrMetric}
                   </span>
                 )}
