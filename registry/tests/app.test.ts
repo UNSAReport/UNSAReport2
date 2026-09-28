@@ -240,6 +240,7 @@ describe('App API Routes', () => {
         status: string;
         version: string;
         versions: string[];
+        has_templates: boolean;
       }[];
     };
     expect(data.total).toBe(1);

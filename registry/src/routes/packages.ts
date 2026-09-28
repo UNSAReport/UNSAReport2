@@ -93,7 +93,9 @@ packagesRouter.get('/', optionalAuth, async (c) => {
       .from(packageVersions)
       .where(and(...versionConditions));
 
-    const ids = Array.from(new Set(pkgIdsWithTemplates.map((p) => p.packageId)));
+    const ids = Array.from(
+      new Set(pkgIdsWithTemplates.map((p) => p.packageId)),
+    );
     if (ids.length === 0) {
       return c.json({ total: 0, offset, limit, packages: [] });
     }
@@ -168,9 +170,7 @@ packagesRouter.get('/', optionalAuth, async (c) => {
         .orderBy(desc(packageVersions.createdAt));
 
       const versionList = versionRows.map((v) => v.version);
-      const hasTemplates = versionRows.some(
-        (v) => Boolean(v.templatesS3Key),
-      );
+      const hasTemplates = versionRows.some((v) => Boolean(v.templatesS3Key));
       let effectiveVersion = '';
       if (
         pkg.latestVersion !== null &&
@@ -242,9 +242,7 @@ packagesRouter.on(
       .where(eq(packageVersions.packageId, pkg.id))
       .orderBy(desc(packageVersions.createdAt));
 
-    const hasTemplates = versionRows.some(
-      (v) => Boolean(v.templatesS3Key),
-    );
+    const hasTemplates = versionRows.some((v) => Boolean(v.templatesS3Key));
 
     return c.json({
       ...pkg,
