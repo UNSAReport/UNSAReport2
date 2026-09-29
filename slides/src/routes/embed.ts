@@ -183,13 +183,45 @@ async function handleEmbed(c: Context<HonoEnv>) {
     // "./" keeps them relative to the embed version directory (auth for
     // sub-assets travels via the session cookie through the web proxy).
     let body: Buffer = Buffer.from(s3Object.body);
-    if (isHtml) {
-      const html = body.toString('utf-8');
-      const rewritten = html.replaceAll(
-        /((?:src|href)=["'])\/(assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp4|webm|pdf|json|txt|xml))/gi,
-        '$1./$2',
+    const isJs = filePath.endsWith('.js') || filePath.endsWith('.mjs');
+    if (isHtml || isJs) {
+      const text = body.toString('utf-8');
+      // 1. Static markup: src/href="/assets/..." and public files "/img.png".
+      // 2. JS string literals: imageUrl:'/img.png' in the app bundle (deck
+      //    configs reference public-dir images with root-absolute paths).
+      // Root-absolute refs break inside the iframe: the bundle is served from
+      // the versioned embed prefix (/embed/<id>/vN/...), so "/x" escapes to
+      // the host origin and 404s. "./" keeps refs relative to the version
+      // directory (auth travels via session cookie through the web proxy).
+      body = Buffer.from(
+        text
+          .replaceAll(
+            /((?:src|href)=["'])\/(assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp4|webm|pdf|json|txt|xml))/gi,
+            '$1./$2',
+          )
+          .replaceAll(
+            /((?:imageUrl|image|src|poster)\s*:\s*["'])\/((?:assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(["'])/gi,
+            '$1./$2$3',
+          )
+          // Minified bundles escape quotes (imageUrl:\"/x.png\"); escaped
+          // pass so those refs resolve under the embed prefix too.
+          .replaceAll(
+            /((?:imageUrl|image|src|poster)\s*:\s*\\["'])\/((?:assets\/[^\\"']+|[^\\"'/][^\\"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(\\["'])/gi,
+            '$1./$2$3',
+          ),
       );
-      body = Buffer.from(rewritten);
+    }
+    // Anchor every relative URL (including query strings and future dynamic
+    // refs) to the versioned embed directory, so nothing escapes to the host
+    // origin regardless of how the bundle references it.
+    if (isHtml) {
+      const text = body.toString('utf-8');
+      const base = `<base href="./">`;
+      body = Buffer.from(
+        text.includes('<base')
+          ? text
+          : text.replace(/<head([^>]*)>/i, `<head$1>\n    ${base}`),
+      );
     }
 
     return new Response(new Uint8Array(body), {

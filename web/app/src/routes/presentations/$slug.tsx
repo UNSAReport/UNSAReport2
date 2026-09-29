@@ -105,12 +105,16 @@ function PresentationViewer() {
 
   const [showNotes, setShowNotes] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(1);
-  const [tokenQuery] = useState(() => {
-    if (typeof document === 'undefined') return '';
+  // Token is read client-side after hydration so SSR and first client render
+  // agree on the iframe src (avoids a hydration mismatch); the effect below
+  // fills it in, triggering one iframe load with ?token= when logged in.
+  const [tokenQuery, setTokenQuery] = useState('');
+
+  useEffect(() => {
     const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
     const value = match ? decodeURIComponent(match[1]) : '';
-    return value ? `?token=${encodeURIComponent(value)}` : '';
-  });
+    if (value) setTokenQuery(`?token=${encodeURIComponent(value)}`);
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
