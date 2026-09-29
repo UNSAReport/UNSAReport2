@@ -101,6 +101,13 @@ const (
 	TokenFileName       = "token"
 	CacheFileName       = "registry.json"
 	LockFileName        = "unsareport.lock"
+	ComponentsDirName   = "components"
+)
+
+const (
+	CheckScopeAll        = "all"
+	CheckScopeReport     = "report"
+	CheckScopeComponents = "components"
 )
 
 const (

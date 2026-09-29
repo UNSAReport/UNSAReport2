@@ -452,13 +452,54 @@ func newDocsRemoveCmd() *cobra.Command {
 	return cmd
 }
 
+func inferReportFromCwd(cwd string) (string, bool) {
+	root, err := project.FindRoot(cwd)
+	if err != nil {
+		return "", false
+	}
+	rel, err := filepath.Rel(root, cwd)
+	if err != nil || rel == "." || strings.HasPrefix(rel, "..") {
+		return "", false
+	}
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) == 0 {
+		return "", false
+	}
+	first := parts[0]
+	if first == config.ComponentsDirName || first == config.ConfigDirName || strings.HasPrefix(first, ".") {
+		return "", false
+	}
+	return first, true
+}
+
 func newDocsCheckCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "check",
-		Short: "Run project checks",
-		Args:  cobra.NoArgs,
+	var reportFlag string
+	cmd := &cobra.Command{
+		Use:   "check [report-dir]",
+		Short: "Run project or report checks",
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			report, err := resolvePosOrFlag(cmd, "report dir", pos, "report", reportFlag)
+			if err != nil {
+				return err
+			}
 			cwd, _ := os.Getwd()
+			if report == "" {
+				if inferred, ok := inferReportFromCwd(cwd); ok {
+					report = inferred
+				}
+			}
+			if report != "" {
+				if err := docs.Check(cwd, report); err != nil {
+					return err
+				}
+				printOK("check passed for %s: no findings.", report)
+				return nil
+			}
 			if err := docs.Check(cwd); err != nil {
 				return err
 			}
@@ -466,6 +507,8 @@ func newDocsCheckCmd() *cobra.Command {
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&reportFlag, "report", "", "Report dir, same as positional")
+	return cmd
 }
 
 func resolveReport(cmd *cobra.Command, args []string, reportFlag string) (string, error) {
@@ -476,6 +519,12 @@ func resolveReport(cmd *cobra.Command, args []string, reportFlag string) (string
 	report, err := resolvePosOrFlag(cmd, "report dir", pos, "report", reportFlag)
 	if err != nil {
 		return "", err
+	}
+	cwd, _ := os.Getwd()
+	if report == "" || report == "." {
+		if inferred, ok := inferReportFromCwd(cwd); ok {
+			return inferred, nil
+		}
 	}
 	if report == "" {
 		if !canPrompt() {

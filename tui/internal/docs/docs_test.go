@@ -1575,3 +1575,69 @@ func TestInitSelectiveConflictOverwrite(t *testing.T) {
 	}
 }
 
+func TestCheckTargetPassesWithSiblingBrokenReport(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, config.ConfigFileName)
+	_ = os.WriteFile(cfgPath, []byte("[project]\nconfig_version = 1\ntypst_entry = \"main.typ\"\n"), 0o644)
+
+	l4Dir := filepath.Join(dir, "l4")
+	_ = os.MkdirAll(l4Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(l4Dir, "main.typ"), []byte("#import \"../components/foo\"\n"), 0o644)
+
+	l5Dir := filepath.Join(dir, "l5")
+	_ = os.MkdirAll(l5Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(l5Dir, "main.typ"), []byte("= Working report\n"), 0o644)
+
+	if err := Check(dir); err == nil {
+		t.Fatal("expected whole-project Check to fail on broken l4")
+	}
+
+	if err := Check(dir, "l5"); err != nil {
+		t.Fatalf("expected targeted Check on l5 to succeed, got: %v", err)
+	}
+}
+
+func TestInitTargetPassesWithSiblingBrokenReport(t *testing.T) {
+	dir := t.TempDir()
+	cfgPath := filepath.Join(dir, config.ConfigFileName)
+	_ = os.WriteFile(cfgPath, []byte("[project]\nconfig_version = 1\ntypst_entry = \"main.typ\"\n"), 0o644)
+
+	l4Dir := filepath.Join(dir, "l4")
+	_ = os.MkdirAll(l4Dir, 0o755)
+	_ = os.WriteFile(filepath.Join(l4Dir, "main.typ"), []byte("#import \"../components/foo\"\n"), 0o644)
+
+	err := Init(context.Background(), dir, InitOptions{
+		Template: config.TemplateBlank,
+		Report:   "l5",
+	})
+	if err != nil {
+		t.Fatalf("expected Init for l5 to succeed despite broken l4, got: %v", err)
+	}
+
+	created := filepath.Join(dir, "l5", config.DefaultTypstEntry)
+	if _, statErr := os.Stat(created); statErr != nil {
+		t.Fatalf("expected created report file %s, got err: %v", created, statErr)
+	}
+}
+
+func TestNormalizeReportPath(t *testing.T) {
+	root := t.TempDir()
+	l5Dir := filepath.Join(root, "l5")
+	_ = os.MkdirAll(l5Dir, 0o755)
+
+	if got := normalizeReportPath(root, root, "l5"); got != "l5" {
+		t.Errorf("normalizeReportPath(root, root, 'l5') = %q, want 'l5'", got)
+	}
+
+	if got := normalizeReportPath(root, l5Dir, "."); got != "l5" {
+		t.Errorf("normalizeReportPath(root, l5Dir, '.') = %q, want 'l5'", got)
+	}
+
+	if got := normalizeReportPath(root, l5Dir, ""); got != "l5" {
+		t.Errorf("normalizeReportPath(root, l5Dir, '') = %q, want 'l5'", got)
+	}
+
+	if got := normalizeReportPath(root, l5Dir, "l5"); got != "l5" {
+		t.Errorf("normalizeReportPath(root, l5Dir, 'l5') = %q, want 'l5'", got)
+	}
+}

@@ -71,8 +71,7 @@ func saveConfig(root string, cfg project.SpecConfig) error {
 	return f.Close()
 }
 
-func runCheck(root string) error {
-	findings := check.Run(root)
+func formatFindings(findings []check.Finding) error {
 	if len(findings) > 0 {
 		var sb strings.Builder
 		for _, f := range findings {
@@ -81,6 +80,38 @@ func runCheck(root string) error {
 		return fmt.Errorf("check failed:\n%s", sb.String())
 	}
 	return nil
+}
+
+func runCheck(root string) error {
+	return formatFindings(check.Run(root))
+}
+
+func runCheckReport(root, report string) error {
+	return formatFindings(check.RunReport(root, report))
+}
+
+func runCheckComponents(root string) error {
+	return formatFindings(check.RunComponents(root))
+}
+
+func normalizeReportPath(root, cwd, report string) string {
+	clean := filepath.Clean(report)
+	if clean == "." || clean == "" {
+		if rel, err := filepath.Rel(root, cwd); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+			parts := strings.Split(filepath.ToSlash(rel), "/")
+			if len(parts) > 0 {
+				return parts[0]
+			}
+		}
+		return clean
+	}
+	joinedCwd := filepath.Join(cwd, clean)
+	if _, err := os.Stat(joinedCwd); err == nil {
+		if rel, err := filepath.Rel(root, joinedCwd); err == nil && !strings.HasPrefix(rel, "..") {
+			return filepath.ToSlash(rel)
+		}
+	}
+	return filepath.ToSlash(clean)
 }
 
 func parseNameRange(arg string) (name, rng string) {
@@ -801,7 +832,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 			}
 		}
 
-		return runCheck(root)
+		return runCheckReport(root, report)
 	}
 
 	name, rng := parseNameRange(opt.Template)
@@ -979,7 +1010,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 	}
 
-	return runCheck(root)
+	return runCheckReport(root, report)
 }
 
 type AddOptions struct {
@@ -1027,7 +1058,7 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err := saveConfig(root, cfg); err != nil {
 		return err
 	}
-	return runCheck(root)
+	return runCheckComponents(root)
 }
 
 func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode string) error {
@@ -1963,7 +1994,7 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 	if err := lock.Write(root, l); err != nil {
 		return err
 	}
-	return runCheck(root)
+	return runCheckComponents(root)
 }
 
 func Remove(cwd, name string) error {
@@ -1991,7 +2022,7 @@ func Remove(cwd, name string) error {
 		if err := lock.Write(root, l); err != nil {
 			return err
 		}
-		return runCheck(root)
+		return runCheckComponents(root)
 	}
 
 	for _, e := range l.Pkg {
@@ -2064,7 +2095,7 @@ func Remove(cwd, name string) error {
 		}
 	}
 
-	return runCheck(root)
+	return runCheckComponents(root)
 }
 
 func originScriptAliases(root, origin string) ([]string, error) {
@@ -2139,18 +2170,35 @@ func removeOriginFragments(root, origin string) error {
 	return nil
 }
 
-func Check(cwd string) error {
+func Check(cwd string, targets ...string) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
 		return err
 	}
-	if err := runHooks(root, "check", project.HookBefore, cfg, nil); err != nil {
+	var target string
+	if len(targets) > 0 {
+		target = strings.TrimSpace(targets[0])
+	}
+	if target != "" {
+		target = normalizeReportPath(root, cwd, target)
+	}
+	var hookEnv []string
+	if target != "" {
+		hookEnv = append(hookEnv, config.EnvReportDir+"="+target)
+	}
+	if err := runHooks(root, "check", project.HookBefore, cfg, hookEnv); err != nil {
 		return err
 	}
-	if err := runCheck(root); err != nil {
-		return err
+	if target != "" {
+		if err := runCheckReport(root, target); err != nil {
+			return err
+		}
+	} else {
+		if err := runCheck(root); err != nil {
+			return err
+		}
 	}
-	return runHooks(root, "check", project.HookAfter, cfg, nil)
+	return runHooks(root, "check", project.HookAfter, cfg, hookEnv)
 }
 
 func typstBin() (string, error) {
@@ -2291,7 +2339,8 @@ func Build(cwd, report string) error {
 	if err != nil {
 		return err
 	}
-	if err := runCheck(root); err != nil {
+	report = normalizeReportPath(root, cwd, report)
+	if err := runCheckReport(root, report); err != nil {
 		return err
 	}
 	reportDir := filepath.Join(root, report)
@@ -2360,6 +2409,10 @@ func typstEntryToPDF(entry string) (string, error) {
 func Watch(cwd string, opt WatchOptions) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
+		return err
+	}
+	opt.Report = normalizeReportPath(root, cwd, opt.Report)
+	if err := runCheckReport(root, opt.Report); err != nil {
 		return err
 	}
 	bin, err := typstBin()
