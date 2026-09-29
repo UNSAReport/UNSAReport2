@@ -188,7 +188,7 @@ function PresentationViewer() {
     return (
       <div
         ref={containerRef}
-        className="relative h-full w-full bg-black text-slate-100 font-sans overflow-hidden"
+        className="fixed inset-0 z-50 bg-black text-slate-100 font-sans overflow-hidden"
       >
         <iframe
           ref={iframeRef}
