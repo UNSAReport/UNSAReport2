@@ -1,0 +1,80 @@
+{
+  "name": "@unsa/slides-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts"
+    },
+    "./layouts": {
+      "types": "./dist/layouts/registry.d.ts",
+      "import": "./dist/layouts/registry.js",
+      "default": "./dist/layouts/registry.js"
+    },
+    "./layouts/types": {
+      "types": "./dist/layouts/types.d.ts"
+    },
+    "./themes": {
+      "types": "./dist/themes/registry.d.ts",
+      "import": "./dist/themes/registry.js",
+      "default": "./dist/themes/registry.js"
+    },
+    "./themes/types": {
+      "types": "./dist/themes/types.d.ts"
+    },
+    "./renderer": {
+      "types": "./dist/renderer/DeckRenderer.d.ts",
+      "import": "./dist/renderer/DeckRenderer.js",
+      "default": "./dist/renderer/DeckRenderer.js"
+    },
+    "./renderer/DeckRenderer": {
+      "types": "./dist/renderer/DeckRenderer.d.ts",
+      "import": "./dist/renderer/DeckRenderer.js",
+      "default": "./dist/renderer/DeckRenderer.js"
+    },
+    "./renderer/SlideRenderer": {
+      "types": "./dist/renderer/SlideRenderer.d.ts",
+      "import": "./dist/renderer/SlideRenderer.js",
+      "default": "./dist/renderer/SlideRenderer.js"
+    },
+    "./renderer/ThemeProvider": {
+      "types": "./dist/renderer/ThemeProvider.d.ts",
+      "import": "./dist/renderer/ThemeProvider.js",
+      "default": "./dist/renderer/ThemeProvider.js"
+    },
+    "./primitives/*": {
+      "types": "./dist/primitives/*.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build src/config.ts src/layouts/registry.ts src/themes/registry.ts src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && rm -f tsconfig.tsbuildinfo && tsc --declaration --emitDeclarationOnly --outDir dist-types && cp -r dist-types/. dist/ && rm -rf dist-types",
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "check": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0",
+    "react-dom": ">=18.0.0",
+    "reveal.js": ">=5.0.0"
+  },
+  "dependencies": {
+    "@revealjs/react": "^0.2.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "reveal.js": "^6.0.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@unsa/config": "workspace:*",
+    "typescript": "^5.7.3"
+  }
+}

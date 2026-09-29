@@ -22,6 +22,27 @@ mock.module('@/lib/auth', () => ({
   },
 }));
 
+mock.module('@/lib/s3', () => ({
+  uploadS3Object: async (key: string) => key,
+  getS3Object: async (key: string) => ({
+    body: new Uint8Array([
+      60, 104, 49, 62, 72, 101, 108, 108, 111, 60, 47, 104, 49, 62,
+    ]),
+    contentType: key?.endsWith('.js')
+      ? 'application/javascript; charset=utf-8'
+      : 'text/html; charset=utf-8',
+  }),
+  deleteS3Object: async () => {},
+  deleteS3Prefix: async () => {},
+  getPresignedUrl: async (key: string) => `http://localhost/s3/${key}`,
+  ensureBucketExists: async () => {},
+  getMimeType: (path: string) => {
+    if (path.endsWith('.html')) return 'text/html; charset=utf-8';
+    if (path.endsWith('.js')) return 'application/javascript; charset=utf-8';
+    return 'application/octet-stream';
+  },
+}));
+
 mock.module('@/db/index', () => {
   const db = {
     select: () => ({
@@ -125,5 +146,48 @@ describe('POST /presentations/deploy', () => {
     expect(res.status).toBe(400);
     const data = (await res.json()) as { error: string };
     expect(data.error).toBe('ValidationError');
+  });
+
+  it('deploys a bundle via multipart/form-data', async () => {
+    const formData = new FormData();
+    formData.append('slug', 'multipart-deck');
+    formData.append('title', 'Multipart Deck');
+    formData.append('visibility', 'public');
+    formData.append('manifest', JSON.stringify(validManifest));
+    formData.append(
+      'bundle',
+      new Blob(
+        [
+          new Uint8Array([
+            80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+          ]),
+        ],
+        {
+          type: 'application/zip',
+        },
+      ),
+      'bundle.zip',
+    );
+
+    const res = await app.fetch(
+      new Request('http://localhost/presentations/deploy', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer deploy-token',
+        },
+        body: formData,
+      }),
+    );
+
+    expect(res.status).toBe(200);
+    const data = (await res.json()) as {
+      success: boolean;
+      presentationId: string;
+      slug: string;
+      version: number;
+    };
+    expect(data.success).toBe(true);
+    expect(data.slug).toBe('multipart-deck');
+    expect(data.version).toBe(1);
   });
 });

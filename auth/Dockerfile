@@ -6,6 +6,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock ./
 COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/slides-kit/package.json ./packages/slides-kit/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -27,6 +28,7 @@ RUN bun build --target=bun --minify --outdir=./dist ./src/index.ts ./src/db/migr
 FROM base AS production-deps
 COPY package.json bun.lock ./
 COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/slides-kit/package.json ./packages/slides-kit/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json

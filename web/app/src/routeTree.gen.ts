@@ -16,7 +16,8 @@ import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthMeRouteImport } from './routes/auth/me'
 import { Route as AuthPatRouteImport } from './routes/auth/pat'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations/index'
-import { Route as PresentationsTopicRouteImport } from './routes/presentations/$topic'
+import { Route as PresentationsSlugRouteImport } from './routes/presentations/$slug'
+import { Route as PresentationsCatalogRouteImport } from './routes/presentations/catalog'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
 import { Route as RegistryUploadRouteImport } from './routes/registry/upload'
@@ -59,9 +60,14 @@ const PresentationsIndexRoute = PresentationsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
-const PresentationsTopicRoute = PresentationsTopicRouteImport.update({
-  id: '/$topic',
-  path: '/$topic',
+const PresentationsSlugRoute = PresentationsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => PresentationsRouteRoute,
+} as any)
+const PresentationsCatalogRoute = PresentationsCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
 const RegistryIndexRoute = RegistryIndexRouteImport.update({
@@ -102,7 +108,8 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -117,7 +124,8 @@ export interface FileRoutesByTo {
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -134,7 +142,8 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -152,7 +161,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -167,7 +177,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -183,7 +194,8 @@ export interface FileRouteTypes {
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -258,11 +270,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsIndexRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
-    '/presentations/$topic': {
-      id: '/presentations/$topic'
-      path: '/$topic'
-      fullPath: '/presentations/$topic'
-      preLoaderRoute: typeof PresentationsTopicRouteImport
+    '/presentations/$slug': {
+      id: '/presentations/$slug'
+      path: '/$slug'
+      fullPath: '/presentations/$slug'
+      preLoaderRoute: typeof PresentationsSlugRouteImport
+      parentRoute: typeof PresentationsRouteRoute
+    }
+    '/presentations/catalog': {
+      id: '/presentations/catalog'
+      path: '/catalog'
+      fullPath: '/presentations/catalog'
+      preLoaderRoute: typeof PresentationsCatalogRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
     '/registry/': {
@@ -311,12 +330,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface PresentationsRouteRouteChildren {
-  PresentationsTopicRoute: typeof PresentationsTopicRoute
+  PresentationsSlugRoute: typeof PresentationsSlugRoute
+  PresentationsCatalogRoute: typeof PresentationsCatalogRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
 }
 
 const PresentationsRouteRouteChildren: PresentationsRouteRouteChildren = {
-  PresentationsTopicRoute: PresentationsTopicRoute,
+  PresentationsSlugRoute: PresentationsSlugRoute,
+  PresentationsCatalogRoute: PresentationsCatalogRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
 }
 

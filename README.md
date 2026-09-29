@@ -134,22 +134,27 @@ unsarep docs build lab-01
 | `unsarep docs check` | Valida la configuración, la integridad del lockfile y las dependencias |
 | `unsarep docs run <alias>` | Ejecuta scripts y alias definidos en el proyecto (ej. `unsarep docs run submit`) |
 
-<!--
 ### Creación de diapositivas (`unsarep slides`)
 
-Crea y visualiza presentaciones interactivas:
+Crea, previsualiza y publica presentaciones interactivas institucionales:
 
 ```bash
-# Crear la estructura de una nueva presentación
+# Crear la estructura de una nueva presentación con el kit oficial
 unsarep slides init mi-presentacion
 
-# Iniciar el servidor local de desarrollo con recarga en vivo
-unsarep slides dev mi-presentacion
+# Explorar el catálogo de 110 layouts y 3 temas oficiales
+unsarep slides layouts --category bento
+unsarep slides themes
+
+# Iniciar el servidor local de desarrollo con recarga en vivo (HMR)
+cd mi-presentacion && unsarep slides dev
 
 # Vincular y desplegar la presentación en la plataforma en la nube
 unsarep slides link
 unsarep slides deploy
-```-->
+```
+
+Para más detalles sobre la arquitectura modular, estructura de archivos y diagramas de flujo de diapositivas, consulta la [Guía de Arquitectura de Slides](docs/slides.md).
 
 ---
 
@@ -203,7 +208,7 @@ Consulta la [documentación de GitHub Actions](actions/README.md) para más opci
 
 - **Reportar un error**: Abre una issue con nuestra [Plantilla de reporte de errores](https://github.com/UNSAReport/UNSAReport2/issues/new?template=bug_report.yml).
 - **Solicitar una funcionalidad**: Envía una solicitud con nuestra [Plantilla de sugerencias](https://github.com/UNSAReport/UNSAReport2/issues/new?template=feature_request.yml).
-- **Configuración para desarrolladores y pull requests**: Consulta la guía técnica en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar los microservicios locales, ejecutar pruebas y enviar contribuciones.
+- **Configuración para desarrolladores y pull requests**: Consulta la [Guía de Desarrollo del Monorepo](docs/development-guide.md) y las pautas en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar la infraestructura, ejecutar pruebas y enviar contribuciones.
 
 ---
 

@@ -1,3 +1,5 @@
+import { MAX_ARCHIVE_BYTES, PRESIGN_SECONDS } from '@unsa/schemas/constants';
+
 function parseIntOrThrow(value: string, name: string): number {
   const n = Number.parseInt(value, 10);
   if (Number.isNaN(n)) {
@@ -6,18 +8,13 @@ function parseIntOrThrow(value: string, name: string): number {
   return n;
 }
 
-function requiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`${name} is required`);
-  }
-  return value;
-}
-
 const idpIssuer = process.env.IDP_ISSUER || 'https://auth.unsareport.org';
+const s3Endpoint = process.env.S3_ENDPOINT || 'http://localhost:8333';
 
 export const config = {
-  databaseUrl: requiredEnv('DATABASE_URL'),
+  databaseUrl:
+    process.env.DATABASE_URL ||
+    'postgresql://slides:slidespassword@localhost:5434/slides_db',
   idpIssuer,
   idpJwksUrl: process.env.IDP_JWKS_URL || `${idpIssuer}/.well-known/jwks.json`,
   idpMeUrl: `${idpIssuer}/v1/me`,
@@ -28,6 +25,23 @@ export const config = {
   baseUrl: process.env.BASE_URL || 'http://localhost:9876',
   port: parseIntOrThrow(process.env.PORT || '3002', 'PORT'),
   allowedOrigins: (
-    process.env.ALLOWED_ORIGINS || 'http://localhost:5173'
+    process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:9876'
   ).split(','),
+  presignSeconds: parseIntOrThrow(
+    process.env.PRESIGN_SECONDS || String(PRESIGN_SECONDS),
+    'PRESIGN_SECONDS',
+  ),
+  maxArchiveBytes: parseIntOrThrow(
+    process.env.MAX_ARCHIVE_BYTES || String(MAX_ARCHIVE_BYTES),
+    'MAX_ARCHIVE_BYTES',
+  ),
+  s3: {
+    endpoint: s3Endpoint,
+    publicEndpoint: process.env.S3_PUBLIC_ENDPOINT || s3Endpoint,
+    bucket: process.env.S3_BUCKET || 'unsareport-slides',
+    accessKey: process.env.S3_ACCESS_KEY || 'seaweedadmin',
+    secretKey: process.env.S3_SECRET_KEY || 'seaweedadmin',
+    region: process.env.S3_REGION || 'us-east-1',
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE !== 'false',
+  },
 };

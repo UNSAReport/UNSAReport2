@@ -89,7 +89,6 @@
             unstable.typst
             (with pkgs; [
               sops
-              just
               bun
               go
               nodejs

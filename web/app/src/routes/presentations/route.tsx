@@ -7,7 +7,7 @@ export const Route = createFileRoute('/presentations')({
 
 function PresentationsLayoutComponent() {
   return (
-    <div className="w-screen h-screen relative ">
+    <div className="w-full min-h-[calc(100vh-5rem)] relative flex flex-col">
       <Outlet />
     </div>
   );

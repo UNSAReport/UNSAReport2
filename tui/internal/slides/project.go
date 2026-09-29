@@ -1,16 +1,25 @@
 package slides
 
 import (
+	"archive/zip"
+	"bytes"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
 )
 
-const ProjectConfigFile = ".slidesrc.json"
+const (
+	ProjectConfigFile = ".slidesrc.json"
+	DeckConfigFile    = "deck.config.ts"
+)
 
 type ProjectConfig struct {
 	Slug        string `json:"slug"`
@@ -18,6 +27,7 @@ type ProjectConfig struct {
 	Description string `json:"description,omitempty"`
 	OrgSlug     string `json:"orgSlug,omitempty"`
 	Visibility  string `json:"visibility,omitempty"`
+	Theme       string `json:"theme,omitempty"`
 }
 
 type Slide struct {
@@ -35,10 +45,72 @@ type Manifest struct {
 
 var slugRe = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+var (
+	titleRegex      = regexp.MustCompile(`(?m)^\s*title:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+	slugRegex       = regexp.MustCompile(`(?m)^\s*slug:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+	themeRegex      = regexp.MustCompile(`(?m)^\s*theme:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+	orgSlugRegex    = regexp.MustCompile(`(?m)^\s*orgSlug:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+	visibilityRegex = regexp.MustCompile(`(?m)^\s*visibility:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+	descRegex       = regexp.MustCompile(`(?m)^\s*description:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
+)
+
+func ParseDeckConfig(content string) *ProjectConfig {
+	cfg := &ProjectConfig{
+		Visibility: "private",
+		Theme:      "unsa-dark",
+	}
+
+	if m := titleRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.Title = strings.TrimSpace(m[1])
+	}
+	if m := slugRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.Slug = strings.TrimSpace(m[1])
+	}
+	if m := themeRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.Theme = strings.TrimSpace(m[1])
+	}
+	if m := orgSlugRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.OrgSlug = strings.TrimSpace(m[1])
+	}
+	if m := visibilityRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.Visibility = strings.TrimSpace(m[1])
+	}
+	if m := descRegex.FindStringSubmatch(content); len(m) > 1 {
+		cfg.Description = strings.TrimSpace(m[1])
+	}
+
+	return cfg
+}
+
 func LoadProjectConfig(dir string) (*ProjectConfig, error) {
+	deckPath := filepath.Join(dir, DeckConfigFile)
+	if content, err := os.ReadFile(deckPath); err == nil {
+		cfg := ParseDeckConfig(string(content))
+		if jsonBytes, err := os.ReadFile(filepath.Join(dir, ProjectConfigFile)); err == nil {
+			var jsonCfg ProjectConfig
+			if json.Unmarshal(jsonBytes, &jsonCfg) == nil {
+				if cfg.Slug == "" {
+					cfg.Slug = jsonCfg.Slug
+				}
+				if cfg.Title == "" {
+					cfg.Title = jsonCfg.Title
+				}
+				if cfg.OrgSlug == "" {
+					cfg.OrgSlug = jsonCfg.OrgSlug
+				}
+				if jsonCfg.Visibility != "" {
+					cfg.Visibility = jsonCfg.Visibility
+				}
+			}
+		}
+		if cfg.Slug != "" || cfg.Title != "" {
+			return cfg, nil
+		}
+	}
+
 	b, err := os.ReadFile(filepath.Join(dir, ProjectConfigFile))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("no %s or %s found: %w", DeckConfigFile, ProjectConfigFile, err)
 	}
 	var cfg ProjectConfig
 	if err := json.Unmarshal(b, &cfg); err != nil {
@@ -63,6 +135,25 @@ func ValidateSlug(s string) bool {
 func LoadManifest(dir string) (*Manifest, map[string]any, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 	if err != nil {
+		if cfg, cfgErr := LoadProjectConfig(dir); cfgErr == nil {
+			m := &Manifest{
+				Name:        cfg.Slug,
+				Title:       cfg.Title,
+				Description: cfg.Description,
+				Slides: []Slide{
+					{ID: "slide-1", Index: 0, Title: cfg.Title},
+				},
+			}
+			raw := map[string]any{
+				"name":        cfg.Slug,
+				"title":       cfg.Title,
+				"description": cfg.Description,
+				"slides": []any{
+					map[string]any{"id": "slide-1", "index": 0, "title": cfg.Title},
+				},
+			}
+			return m, raw, nil
+		}
 		return nil, nil, fmt.Errorf("read manifest.json: %w", err)
 	}
 	var raw map[string]any
@@ -99,6 +190,102 @@ func BundleFile(dir string) (string, error) {
 		return "", err
 	}
 	return base64.StdEncoding.EncodeToString(b), nil
+}
+
+func ZipDirectory(srcDir string) ([]byte, error) {
+	buf := new(bytes.Buffer)
+	zw := zip.NewWriter(buf)
+
+	err := filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		relPath, err := filepath.Rel(srcDir, path)
+		if err != nil {
+			return err
+		}
+
+		cleanPath := filepath.ToSlash(relPath)
+		w, err := zw.Create(cleanPath)
+		if err != nil {
+			return err
+		}
+
+		file, err := os.Open(path)
+		if err != nil {
+			return err
+		}
+
+		_, copyErr := io.Copy(w, file)
+		closeErr := file.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		return closeErr
+	})
+
+	if err != nil {
+		_ = zw.Close()
+		return nil, err
+	}
+
+	if err := zw.Close(); err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
+}
+
+func RunBuild(dir string) error {
+	pkgPath := filepath.Join(dir, "package.json")
+	if _, err := os.Stat(pkgPath); err != nil {
+		return nil
+	}
+
+	buildCmd := "bun"
+	if _, err := exec.LookPath("bun"); err != nil {
+		if _, err := exec.LookPath("npm"); err == nil {
+			buildCmd = "npm"
+		} else {
+			return nil
+		}
+	}
+
+	var cmd *exec.Cmd
+	if buildCmd == "bun" {
+		cmd = exec.Command("bun", "run", "build")
+	} else {
+		cmd = exec.Command("npm", "run", "build")
+	}
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+func BuildAndZip(dir string) ([]byte, string, error) {
+	_ = RunBuild(dir)
+
+	distDir := filepath.Join(dir, "dist")
+	targetDir := dir
+	if st, err := os.Stat(distDir); err == nil && st.IsDir() {
+		targetDir = distDir
+	}
+
+	zipBytes, err := ZipDirectory(targetDir)
+	if err != nil {
+		return nil, "", fmt.Errorf("compress presentation files: %w", err)
+	}
+
+	hash := sha256.Sum256(zipBytes)
+	hashHex := hex.EncodeToString(hash[:])
+
+	return zipBytes, hashHex, nil
 }
 
 func Slugify(name string) string {

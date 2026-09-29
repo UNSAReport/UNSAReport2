@@ -2,16 +2,15 @@ package main
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/UNSAReport/tui/internal/auth"
-	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/slides"
 	"github.com/charmbracelet/huh"
 	"github.com/spf13/cobra"
@@ -25,6 +24,8 @@ func newSlidesCmd() *cobra.Command {
 	cmd.AddCommand(
 		newSlidesInitCmd(),
 		newSlidesDevCmd(),
+		newSlidesLayoutsCmd(),
+		newSlidesThemesCmd(),
 		newSlidesLoginCmd(),
 		newSlidesLinkCmd(),
 		newSlidesDeployCmd(),
@@ -43,6 +44,7 @@ func slidesCwd() string {
 
 func newSlidesInitCmd() *cobra.Command {
 	var nameFlag string
+	var installFlag bool
 	cmd := &cobra.Command{
 		Use:   "init [name]",
 		Short: "Scaffold a new slide deck",
@@ -84,16 +86,69 @@ func newSlidesInitCmd() *cobra.Command {
 				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 					return fmt.Errorf("slides init: %w", err)
 				}
-				if err := os.WriteFile(full, []byte(f.Content), 0o644); err != nil {
+				var bytes []byte
+				if len(f.Data) > 0 {
+					bytes = f.Data
+				} else {
+					bytes = []byte(f.Content)
+				}
+				if err := os.WriteFile(full, bytes, 0o644); err != nil {
 					return fmt.Errorf("slides init: %w", err)
 				}
 			}
 			fmt.Printf("Created presentation project at ./%s\n", name)
+
+			var installDeps bool
+			if installFlag {
+				installDeps = true
+			} else if canPrompt() {
+				confirm := false
+				form := huh.NewForm(huh.NewGroup(
+					huh.NewConfirm().
+						Title("¿Instalar dependencias ahora?").
+						Description("Ejecutará el gestor de paquetes detectado (bun / npm) en el nuevo proyecto").
+						Value(&confirm),
+				))
+				if err := runForm(form); err == nil && confirm {
+					installDeps = true
+				}
+			}
+
+			if installDeps {
+				pm := "bun"
+				if _, err := exec.LookPath("bun"); err != nil {
+					if _, err := exec.LookPath("npm"); err == nil {
+						pm = "npm"
+					} else if _, err := exec.LookPath("pnpm"); err == nil {
+						pm = "pnpm"
+					} else {
+						pm = ""
+					}
+				}
+
+				if pm != "" {
+					fmt.Printf("Instalando dependencias con %s...\n", pm)
+					installCmd := exec.Command(pm, "install")
+					installCmd.Dir = target
+					installCmd.Stdout = os.Stdout
+					installCmd.Stderr = os.Stderr
+					if err := installCmd.Run(); err != nil {
+						fmt.Printf("Aviso: No se pudieron instalar las dependencias automáticamente: %v\n", err)
+						fmt.Printf("Puedes instalarlas manualmente ejecutando: cd %s && %s install\n", name, pm)
+					} else {
+						fmt.Println("Dependencias instaladas con éxito.")
+					}
+				} else {
+					fmt.Println("Aviso: No se detectó bun, npm o pnpm en el PATH. Instala las dependencias manualmente.")
+				}
+			}
+
 			fmt.Printf("Next: cd %s && unsarep slides dev  # preview | unsarep slides deploy  # publish\n", name)
 			return nil
 		},
 	}
 	cmd.Flags().StringVar(&nameFlag, "name", "", "Presentation name, same as positional")
+	cmd.Flags().BoolVar(&installFlag, "install", false, "Install dependencies automatically after scaffolding")
 	return cmd
 }
 
@@ -111,12 +166,81 @@ func newSlidesDevCmd() *cobra.Command {
 			} else if m, _, err := slides.LoadManifest(dir); err == nil && m.Title != "" {
 				title = m.Title
 			}
-			addr := net.JoinHostPort(config.LoopbackHost, strconv.Itoa(port))
-			fmt.Printf("Deck: %s\nLocal server: %s%s:%d\nPress Ctrl+C to stop.\n", title, config.CallbackBaseURLPrefix, config.LocalhostName, port)
-			return slides.ServePreview(addr, dir, title)
+			fmt.Printf("Deck: %s\nLocal dev server on port %d\nPress Ctrl+C to stop.\n", title, port)
+			return slides.StartDev(dir, port)
 		},
 	}
 	cmd.Flags().IntVar(&port, "port", 4000, "Preview server port")
+	return cmd
+}
+
+func newSlidesLayoutsCmd() *cobra.Command {
+	var category string
+	var search string
+	cmd := &cobra.Command{
+		Use:   "layouts",
+		Short: "Explore and search official slide layouts",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			layouts := slides.ListLayouts(category, search)
+			if len(layouts) == 0 {
+				fmt.Println("No se encontraron layouts con los criterios indicados.")
+				return nil
+			}
+
+			if category != "" {
+				fmt.Printf("\n  %s (%d layouts disponibles)\n", strings.ToUpper(category), len(layouts))
+				for _, l := range layouts {
+					fmt.Printf("    %-24s %s\n", l.ID, l.Description)
+				}
+				fmt.Println("\n  Usa --search <término> para buscar por descripción.")
+				return nil
+			}
+
+			fmt.Printf("\n  LAYOUTS DISPONIBLES EN @unsa/slides-kit (%d en total):\n\n", len(layouts))
+			byCategory := make(map[string][]slides.LayoutInfo)
+			for _, l := range layouts {
+				byCategory[l.Category] = append(byCategory[l.Category], l)
+			}
+			for _, cat := range slides.ListCategories() {
+				items := byCategory[cat]
+				if len(items) == 0 {
+					continue
+				}
+				fmt.Printf("  [%s] (%d layouts)\n", strings.ToUpper(cat), len(items))
+				for _, l := range items {
+					fmt.Printf("    %-24s %s\n", l.ID, l.Description)
+				}
+				fmt.Println()
+			}
+			fmt.Println("  Usa --category <nombre> o --search <término> para filtrar.")
+			return nil
+		},
+	}
+	cmd.Flags().StringVarP(&category, "category", "c", "", "Filtrar por categoría (hero, split, bento, stats, process, code, list, quote, closing)")
+	cmd.Flags().StringVarP(&search, "search", "s", "", "Buscar por nombre o descripción")
+	return cmd
+}
+
+func newSlidesThemesCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "themes",
+		Short: "List official themes for UNSA slides",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			themes := slides.ListThemes()
+			fmt.Println("\n  TEMAS DISPONIBLES EN @unsa/slides-kit:")
+			for _, t := range themes {
+				prefix := "   "
+				if t.Default {
+					prefix = " * "
+				}
+				fmt.Printf(" %s%-14s %s\n", prefix, t.ID, t.Description)
+			}
+			fmt.Println()
+			return nil
+		},
+	}
 	return cmd
 }
 
@@ -299,13 +423,9 @@ func newSlidesDeployCmd() *cobra.Command {
 			dir := slidesCwd()
 			project, err := slides.LoadProjectConfig(dir)
 			if err != nil {
-				return fmt.Errorf("slides deploy: no .slidesrc.json found — run 'unsarep slides link' or 'unsarep slides init' first")
+				return fmt.Errorf("slides deploy: no deck.config.ts or .slidesrc.json found — run 'unsarep slides link' or 'unsarep slides init' first")
 			}
 			_, rawManifest, err := slides.LoadManifest(dir)
-			if err != nil {
-				return fmt.Errorf("slides deploy: %w", err)
-			}
-			bundle, err := slides.BundleFile(dir)
 			if err != nil {
 				return fmt.Errorf("slides deploy: %w", err)
 			}
@@ -342,7 +462,15 @@ func newSlidesDeployCmd() *cobra.Command {
 				}
 				project.Visibility = action
 			}
-			fmt.Println("Bundling presentation assets...")
+			fmt.Println("Building and bundling presentation assets...")
+			zipBytes, _, err := slides.BuildAndZip(dir)
+			if err != nil {
+				return fmt.Errorf("slides deploy: %w", err)
+			}
+			bundle, _ := slides.BundleFile(dir)
+			if bundle == "" && len(zipBytes) > 0 {
+				bundle = base64.StdEncoding.EncodeToString(zipBytes)
+			}
 			resp, err := client.Deploy(ctx, token, &slides.DeployRequest{
 				Slug:        project.Slug,
 				Title:       project.Title,
@@ -351,6 +479,7 @@ func newSlidesDeployCmd() *cobra.Command {
 				Visibility:  valueOr(project.Visibility, "private"),
 				Manifest:    rawManifest,
 				Bundle:      bundle,
+				ZipBytes:    zipBytes,
 			})
 			if err != nil {
 				return fmt.Errorf("slides deploy: %w", err)

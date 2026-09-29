@@ -18,7 +18,8 @@ tasks:
     args:
       - run
       - build
-
+    deps:
+      - slides-kit:build
   preview:
     command: bash
     args:
@@ -33,6 +34,8 @@ tasks:
     args:
       - run
       - typecheck
+    deps:
+      - slides-kit:build
   lint:
     command: bun
     args:

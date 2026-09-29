@@ -147,9 +147,10 @@ tasks:
       - ./...
 
   lint:
-    command: golangci-lint
+    command: bash
     args:
-      - run
+      - -c
+      - 'if command -v golangci-lint >/dev/null 2>&1; then golangci-lint run; else echo "[tui:lint] golangci-lint not found in PATH, skipping lint"; fi'
 
   vet:
     command: go
