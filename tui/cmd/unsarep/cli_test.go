@@ -2,6 +2,8 @@ package main
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -165,5 +167,36 @@ func TestLogoutCmdFlags(t *testing.T) {
 		t.Fatal("expected --yes flag on logout command")
 	} else if f.Shorthand != "y" {
 		t.Fatalf("expected -y shorthand for yes, got %q", f.Shorthand)
+	}
+}
+
+func TestDocsCheckCmdFlags(t *testing.T) {
+	cmd := newDocsCheckCmd()
+	if f := cmd.Flags().Lookup("report"); f == nil {
+		t.Fatal("expected --report flag on docs check command")
+	}
+	if cmd.Args == nil {
+		t.Fatal("expected docs check command to have Args defined")
+	}
+}
+
+func TestInferReportFromCwd(t *testing.T) {
+	root := t.TempDir()
+	_ = os.WriteFile(filepath.Join(root, "unsareport.toml"), []byte("[project]\nconfig_version = 1\n"), 0o644)
+	l5Dir := filepath.Join(root, "l5")
+	_ = os.MkdirAll(l5Dir, 0o755)
+	compDir := filepath.Join(root, "components")
+	_ = os.MkdirAll(compDir, 0o755)
+
+	if report, ok := inferReportFromCwd(root); ok || report != "" {
+		t.Fatalf("expected no inferred report at root, got: %q, %v", report, ok)
+	}
+
+	if report, ok := inferReportFromCwd(l5Dir); !ok || report != "l5" {
+		t.Fatalf("expected inferred report 'l5', got: %q, %v", report, ok)
+	}
+
+	if report, ok := inferReportFromCwd(compDir); ok || report != "" {
+		t.Fatalf("expected no inferred report inside components, got: %q, %v", report, ok)
 	}
 }
