@@ -157,38 +157,16 @@ function RootComponent() {
               </Link>
             ) : null}
             {user ? (
-              <>
-                <Link
-                  to="/auth/me"
-                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-                  activeProps={{
-                    className:
-                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-                  }}
-                >
-                  Me
-                </Link>
-                <Link
-                  to="/scopes"
-                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-                  activeProps={{
-                    className:
-                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-                  }}
-                >
-                  Scopes
-                </Link>
-                <Link
-                  to="/auth/pat"
-                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-                  activeProps={{
-                    className:
-                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-                  }}
-                >
-                  PATs
-                </Link>
-              </>
+              <Link
+                to="/dashboard"
+                className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+                activeProps={{
+                  className:
+                    'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+                }}
+              >
+                Dashboard
+              </Link>
             ) : null}
             {hasAnyAdminRole ? (
               <Link

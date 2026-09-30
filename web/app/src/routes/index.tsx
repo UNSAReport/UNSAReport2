@@ -72,8 +72,8 @@ function IndexComponent() {
           <a href="#slides" className={buttonClasses('secondary', 'md')}>
             Slides
           </a>
-          <Link to="/auth/login" className={buttonClasses('ghost', 'md')}>
-            Iniciar sesión
+          <Link to="/dashboard" className={buttonClasses('ghost', 'md')}>
+            Ir a mi dashboard
           </Link>
         </div>
       </section>
@@ -106,7 +106,7 @@ function IndexComponent() {
                 ) : null}
                 {f.anchor === 'slides' ? (
                   <Link
-                    to="/presentations"
+                    to="/dashboard"
                     className="text-sm font-semibold text-indigo-400 hover:text-indigo-300"
                   >
                     Ver mis slides publicadas →
