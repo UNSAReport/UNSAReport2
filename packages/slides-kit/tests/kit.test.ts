@@ -30,7 +30,6 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
     expect(config.slides.length).toBe(1);
     expect(config.visibility).toBe('private');
     expect(config.slideNumber).toBe('c/t');
-    expect(config.aspect).toBe('16:9');
     expect(config.center).toBe(false);
     expect(config.controls).toBe(true);
     expect(config.progress).toBe(true);
@@ -46,7 +45,6 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
       controls: false,
       progress: false,
       hash: false,
-      aspect: '4:3',
     });
 
     expect(config.slideNumber).toBe(false);
@@ -54,7 +52,6 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
     expect(config.controls).toBe(false);
     expect(config.progress).toBe(false);
     expect(config.hash).toBe(false);
-    expect(config.aspect).toBe('4:3');
   });
 
   describe('LayoutRegistry', () => {

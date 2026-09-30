@@ -31,7 +31,6 @@ export function defineConfig(config: DeckConfig): DeckConfig {
     autoSlide: 0,
     loop: false,
     slideNumber: 'c/t',
-    aspect: '16:9',
     center: false,
     controls: true,
     progress: true,

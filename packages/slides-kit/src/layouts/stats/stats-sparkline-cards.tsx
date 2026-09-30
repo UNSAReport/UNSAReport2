@@ -77,7 +77,13 @@ export function StatsSparklineCards({
                 {/* Línea simulada de sparkline */}
                 <SlideSparkline
                   values={[8, 12, 10, 16, 20, 24]}
-                  tone={c.trend === 'a la baja' ? 'error' : c.trend === 'al alza' ? 'success' : 'accent'}
+                  tone={
+                    c.trend === 'a la baja'
+                      ? 'error'
+                      : c.trend === 'al alza'
+                        ? 'success'
+                        : 'accent'
+                  }
                   maxHeight="1.5rem"
                   label={`Tendencia ${c.label}`}
                 />

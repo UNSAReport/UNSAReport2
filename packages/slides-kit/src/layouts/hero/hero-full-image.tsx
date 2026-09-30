@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { SlideBackground } from '@/primitives/SlideBackground';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideBackground } from '@/primitives/SlideBackground';
 import { SlideDivider } from '@/primitives/SlideDivider';
 
 export interface HeroFullImageProps {
@@ -29,11 +29,7 @@ export function HeroFullImage({
 }: HeroFullImageProps) {
   return (
     <div className="relative w-full h-full flex flex-col p-12 overflow-hidden">
-      <SlideBackground
-        imageUrl={imageUrl}
-        overlayOpacity={overlayOpacity}
-      />
-
+      <SlideBackground imageUrl={imageUrl} overlayOpacity={overlayOpacity} />
 
       {/* Cabecera con tag */}
       <div className="relative z-10 shrink-0 min-w-0">

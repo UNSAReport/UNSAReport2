@@ -81,8 +81,6 @@ export interface DeckConfig {
   loop?: boolean;
   /** Formato de numeración de diapositivas (default: 'c/t') */
   slideNumber?: 'c/t' | 'c' | false;
-  /** Relación de aspecto del lienzo (default: '16:9') */
-  aspect?: '16:9' | '4:3' | '16:10';
   /** Si centra verticalmente las diapositivas (default: false) */
   center?: boolean;
   /** Si muestra los controles de navegación (default: true) */
