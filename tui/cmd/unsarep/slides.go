@@ -576,13 +576,13 @@ func newSlidesWhoamiCmd() *cobra.Command {
 			}
 			cred, user, err := authClient.Status(ctx)
 			if err != nil {
-				return fmt.Errorf("slides whoami: %w\n\nRun 'unsarep slides login' first (or pass --token / set UNSAREP_TOKEN).", err)
+				return fmt.Errorf("slides whoami: %w\n\nRun 'unsarep slides login' first (or pass --token / set UNSAREP_TOKEN)", err)
 			}
 			if rerr := client.Reachable(ctx, slides.ResolveToken(tokenFlag)); rerr != nil {
 				if !jsonOut {
 					printWhoami(cred, user)
 				}
-				return fmt.Errorf("slides service: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", rerr)
+				return fmt.Errorf("slides service: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides)", rerr)
 			}
 			if jsonOut {
 				out := map[string]any{

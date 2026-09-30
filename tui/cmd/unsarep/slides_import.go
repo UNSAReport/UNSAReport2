@@ -39,11 +39,11 @@ layouts after wiring the theme.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pptxPath := args[0]
 			if _, err := os.Stat(pptxPath); err != nil {
-				return fmt.Errorf("slides import: cannot read %s: %w\n\nRun 'unsarep slides import --help' for usage.", pptxPath, err)
+				return fmt.Errorf("slides import: cannot read %s: %w\n\nRun 'unsarep slides import --help' for usage", pptxPath, err)
 			}
 			theme, err := slides.ParsePptxTheme(pptxPath)
 			if err != nil {
-				return fmt.Errorf("%w\n\nOnly .pptx files (Office Open XML) are supported — .ppt files cannot be imported.", err)
+				return fmt.Errorf("%w\n\nOnly .pptx files (Office Open XML) are supported — .ppt files cannot be imported", err)
 			}
 			slug := themeName
 			if slug == "" {
