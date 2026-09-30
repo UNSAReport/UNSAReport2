@@ -147,29 +147,9 @@ function RootComponent() {
           >
             UNSAReport
           </Link>
-          <Link
-            to="/"
-            activeOptions={{ exact: true }}
-            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-            activeProps={{
-              className:
-                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-            }}
-          >
-            Inicio
-          </Link>
-          <a
-            href="/#informes"
-            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-          >
-            Reports
-          </a>
-          <a
-            href="/#slides"
-            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-          >
-            Slides
-          </a>
+          <span className="text-sm text-slate-500 px-1 py-2">
+            Plataforma institucional UNSA
+          </span>
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {!user ? (
               <Link to="/auth/login" className={buttonClasses('primary', 'sm')}>
