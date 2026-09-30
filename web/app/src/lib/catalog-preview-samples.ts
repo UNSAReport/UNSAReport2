@@ -478,7 +478,8 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
     points: ['Capa API', 'Capa de datos'],
   },
   'split-image-text': {
-    imageUrl: '/img.png',
+    imageUrl:
+      'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop&q=80',
     paragraphs: ['Párrafo introductorio del análisis.'],
   },
   'split-numbered-steps': {
@@ -504,7 +505,8 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
   },
   'split-text-image': {
     paragraphs: ['Párrafo introductorio del análisis.'],
-    imageUrl: '/img.png',
+    imageUrl:
+      'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800&auto=format&fit=crop&q=80',
   },
   'stats-3-row': {
     stats: [
