@@ -267,7 +267,9 @@ describe('E2E Slides Lifecycle: init → dev → deploy → web viewing', () => 
     // -------------------------------------------------------------
     // Fetch the HTML entrypoint for the sandboxed iframe
     const embedHtmlRes = await app.fetch(
-      new Request(`http://localhost/embed/${E2E_SLUG}/v1/index.html`),
+      new Request(
+        `http://localhost/embed/${E2E_PRESENTATION_ID}/v1/index.html`,
+      ),
     );
     expect(embedHtmlRes.status).toBe(200);
     expect(embedHtmlRes.headers.get('content-type')).toContain('text/html');
@@ -277,7 +279,7 @@ describe('E2E Slides Lifecycle: init → dev → deploy → web viewing', () => 
 
     // Fetch the companion JS bundle
     const embedJsRes = await app.fetch(
-      new Request(`http://localhost/embed/${E2E_SLUG}/v1/main.js`),
+      new Request(`http://localhost/embed/${E2E_PRESENTATION_ID}/v1/main.js`),
     );
     expect(embedJsRes.status).toBe(200);
     expect(embedJsRes.headers.get('content-type')).toContain('javascript');

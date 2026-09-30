@@ -140,7 +140,7 @@ export function DeployForm() {
         <p className="text-sm text-slate-400">{result.message}</p>
         <Link
           to="/presentations/$slug"
-          params={{ slug: result.slug }}
+          params={{ slug: result.presentationId }}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
         >
           Ver presentación →

@@ -269,7 +269,7 @@ function PresentationCard({
         <div className="flex items-center gap-2">
           <Link
             to="/presentations/$slug"
-            params={{ slug: item.slug }}
+            params={{ slug: item.id }}
             search={{ present: 1 }}
             className={buttonClasses('primary', 'sm')}
           >
@@ -278,7 +278,7 @@ function PresentationCard({
           </Link>
           <Link
             to="/presentations/$slug"
-            params={{ slug: item.slug }}
+            params={{ slug: item.id }}
             className={buttonClasses('secondary', 'sm')}
           >
             <span>Abrir</span>

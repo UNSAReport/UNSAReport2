@@ -207,9 +207,18 @@ describe('Speaker notes slice', () => {
     });
   });
 
-  it('GET /:id returns versions with top-level notes', async () => {
+  it('GET /:id rejects non-UUID identifiers with 404', async () => {
     const res = await app.fetch(
       new Request(`http://localhost/presentations/${NOTES_SLUG}`, {
+        headers: { Authorization: 'Bearer notes-token' },
+      }),
+    );
+    expect(res.status).toBe(404);
+  });
+
+  it('GET /:id returns versions with top-level notes', async () => {
+    const res = await app.fetch(
+      new Request(`http://localhost/presentations/${NOTES_PRESENTATION_ID}`, {
         headers: { Authorization: 'Bearer notes-token' },
       }),
     );
@@ -232,7 +241,7 @@ describe('Speaker notes slice', () => {
     stored.manifest = { name: 'legacy', title: 'Legacy', slides: [] };
 
     const res = await app.fetch(
-      new Request(`http://localhost/presentations/${NOTES_SLUG}`, {
+      new Request(`http://localhost/presentations/${NOTES_PRESENTATION_ID}`, {
         headers: { Authorization: 'Bearer notes-token' },
       }),
     );

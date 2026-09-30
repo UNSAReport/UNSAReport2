@@ -18,13 +18,17 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolvePresentation(paramId: string) {
-  const isUuid = UUID_REGEX.test(paramId);
+  // Canonical lookup is by presentation UUID. Slugs are scoped per
+  // (ownerType, ownerId), not globally unique, so slug resolution here was
+  // ambiguous across owners. Web clients always address embeds by id
+  // (embedSrc uses presentation.id); slugs stay write-only metadata.
+  if (!UUID_REGEX.test(paramId)) {
+    throw new NotFoundError('Presentation not found');
+  }
   const [presentation] = await db
     .select()
     .from(presentations)
-    .where(
-      isUuid ? eq(presentations.id, paramId) : eq(presentations.slug, paramId),
-    )
+    .where(eq(presentations.id, paramId))
     .limit(1);
 
   if (!presentation) {
