@@ -213,6 +213,44 @@ func TestCatalog(t *testing.T) {
 	}
 }
 
+func TestCatalog_ThemeAgreementWithKit(t *testing.T) {
+	// Contrato con packages/slides-kit/src/themes/types.ts ThemeId: si el kit
+	// agrega/quita un tema (K1), este test falla y recuerda sincronizar
+	// officialThemes (DT-3: el catálogo web lee "5 temas" del kit).
+	want := []string{
+		"unsa-dark",
+		"unsa-classic",
+		"epis-tech",
+		"fips-light",
+		"epis-night",
+	}
+	themes := ListThemes()
+	if len(themes) != len(want) {
+		t.Fatalf("expected %d themes, got %d", len(want), len(themes))
+	}
+	got := make(map[string]bool, len(themes))
+	for _, th := range themes {
+		got[th.ID] = true
+	}
+	for _, id := range want {
+		if !got[id] {
+			t.Errorf("kit theme %q missing from tui/internal/slides catalog", id)
+		}
+	}
+	for _, th := range themes {
+		found := false
+		for _, id := range want {
+			if th.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("tui theme %q has no counterpart in kit ThemeId", th.ID)
+		}
+	}
+}
+
 func TestParseDeckConfig(t *testing.T) {
 	sample := `
 import { defineConfig } from '@unsa/slides-kit';
