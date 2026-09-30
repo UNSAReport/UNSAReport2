@@ -10,6 +10,7 @@ import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/TextInput';
+import { previewSamples } from '@/routes/presentations/preview-samples';
 
 export const Route = createFileRoute('/presentations/catalog')({
   component: PresentationsCatalog,
@@ -71,7 +72,8 @@ function PresentationsCatalog() {
               Catálogo Oficial de Layouts y Temas
             </h1>
             <p className="text-sm opacity-70 mt-1 max-w-2xl">
-              110 layouts puros y modulares organizados en 9 familias de diseño.
+              {allLayouts.length} layouts puros y modulares organizados en{' '}
+              {categories.length} familias de diseño y {themes.length} temas.
               Selecciona un tema para previsualizar la adaptación cromática en
               vivo.
             </p>
@@ -170,32 +172,14 @@ function LayoutCatalogCard({
   onInspect: () => void;
 }) {
   const Component = def.component;
+  const sample = previewSamples[def.id] ?? {};
 
-  // Sample data to make the miniature layout visually render
-  const sampleData: Record<string, unknown> = {
+  // Props planas por SlotSchema: título/subtítulo/etiqueta + muestras del layout.
+  const previewProps: Record<string, unknown> = {
     tag: def.category.toUpperCase(),
     title: def.name,
     subtitle: def.description,
-    author: 'UNSA Slides',
-    stat: '100%',
-    metric: '99.9%',
-    label: 'Rendimiento',
-    quote: 'La simplicidad es el requisito previo para la fiabilidad.',
-    code: 'const deck = defineConfig({ theme: "unsa-dark" });',
-    output: '✓ Ready in 42ms',
-    left: { title: 'Lado Izquierdo', items: ['Punto 1', 'Punto 2'] },
-    right: { title: 'Lado Derecho', items: ['Ventaja A', 'Ventaja B'] },
-    featured: {
-      stat: '1.2M',
-      label: 'Operaciones',
-      description: 'Por segundo',
-    },
-    cards: [
-      { title: 'Métrica 1', stat: '42ms', status: 'optimal' },
-      { title: 'Métrica 2', stat: '99.9%', status: 'optimal' },
-      { title: 'Métrica 3', stat: '12 GB', status: 'normal' },
-    ],
-    items: ['Fase 1: Plan', 'Fase 2: Build', 'Fase 3: Deploy'],
+    ...sample,
   };
 
   return (
@@ -216,7 +200,7 @@ function LayoutCatalogCard({
       {/* Miniature preview viewport */}
       <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-current/10 bg-[var(--slide-bg,#0b0f19)] mb-4 flex items-center justify-center p-3 select-none pointer-events-none scale-95 group-hover:scale-100 transition-transform">
         <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight">
-          <Component data={sampleData} />
+          <Component {...previewProps} />
         </div>
       </div>
 
