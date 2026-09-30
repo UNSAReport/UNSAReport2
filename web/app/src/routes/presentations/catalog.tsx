@@ -10,7 +10,7 @@ import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { TextInput } from '@/components/TextInput';
-import { previewSamples } from '@/routes/presentations/preview-samples';
+import { previewSamples } from '@/lib/catalog-preview-samples';
 
 export const Route = createFileRoute('/presentations/catalog')({
   component: PresentationsCatalog,
