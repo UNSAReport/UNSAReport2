@@ -9,6 +9,7 @@ import {
 import { createLogger } from '@unsa/logger';
 import { useEffect } from 'react';
 import { z } from 'zod';
+import { buttonClasses } from '@/components/Button';
 import {
   DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
   fetchCurrentUser,
@@ -138,49 +139,118 @@ function RootComponent() {
   return (
     <RootDocument>
       <AuthHashConsumer />
-      <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
-        <Link to="/">Inicio</Link> | <Link to="/presentations">Slides</Link> |{' '}
-        <Link to="/presentations/catalog">Catálogo</Link> |{' '}
-        <Link to="/auth/login">Login</Link>
-        {user ? (
-          <>
-            {' '}
-            | <Link to="/auth/me">Me</Link> | <Link to="/scopes">Scopes</Link> |{' '}
-            <Link to="/auth/pat">PATs</Link>
-          </>
-        ) : null}
-        {hasAnyAdminRole ? (
-          <>
-            {' '}
-            |{' '}
-            <Link to="/admin" style={{ fontWeight: 'bold', color: '#dc2626' }}>
-              Admin
-            </Link>
-          </>
-        ) : null}
-        {user ? (
-          <span style={{ marginLeft: '1rem' }}>
-            — {user.email} ({user.name}){' '}
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{
-                marginLeft: '0.5rem',
-                padding: '0.2rem 0.5rem',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #f87171',
-                borderRadius: '4px',
-                color: '#b91c1c',
-              }}
-            >
-              Logout
-            </button>
-          </span>
-        ) : (
-          <span style={{ marginLeft: '1rem' }}>— not logged in</span>
-        )}
+      <nav className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur border-b border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 min-h-14 py-2 flex flex-wrap items-center gap-1">
+          <Link
+            to="/"
+            className="font-bold text-white mr-2 flex items-center gap-2 px-1 py-2"
+          >
+            UNSAReport
+            <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
+              Slides
+            </span>
+          </Link>
+          <Link
+            to="/"
+            activeOptions={{ exact: true }}
+            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+            activeProps={{
+              className:
+                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+            }}
+          >
+            Inicio
+          </Link>
+          <Link
+            to="/presentations"
+            activeOptions={{ exact: true }}
+            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+            activeProps={{
+              className:
+                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+            }}
+          >
+            Slides
+          </Link>
+          <Link
+            to="/presentations/catalog"
+            activeOptions={{ exact: true }}
+            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+            activeProps={{
+              className:
+                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+            }}
+          >
+            Catálogo
+          </Link>
+          <div className="ml-auto flex flex-wrap items-center gap-1">
+            {!user ? (
+              <Link to="/auth/login" className={buttonClasses('primary', 'sm')}>
+                Login
+              </Link>
+            ) : null}
+            {user ? (
+              <>
+                <Link
+                  to="/auth/me"
+                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+                  activeProps={{
+                    className:
+                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+                  }}
+                >
+                  Me
+                </Link>
+                <Link
+                  to="/scopes"
+                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+                  activeProps={{
+                    className:
+                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+                  }}
+                >
+                  Scopes
+                </Link>
+                <Link
+                  to="/auth/pat"
+                  className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+                  activeProps={{
+                    className:
+                      'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+                  }}
+                >
+                  PATs
+                </Link>
+              </>
+            ) : null}
+            {hasAnyAdminRole ? (
+              <Link
+                to="/admin"
+                className="text-sm font-semibold text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
+                activeProps={{
+                  className:
+                    'text-sm font-semibold text-red-300 bg-slate-800 px-3 py-2 rounded-lg transition-colors',
+                }}
+              >
+                Admin
+              </Link>
+            ) : null}
+            {user ? (
+              <>
+                <span className="hidden md:block text-xs text-slate-500 px-2">
+                  {user.email} ({user.name})
+                </span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-xs font-semibold text-red-300 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  Logout
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
       </nav>
       <main style={{ padding: '1rem' }}>
         <Outlet />
