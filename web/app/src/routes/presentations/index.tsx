@@ -1,5 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
 import { useMemo, useState } from 'react';
+import { Button, buttonClasses } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { Chip } from '@/components/Chip';
+import { EmptyState } from '@/components/EmptyState';
+import { TextInput } from '@/components/TextInput';
 import {
   listOrganizationsServerFn,
   listPresentationsServerFn,
@@ -14,25 +19,36 @@ export const Route = createFileRoute('/presentations/')({
         listPresentationsServerFn(),
         listOrganizationsServerFn(),
       ]);
-      return { presentations, organizations };
-    } catch {
-      return { presentations: [], organizations: [] };
+      return {
+        presentations,
+        organizations,
+        error: null as string | null,
+      };
+    } catch (err) {
+      return {
+        presentations: [] as SlidesPresentation[],
+        organizations: [] as SlidesOrganization[],
+        error:
+          err instanceof Error
+            ? err.message
+            : 'No se pudieron cargar las presentaciones.',
+      };
     }
   },
   component: PresentationsDashboard,
 });
 
 function PresentationsDashboard() {
-  const { presentations, organizations } = Route.useLoaderData();
+  const { presentations, organizations, error } = Route.useLoaderData();
   const [filter, setFilter] = useState<'all' | 'user' | 'org'>('all');
   const [search, setSearch] = useState('');
 
   const orgMap = useMemo(() => {
-    const map = new Map<string, SlidesOrganization>();
+    const orgs = new Map<string, SlidesOrganization>();
     for (const org of organizations) {
-      map.set(org.id, org);
+      orgs.set(org.id, org);
     }
-    return map;
+    return orgs;
   }, [organizations]);
 
   const filtered = useMemo(() => {
@@ -51,7 +67,6 @@ function PresentationsDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 font-sans">
-      {/* Header section */}
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/60 pb-6">
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight text-white">
@@ -62,76 +77,80 @@ function PresentationsDashboard() {
             diapositivas académicas.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Link
             to="/presentations/catalog"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+            className={buttonClasses('primary', 'md')}
           >
             <span>Explorar Catálogo de Layouts</span>
             <span aria-hidden="true">→</span>
           </Link>
+          <a
+            href="/presentations/upload"
+            className={buttonClasses('secondary', 'md')}
+          >
+            Publicar presentación
+          </a>
         </div>
       </header>
 
-      {/* Controls: Search and filter tabs */}
       <nav
         aria-label="Filtro de presentaciones"
         className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4"
       >
-        <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
-          <button
-            type="button"
+        <fieldset className="flex items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
+          <legend className="sr-only">Filtrar por propietario</legend>
+          <Button
+            variant={filter === 'all' ? 'primary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filter === 'all'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            ariaPressed={filter === 'all'}
           >
             Todas ({presentations.length})
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={filter === 'user' ? 'primary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('user')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filter === 'user'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            ariaPressed={filter === 'user'}
           >
             Personales
-          </button>
-          <button
-            type="button"
+          </Button>
+          <Button
+            variant={filter === 'org' ? 'primary' : 'ghost'}
+            size="sm"
             onClick={() => setFilter('org')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-              filter === 'org'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-slate-200'
-            }`}
+            ariaPressed={filter === 'org'}
           >
             Organizaciones
-          </button>
-        </div>
+          </Button>
+        </fieldset>
 
-        <div className="relative min-w-[260px]">
-          <input
-            type="text"
-            placeholder="Buscar presentación..."
+        <div className="min-w-[260px]">
+          <TextInput
+            label="Buscar presentaciones"
+            name="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full px-3.5 py-1.5 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50"
+            placeholder="Buscar presentación…"
           />
         </div>
       </nav>
 
-      {/* Content list */}
-      {filtered.length === 0 ? (
-        <section
-          aria-labelledby="empty-heading"
-          className="p-12 text-center rounded-2xl border border-dashed border-slate-800 bg-slate-900/30"
+      {error ? (
+        <div
+          role="alert"
+          className="p-4 rounded-xl border border-rose-500/40 bg-rose-500/10 text-sm text-rose-300"
         >
-          <div className="inline-flex p-3 rounded-full bg-slate-800 text-slate-400 mb-4">
+          No se pudieron cargar las presentaciones desde el servicio. Revisa tu
+          sesión y la conexión con el backend: {error}
+        </div>
+      ) : null}
+
+      {filtered.length === 0 ? (
+        <EmptyState
+          titleId="empty-heading"
+          icon={
             <svg
               className="w-6 h-6"
               fill="none"
@@ -147,35 +166,39 @@ function PresentationsDashboard() {
                 d="M7 4v16M17 4v16M3 8h18M3 16h18"
               />
             </svg>
-          </div>
-          <h2 id="empty-heading" className="text-lg font-bold text-slate-200">
-            No se encontraron presentaciones
-          </h2>
-          <p className="text-sm text-slate-400 max-w-md mx-auto mt-2 mb-6">
-            Crea una nueva presentación en tu terminal con el CLI oficial y
-            publícala con un solo comando. Si ya tienes acceso, explora los
-            diseños disponibles en el{' '}
-            <Link
-              to="/presentations/catalog"
-              className="text-indigo-400 hover:text-indigo-300 underline"
-            >
-              catálogo de layouts
-            </Link>
-            .
-          </p>
-          <div className="inline-block bg-slate-950 p-4 rounded-xl text-left border border-slate-800 font-mono text-xs text-indigo-300">
-            <p className="text-slate-500">
-              # 1. Crear proyecto con el kit oficial
-            </p>
-            <p>unsarep slides init mi-presentacion</p>
-            <p className="text-slate-500 mt-2">
-              # 2. Vista previa en tiempo real
-            </p>
-            <p>cd mi-presentacion && unsarep slides dev</p>
-            <p className="text-slate-500 mt-2"># 3. Despliegue en la nube</p>
-            <p>unsarep slides deploy</p>
-          </div>
-        </section>
+          }
+          title="No se encontraron presentaciones"
+          body={
+            <>
+              <p className="mb-6">
+                Crea una nueva presentación en tu terminal con el CLI oficial y
+                publícala con un solo comando. Si ya tienes acceso, explora los
+                diseños disponibles en el{' '}
+                <Link
+                  to="/presentations/catalog"
+                  className="text-indigo-400 hover:text-indigo-300 underline"
+                >
+                  catálogo de layouts
+                </Link>
+                .
+              </p>
+              <div className="inline-block bg-slate-950 p-4 rounded-xl text-left border border-slate-800 font-mono text-xs text-indigo-300">
+                <p className="text-slate-500">
+                  # 1. Crear proyecto con el kit oficial
+                </p>
+                <p>unsarep slides init mi-presentacion</p>
+                <p className="text-slate-500 mt-2">
+                  # 2. Vista previa en tiempo real
+                </p>
+                <p>cd mi-presentacion && unsarep slides dev</p>
+                <p className="text-slate-500 mt-2">
+                  # 3. Despliegue en la nube
+                </p>
+                <p>unsarep slides deploy</p>
+              </div>
+            </>
+          }
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((item) => (
@@ -198,24 +221,14 @@ function PresentationCard({
   item: SlidesPresentation;
   orgName?: string;
 }) {
-  const visibilityColors = {
-    public: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    org: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-    private: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    unlisted: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  };
-
   return (
-    <article className="group flex flex-col justify-between p-6 rounded-2xl bg-slate-900/60 border border-slate-800 hover:border-slate-700 transition-all hover:shadow-xl hover:shadow-indigo-950/20">
+    <Card
+      padding="md"
+      className="group flex flex-col justify-between hover:border-slate-700 hover:shadow-xl hover:shadow-indigo-950/20"
+    >
       <div>
         <div className="flex items-center justify-between gap-2 mb-3">
-          <span
-            className={`px-2 py-0.5 rounded-md text-[11px] font-semibold border uppercase tracking-wider ${
-              visibilityColors[item.visibility] || visibilityColors.private
-            }`}
-          >
-            {item.visibility}
-          </span>
+          <Chip status={item.visibility} />
           <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[11px] font-mono">
             v{item.activeVersion}
           </span>
@@ -258,7 +271,7 @@ function PresentationCard({
             to="/presentations/$slug"
             params={{ slug: item.slug }}
             search={{ present: 1 }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors"
+            className={buttonClasses('primary', 'sm')}
           >
             <span>Presentar</span>
             <span aria-hidden="true">⛶</span>
@@ -266,13 +279,13 @@ function PresentationCard({
           <Link
             to="/presentations/$slug"
             params={{ slug: item.slug }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 text-white text-xs font-semibold transition-colors"
+            className={buttonClasses('secondary', 'sm')}
           >
             <span>Abrir</span>
             <span aria-hidden="true">→</span>
           </Link>
         </div>
       </div>
-    </article>
+    </Card>
   );
 }

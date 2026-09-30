@@ -8,6 +8,8 @@ import {
 import { ThemeProvider } from '@unsa/slides-kit/renderer/ThemeProvider';
 import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
+import { Button } from '@/components/Button';
+import { TextInput } from '@/components/TextInput';
 
 export const Route = createFileRoute('/presentations/catalog')({
   component: PresentationsCatalog,
@@ -77,66 +79,59 @@ function PresentationsCatalog() {
 
           {/* Theme selector */}
           <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-current/5 border border-current/10">
-            <span className="text-[11px] font-bold uppercase tracking-wider opacity-60">
-              Tema Activo:
-            </span>
-            <div className="flex items-center gap-2">
+            <fieldset className="flex flex-wrap items-center gap-2">
+              <legend className="text-[11px] font-bold uppercase tracking-wider opacity-60 mb-1">
+                Tema Activo:
+              </legend>
               {themes.map((t: ThemeDefinition) => (
-                <button
+                <Button
                   key={t.id}
-                  type="button"
+                  size="sm"
+                  variant={selectedThemeId === t.id ? 'primary' : 'ghost'}
                   onClick={() => setSelectedThemeId(t.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                    selectedThemeId === t.id
-                      ? 'bg-indigo-600 text-white shadow-md'
-                      : 'bg-current/10 hover:bg-current/20 opacity-80'
-                  }`}
+                  ariaPressed={selectedThemeId === t.id}
                 >
                   {t.name}
-                </button>
+                </Button>
               ))}
-            </div>
+            </fieldset>
           </div>
         </header>
 
         {/* Search bar and category filters */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
+            <fieldset className="flex flex-wrap items-center gap-1.5">
+              <legend className="sr-only">Filtrar por categoría</legend>
+              <Button
+                size="sm"
+                variant={selectedCategory === 'all' ? 'primary' : 'ghost'}
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  selectedCategory === 'all'
-                    ? 'bg-indigo-600 text-white'
-                    : 'bg-current/5 hover:bg-current/10 opacity-70'
-                }`}
+                ariaPressed={selectedCategory === 'all'}
               >
                 Todas ({allLayouts.length})
-              </button>
+              </Button>
               {categories.map((cat: LayoutCategory) => (
-                <button
+                <Button
                   key={cat}
-                  type="button"
+                  size="sm"
+                  variant={selectedCategory === cat ? 'primary' : 'ghost'}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize ${
-                    selectedCategory === cat
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-current/5 hover:bg-current/10 opacity-70'
-                  }`}
+                  ariaPressed={selectedCategory === cat}
+                  className="capitalize"
                 >
                   {cat} ({categoryCounts.get(cat) || 0})
-                </button>
+                </Button>
               ))}
-            </div>
+            </fieldset>
 
             <div className="min-w-[240px]">
-              <input
-                type="text"
-                placeholder="Buscar por ID, nombre o tag..."
+              <TextInput
+                label="Buscar layouts"
+                name="catalog-search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full px-3.5 py-1.5 rounded-xl bg-current/5 border border-current/15 text-sm placeholder:opacity-40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                placeholder="Buscar por ID, nombre o tag…"
               />
             </div>
           </div>
