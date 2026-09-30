@@ -476,7 +476,7 @@ local dev http://localhost:9876/api/slides).`,
 			ctx := context.Background()
 			client, err := slides.NewClient()
 			if err != nil {
-				return fmt.Errorf("slides deploy: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", err)
+				return fmt.Errorf("slides deploy: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides)", err)
 			}
 			dir := slidesCwd()
 			project, err := slides.LoadProjectConfig(dir)
@@ -540,7 +540,7 @@ local dev http://localhost:9876/api/slides).`,
 				ZipBytes:    zipBytes,
 			})
 			if err != nil {
-				return fmt.Errorf("slides deploy: %w\n\nIf unauthorized: run 'unsarep slides login' and ask an admin for the 'slides' role. If unreachable: check UNSAREP_SLIDES_URL.", err)
+				return fmt.Errorf("slides deploy: %w\n\nIf unauthorized: run 'unsarep slides login' and ask an admin for the 'slides' role. If unreachable: check UNSAREP_SLIDES_URL", err)
 			}
 			fmt.Printf("Deployment complete! Version v%d\nViewer URL: %s\n", resp.Version, resp.URL)
 			return nil
@@ -568,7 +568,7 @@ func newSlidesWhoamiCmd() *cobra.Command {
 			ctx := context.Background()
 			client, err := slides.NewClient()
 			if err != nil {
-				return fmt.Errorf("slides whoami: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", err)
+				return fmt.Errorf("slides whoami: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides)", err)
 			}
 			authClient, err := auth.NewClient()
 			if err != nil {

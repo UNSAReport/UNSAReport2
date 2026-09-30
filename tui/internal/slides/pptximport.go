@@ -566,7 +566,7 @@ func (t *PptxTheme) ToThemePatch(slug string) string {
 		surface = ApplyTint(background, 0.07)
 		surfaceMuted = ApplyTint(background, 0.03)
 	}
-	textMuted := text
+	var textMuted string
 	if light {
 		textMuted = ApplyShade(text, 0.35)
 	} else {
