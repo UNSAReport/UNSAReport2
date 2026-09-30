@@ -82,10 +82,7 @@ export function DeckRenderer({
     margin = 0,
     autoSlide = 0,
     loop = false,
-    slideNumber = 'c/t',
     center = false,
-    controls = true,
-    progress = true,
     hash = true,
     slides = [],
   } = activeConfig || {};
@@ -107,11 +104,21 @@ export function DeckRenderer({
           autoSlide,
           loop,
           hash,
-          controls,
-          progress,
+          // UNSA viewer owns all chrome (custom footer/Header controls).
+          // Reveal chrome disabled so only one control set ever renders.
+          controls: false,
+          controlsTutorial: false,
+          progress: false,
+          slideNumber: false,
+          showSlideNumber: 'speaker',
           center,
-          overview: true,
-          slideNumber,
+          overview: false,
+          help: false,
+          pause: false,
+          touch: false,
+          jumpToSlide: false,
+          keyboard: false,
+          embedded: true,
         }}
       >
         {slides.map((slide, index) => (

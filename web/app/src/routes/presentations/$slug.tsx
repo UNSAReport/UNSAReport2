@@ -91,7 +91,8 @@ function PresentationViewer() {
   const modalRef = useRef<HTMLDivElement>(null);
   const notesCloseRef = useRef<HTMLButtonElement>(null);
   const notesToggleRef = useRef<HTMLButtonElement>(null);
-
+  const handlePrevSlideRef = useRef(() => {});
+  const handleNextSlideRef = useRef(() => {});
   const [selectedVersion, setSelectedVersion] = useState<number>(() => {
     if (data.presentation) {
       return data.presentation.activeVersion;
@@ -123,18 +124,22 @@ function PresentationViewer() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
+      // Reveal keyboard is disabled (keyboard: false); the viewer is the
+      // only navigation driver. Skip editable targets so typing never
+      // flips slides.
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
+      ) {
+        return;
+      }
       if (e.key === 'ArrowLeft') {
-        iframeRef.current?.contentWindow?.postMessage(
-          JSON.stringify({ method: 'prev' }),
-          '*',
-        );
-        setCurrentSlideIndex((prev) => Math.max(1, prev - 1));
-      } else if (e.key === 'ArrowRight') {
-        iframeRef.current?.contentWindow?.postMessage(
-          JSON.stringify({ method: 'next' }),
-          '*',
-        );
-        setCurrentSlideIndex((prev) => prev + 1);
+        handlePrevSlideRef.current();
+      } else if (e.key === 'ArrowRight' || e.key === ' ') {
+        e.preventDefault();
+        handleNextSlideRef.current();
       } else if (e.key === 'Escape' && isPresent) {
         navigate({ to: '/presentations/$slug', params: { slug } });
       } else if (e.key === 'Escape' && showNotes) {
@@ -187,7 +192,6 @@ function PresentationViewer() {
       document.exitFullscreen().catch(() => {});
     }
   };
-
   const handlePrevSlide = () => {
     if (iframeRef.current?.contentWindow) {
       iframeRef.current.contentWindow.postMessage(
@@ -207,6 +211,11 @@ function PresentationViewer() {
       setCurrentSlideIndex((prev) => prev + 1);
     }
   };
+
+  useEffect(() => {
+    handlePrevSlideRef.current = handlePrevSlide;
+    handleNextSlideRef.current = handleNextSlide;
+  });
 
   const embedSrc = `/api/slides/embed/${presentation.id}/v${selectedVersion}/index.html${tokenQuery}`;
 
