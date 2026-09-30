@@ -1,4 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router';
+import { buttonClasses } from '@/components/Button';
+import { Card } from '@/components/Card';
 import {
   fetchVersionServerFn,
   type RegistryVersionDetail,
@@ -26,41 +28,52 @@ function VersionComponent() {
   const manifest = v.dependencies ?? v;
 
   return (
-    <div
-      style={{
-        marginTop: '1.5rem',
-        borderTop: '1px solid #e5e7eb',
-        paddingTop: '1rem',
-      }}
-    >
-      <h2>Version {version}</h2>
-      <p>
-        Install:{' '}
-        <code>
+    <Card padding="md" className="mt-6 space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-white">Versión {version}</h2>
+        <div className="mt-3 bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 font-mono text-xs text-indigo-300">
           unsarep install {name}@{version}
-        </code>
-      </p>
-      {archive_url && (
-        <p>
-          <a href={archive_url} target="_blank" rel="noreferrer">
-            Download archive
-          </a>
-        </p>
-      )}
-      <h3>Manifest / Dependencies</h3>
-      <pre>{JSON.stringify(manifest, null, 2)}</pre>
-      <h3>Files ({files.length})</h3>
-      {files.length === 0 ? (
-        <p>No files</p>
-      ) : (
-        <ul>
-          {files.map((f) => (
-            <li key={f.path}>
-              <code>{f.path}</code> ({f.size} bytes)
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
+        </div>
+        {archive_url && (
+          <p className="mt-3">
+            <a
+              href={archive_url}
+              target="_blank"
+              rel="noreferrer"
+              className={buttonClasses('secondary', 'sm')}
+            >
+              Descargar archivo
+            </a>
+          </p>
+        )}
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">
+          Manifiesto / dependencias
+        </h3>
+        <pre className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-300 overflow-x-auto">
+          {JSON.stringify(manifest, null, 2)}
+        </pre>
+      </div>
+      <div>
+        <h3 className="text-sm font-semibold text-slate-200 mb-2">
+          Archivos ({files.length})
+        </h3>
+        {files.length === 0 ? (
+          <p className="text-sm text-slate-500 italic">Sin archivos</p>
+        ) : (
+          <ul className="space-y-1.5">
+            {files.map((f) => (
+              <li key={f.path} className="text-sm text-slate-400">
+                <code className="font-mono text-xs text-slate-200">
+                  {f.path}
+                </code>{' '}
+                <span className="text-xs text-slate-500">({f.size} bytes)</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Card>
   );
 }

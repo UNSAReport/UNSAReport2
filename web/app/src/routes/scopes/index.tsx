@@ -6,6 +6,10 @@ import {
 } from '@tanstack/react-router';
 import type { ScopeInvitationItem, ScopeItem } from '@unsa/schemas/registry';
 import { useState } from 'react';
+import { Button, buttonClasses } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
+import { TextInput } from '@/components/TextInput';
 import { requireAuthServerFn } from '@/lib/auth/server';
 import {
   acceptScopeInvitationServerFn,
@@ -61,12 +65,14 @@ function ScopesIndexComponent() {
     const reason = reasonInput.trim();
 
     if (!name.startsWith('@')) {
-      setErrorMessage('Scope name must start with "@" (e.g. "@myorg")');
+      setErrorMessage(
+        'El nombre del scope debe empezar con "@" (p. ej. "@miorg")',
+      );
       return;
     }
     if (reason.length < MIN_SCOPE_REASON_LENGTH) {
       setErrorMessage(
-        `Reason must be at least ${MIN_SCOPE_REASON_LENGTH} characters long`,
+        `El motivo debe tener al menos ${MIN_SCOPE_REASON_LENGTH} caracteres`,
       );
       return;
     }
@@ -115,23 +121,24 @@ function ScopesIndexComponent() {
   };
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '1rem' }}>
-      <h1>Scopes Hub</h1>
-      <p>
-        Manage your personal and organizational scopes, respond to team
-        invitations, and request custom scopes.
-      </p>
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans">
+      <header className="border-b border-slate-700/60 pb-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          UNSAReport · Registro
+        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+          Centro de scopes
+        </h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Gestiona tus scopes personales y de organización, responde
+          invitaciones de equipo y solicita scopes personalizados.
+        </p>
+      </header>
 
       {errorMessage && (
         <div
-          style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #f87171',
-            color: '#b91c1c',
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}
+          role="alert"
+          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
         >
           {errorMessage}
         </div>
@@ -139,226 +146,206 @@ function ScopesIndexComponent() {
 
       {successMessage && (
         <div
-          style={{
-            backgroundColor: '#dcfce7',
-            border: '1px solid #86efac',
-            color: '#15803d',
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}
+          role="status"
+          className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl"
         >
           {successMessage}
         </div>
       )}
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>My Scopes</h2>
+      <Card padding="none">
+        <h2 className="text-lg font-bold text-slate-100 px-6 pt-5">
+          Mis scopes
+        </h2>
         {scopesList.length === 0 ? (
-          <p>No scopes found.</p>
+          <div className="p-6">
+            <EmptyState
+              title="Sin scopes"
+              body="Aún no perteneces a ningún scope. Solicita uno personalizado más abajo."
+            />
+          </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr
-                style={{
-                  textAlign: 'left',
-                  borderBottom: '2px solid #e5e7eb',
-                }}
-              >
-                <th style={{ padding: '0.5rem' }}>Scope Name</th>
-                <th style={{ padding: '0.5rem' }}>Type</th>
-                <th style={{ padding: '0.5rem' }}>Your Role</th>
-                <th style={{ padding: '0.5rem' }}>Description</th>
-                <th style={{ padding: '0.5rem' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {scopesList.map((s) => (
-                <tr key={s.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>
-                    <Link
-                      to="/scopes/$scope"
-                      params={{ scope: s.name }}
-                      style={{ color: '#2563eb' }}
-                    >
-                      {s.name}
-                    </Link>
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>{s.scopeType}</td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <span
-                      style={{
-                        padding: '0.2rem 0.5rem',
-                        borderRadius: '4px',
-                        backgroundColor:
-                          s.role === 'admin' ? '#dbeafe' : '#f3f4f6',
-                        color: s.role === 'admin' ? '#1d4ed8' : '#374151',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      {s.role ?? 'member'}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.5rem', color: '#4b5563' }}>
-                    {s.description || '—'}
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>
-                    <Link
-                      to="/scopes/$scope"
-                      params={{ scope: s.name }}
-                      style={{
-                        backgroundColor: '#2563eb',
-                        color: '#ffffff',
-                        padding: '0.25rem 0.6rem',
-                        borderRadius: '4px',
-                        textDecoration: 'none',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      Manage Scope
-                    </Link>
-                  </td>
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-slate-800">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Scope
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Tipo
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Tu rol
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Descripción
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                    Acciones
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {scopesList.map((s) => (
+                  <tr
+                    key={s.id}
+                    className="border-b border-slate-800/60 last:border-0"
+                  >
+                    <td className="px-4 py-3 font-bold">
+                      <Link
+                        to="/scopes/$scope"
+                        params={{ scope: s.name }}
+                        className="text-indigo-400 hover:text-indigo-300"
+                      >
+                        {s.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">{s.scopeType}</td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border uppercase tracking-wider ${
+                          s.role === 'admin'
+                            ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
+                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                        }`}
+                      >
+                        {s.role ?? 'member'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">
+                      {s.description || '—'}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Link
+                        to="/scopes/$scope"
+                        params={{ scope: s.name }}
+                        className={buttonClasses('secondary', 'sm')}
+                      >
+                        Gestionar
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </Card>
 
-      <section style={{ marginBottom: '2rem' }}>
-        <h2>Pending Invitations</h2>
+      <Card padding="none">
+        <h2 className="text-lg font-bold text-slate-100 px-6 pt-5">
+          Invitaciones pendientes
+        </h2>
         {invitationsList.length === 0 ? (
-          <p style={{ fontStyle: 'italic' }}>
-            No pending invitations for your email.
+          <p className="px-6 pb-6 pt-2 text-sm italic text-slate-500">
+            No tienes invitaciones pendientes.
           </p>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr
-                style={{
-                  textAlign: 'left',
-                  borderBottom: '2px solid #e5e7eb',
-                }}
-              >
-                <th style={{ padding: '0.5rem' }}>Scope</th>
-                <th style={{ padding: '0.5rem' }}>Role Offered</th>
-                <th style={{ padding: '0.5rem' }}>Invited At</th>
-                <th style={{ padding: '0.5rem' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invitationsList.map((inv) => (
-                <tr key={inv.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                  <td style={{ padding: '0.5rem', fontWeight: 'bold' }}>
-                    {inv.scopeName ?? inv.scopeId}
-                  </td>
-                  <td style={{ padding: '0.5rem' }}>{inv.role}</td>
-                  <td style={{ padding: '0.5rem' }}>
-                    {new Date(inv.createdAt).toLocaleString()}
-                  </td>
-                  <td
-                    style={{
-                      padding: '0.5rem',
-                      display: 'flex',
-                      gap: '0.5rem',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => handleAcceptInvitation(inv.id)}
-                      style={{
-                        backgroundColor: '#16a34a',
-                        color: '#ffffff',
-                        border: 'none',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Accept
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeclineInvitation(inv.id)}
-                      style={{
-                        backgroundColor: '#fee2e2',
-                        color: '#b91c1c',
-                        border: '1px solid #f87171',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Decline
-                    </button>
-                  </td>
+          <div className="overflow-x-auto mt-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left border-b border-slate-800">
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Scope
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Rol ofrecido
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Invitado el
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                    Acciones
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {invitationsList.map((inv) => (
+                  <tr
+                    key={inv.id}
+                    className="border-b border-slate-800/60 last:border-0"
+                  >
+                    <td className="px-4 py-3 font-bold text-slate-100">
+                      {inv.scopeName ?? inv.scopeId}
+                    </td>
+                    <td className="px-4 py-3 text-slate-300">{inv.role}</td>
+                    <td className="px-4 py-3 text-slate-400 text-xs">
+                      {new Date(inv.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex gap-2 justify-end">
+                        <Button
+                          size="sm"
+                          onClick={() => handleAcceptInvitation(inv.id)}
+                        >
+                          Aceptar
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeclineInvitation(inv.id)}
+                          className="text-rose-400 hover:text-rose-300"
+                        >
+                          Rechazar
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
-      </section>
+      </Card>
 
-      <section
-        style={{
-          border: '1px solid #e5e7eb',
-          padding: '1.5rem',
-          borderRadius: '6px',
-        }}
-      >
-        <h2>Request a Custom Scope</h2>
-        <p style={{ color: '#4b5563' }}>
-          Custom scopes (like <code>@organization</code>) allow multiple team
-          members to publish packages collaboratively under a shared namespace.
+      <Card>
+        <h2 className="text-lg font-bold text-slate-100">
+          Solicitar un scope personalizado
+        </h2>
+        <p className="text-sm text-slate-400 mt-1">
+          Los scopes personalizados (como{' '}
+          <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+            @organizacion
+          </code>
+          ) permiten que varios miembros publiquen paquetes juntos bajo un
+          espacio de nombres compartido.
         </p>
 
         <form
           onSubmit={handleRequestScope}
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '1rem',
-            maxWidth: '500px',
-          }}
+          className="flex flex-col gap-4 max-w-lg mt-4"
         >
-          <label>
-            Scope Name:
-            <input
-              type="text"
-              placeholder="@myorg"
-              value={scopeNameInput}
-              onChange={(e) => setScopeNameInput(e.target.value)}
-              required
-              style={{ width: '100%', padding: '0.4rem', marginTop: '0.25rem' }}
-            />
-          </label>
-          <label>
-            Reason / Justification:
+          <TextInput
+            label="Nombre del scope"
+            name="scopeName"
+            value={scopeNameInput}
+            onChange={(e) => setScopeNameInput(e.target.value)}
+            placeholder="@miorg"
+            required
+          />
+          <div className="flex flex-col gap-1.5">
+            <label
+              htmlFor="scope-reason"
+              className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+            >
+              Motivo / justificación *
+            </label>
             <textarea
+              id="scope-reason"
               rows={3}
-              placeholder="Explain why your project or organization needs this scope..."
+              placeholder="Explica por qué tu proyecto u organización necesita este scope…"
               value={reasonInput}
               onChange={(e) => setReasonInput(e.target.value)}
               required
-              style={{ width: '100%', padding: '0.4rem', marginTop: '0.25rem' }}
+              className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
             />
-          </label>
-          <button
-            type="submit"
-            style={{
-              backgroundColor: '#2563eb',
-              color: '#ffffff',
-              border: 'none',
-              padding: '0.5rem 1rem',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-            }}
-          >
-            Submit Scope Request
-          </button>
+          </div>
+          <div>
+            <Button type="submit">Enviar solicitud</Button>
+          </div>
         </form>
-      </section>
+      </Card>
     </div>
   );
 }

@@ -9,37 +9,40 @@ export const Route = createFileRoute('/')({
 
 const features = [
   {
-    title: 'Crea con el CLI',
-    body: 'Inicializa un deck con el kit oficial, previsualiza en vivo con unsarep slides dev y valida layouts contra el catálogo antes de publicar.',
-    code: 'unsarep slides init mi-deck',
+    anchor: 'informes',
+    title: 'Informes de laboratorio',
+    body: 'Informes reproducibles en Typst desde plantillas oficiales. Inicializa con docs init, previsualiza en vivo con docs watch y compila el PDF final con docs build.',
+    code: 'unsarep docs init @unsareport/epis-lab --report lab-01',
   },
   {
-    title: 'Despliega y versiona',
-    body: 'Cada despliegue crea una versión inmutable servida por la API de slides. Activa, revierte o comparte versiones sin romper enlaces.',
-    code: 'unsarep slides deploy',
+    anchor: 'paquetes',
+    title: 'Paquetes y registro',
+    body: 'Publica plantillas y paquetes Typst con scopes versionados. Inicia sesión, valida tu paquete y publícalo para reutilizarlo en cualquier informe.',
+    code: 'unsarep registry publish ./mi-paquete',
   },
   {
-    title: 'Presenta y comparte',
-    body: 'Abre cualquier versión en el visor, entra a modo presentación a pantalla completa o exporta a PDF para distribuir.',
-    code: '/presentations/:slug?present=1',
+    anchor: 'slides',
+    title: 'Slides académicas',
+    body: 'Inicializa un deck con el kit oficial, previsualiza en vivo con unsarep slides dev y despliega versiones inmutables para presentar o exportar a PDF.',
+    code: 'unsarep slides init mi-presentacion',
   },
 ];
 
 const showcase = [
   {
-    tag: 'Académico',
-    title: 'Defensa de tesis',
-    body: 'Portada institucional, agenda, metodología y resultados con temas de facultad.',
+    tag: 'Informe',
+    title: 'Informe de laboratorio',
+    body: 'Estructura lab-01 con portada EPIS, figuras y bibliografía lista para compilar con docs build.',
   },
   {
-    tag: 'Investigación',
-    title: 'Póster de congreso',
-    body: 'Métricas, gráficos y citas en layouts de stats y bento de alta densidad.',
+    tag: 'Paquete',
+    title: 'Paquete de plantilla',
+    body: 'Plantilla versionada con scope propio que tus compañeros instalan con docs add en segundos.',
   },
   {
-    tag: 'Docencia',
-    title: 'Clase semanal',
-    body: 'Split de código, callouts y cierres con puntos clave reutilizables.',
+    tag: 'Defensa',
+    title: 'Deck de defensa',
+    body: 'Portada institucional, metodología y resultados con temas de facultad, listo para presentar.',
   },
 ];
 
@@ -51,23 +54,24 @@ function IndexComponent() {
           Plataforma institucional UNSA
         </Chip>
         <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight text-balance">
-          UNSAReport Slides
+          UNSAReport
         </h1>
         <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Diseña, versiona y presenta diapositivas académicas desde tu terminal
-          hasta el aula.
+          Informes de laboratorio reproducibles, paquetes y plantillas
+          versionados, y slides académicas: todo el flujo institucional en una
+          sola plataforma.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <Link to="/presentations" className={buttonClasses('primary', 'md')}>
-            Ver presentaciones
+          <a href="#informes" className={buttonClasses('primary', 'md')}>
+            Informes
             <span aria-hidden="true">→</span>
-          </Link>
-          <Link
-            to="/presentations/catalog"
-            className={buttonClasses('secondary', 'md')}
-          >
-            Explorar catálogo
-          </Link>
+          </a>
+          <a href="#paquetes" className={buttonClasses('secondary', 'md')}>
+            Paquetes
+          </a>
+          <a href="#slides" className={buttonClasses('secondary', 'md')}>
+            Slides
+          </a>
           <Link to="/auth/login" className={buttonClasses('ghost', 'md')}>
             Iniciar sesión
           </Link>
@@ -75,22 +79,41 @@ function IndexComponent() {
       </section>
 
       <section
-        aria-label="Cómo funciona"
+        aria-label="Pilares de la plataforma"
         className="max-w-7xl mx-auto px-4 pb-12 md:pb-16"
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {features.map((f) => (
-            <Card key={f.title} padding="md" className="flex flex-col gap-3">
-              <h2 className="text-lg font-bold text-white text-balance">
-                {f.title}
-              </h2>
-              <p className="text-sm text-slate-400 leading-relaxed flex-1">
-                {f.body}
-              </p>
-              <code className="block p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
-                {f.code}
-              </code>
-            </Card>
+            <div key={f.title} id={f.anchor} className="scroll-mt-20">
+              <Card padding="md" className="flex flex-col gap-3 h-full">
+                <h2 className="text-lg font-bold text-white text-balance">
+                  {f.title}
+                </h2>
+                <p className="text-sm text-slate-400 leading-relaxed flex-1">
+                  {f.body}
+                </p>
+                <code className="block p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
+                  {f.code}
+                </code>
+                {f.anchor === 'paquetes' ? (
+                  <Link
+                    to="/registry"
+                    search={{ search: undefined, tag: undefined }}
+                    className="text-sm font-semibold text-indigo-400 hover:text-indigo-300"
+                  >
+                    Explorar paquetes publicados →
+                  </Link>
+                ) : null}
+                {f.anchor === 'slides' ? (
+                  <Link
+                    to="/presentations"
+                    className="text-sm font-semibold text-indigo-400 hover:text-indigo-300"
+                  >
+                    Ver mis slides publicadas →
+                  </Link>
+                ) : null}
+              </Card>
+            </div>
           ))}
         </div>
       </section>
@@ -102,11 +125,11 @@ function IndexComponent() {
         <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 space-y-8">
           <div className="text-center space-y-2">
             <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white text-balance">
-              Hecho para la vida académica
+              Un flujo para todo tu trabajo académico
             </h2>
             <p className="text-sm text-slate-400 max-w-xl mx-auto">
-              Patrones de autoría probados en defensas, congresos y aulas. Sin
-              cuentas demo ni datos en vivo: copia el patrón y publícalo.
+              Del informe al paquete reutilizable y a la defensa final: copia el
+              patrón y publícalo.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -122,15 +145,6 @@ function IndexComponent() {
               </Card>
             ))}
           </div>
-          <div className="text-center">
-            <Link
-              to="/presentations/catalog"
-              className={buttonClasses('secondary', 'sm')}
-            >
-              Ver layouts del catálogo
-              <span aria-hidden="true">→</span>
-            </Link>
-          </div>
         </div>
       </section>
 
@@ -138,15 +152,18 @@ function IndexComponent() {
         <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
           <p>
             <span className="font-semibold text-slate-300">UNSAReport</span> ·
-            Plataforma institucional de presentaciones
+            Plataforma institucional UNSA
           </p>
           <nav aria-label="Enlaces de pie" className="flex items-center gap-5">
-            <Link to="/presentations" className="hover:text-slate-300">
-              Presentaciones
-            </Link>
-            <Link to="/presentations/catalog" className="hover:text-slate-300">
-              Catálogo
-            </Link>
+            <a href="#informes" className="hover:text-slate-300">
+              Informes
+            </a>
+            <a href="#paquetes" className="hover:text-slate-300">
+              Paquetes
+            </a>
+            <a href="#slides" className="hover:text-slate-300">
+              Slides
+            </a>
             <Link to="/auth/login" className="hover:text-slate-300">
               Acceso
             </Link>

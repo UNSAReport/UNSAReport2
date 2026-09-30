@@ -9,6 +9,8 @@ import { ThemeProvider } from '@unsa/slides-kit/renderer/ThemeProvider';
 import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
 import { useId, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
+import { EmptyState } from '@/components/EmptyState';
 import { TextInput } from '@/components/TextInput';
 import { previewSamples } from '@/lib/catalog-preview-samples';
 
@@ -55,35 +57,33 @@ function PresentationsCatalog() {
   }, [allLayouts]);
 
   return (
-    <ThemeProvider theme={selectedThemeId}>
-      <div className="min-h-screen bg-[var(--slide-bg,#0b0f19)] text-[var(--slide-text,#f8fafc)] font-sans px-4 py-8 max-w-7xl mx-auto space-y-8 transition-colors duration-300">
+    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
+      <div className="px-4 py-8 max-w-7xl mx-auto space-y-8">
         {/* Header and navigation */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-6 border-b border-current/10 pb-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/60 pb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Link
                 to="/presentations"
-                className="text-xs font-semibold opacity-60 hover:opacity-100 transition-opacity"
+                className="text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
               >
                 ← Volver al Dashboard
               </Link>
             </div>
-            <h1 className="text-3xl font-black tracking-tight">
+            <h1 className="text-3xl font-extrabold tracking-tight text-white">
               Catálogo Oficial de Layouts y Temas
             </h1>
-            <p className="text-sm opacity-70 mt-1 max-w-2xl">
+            <p className="text-sm text-slate-400 mt-1 max-w-2xl">
               {allLayouts.length} layouts puros y modulares organizados en{' '}
               {categories.length} familias de diseño y {themes.length} temas.
-              Selecciona un tema para previsualizar la adaptación cromática en
-              vivo.
             </p>
           </div>
 
           {/* Theme selector */}
-          <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-current/5 border border-current/10">
+          <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
             <fieldset className="flex flex-wrap items-center gap-2">
-              <legend className="text-[11px] font-bold uppercase tracking-wider opacity-60 mb-1">
-                Tema Activo:
+              <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+                Tema de vista previa
               </legend>
               {themes.map((t: ThemeDefinition) => (
                 <Button
@@ -97,13 +97,16 @@ function PresentationsCatalog() {
                 </Button>
               ))}
             </fieldset>
+            <p className="text-[11px] text-slate-500">
+              Se aplica a la vista previa completa dentro del modal.
+            </p>
           </div>
         </header>
 
         {/* Search bar and category filters */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <fieldset className="flex flex-wrap items-center gap-1.5">
+            <fieldset className="flex flex-wrap items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
               <legend className="sr-only">Filtrar por categoría</legend>
               <Button
                 size="sm"
@@ -141,26 +144,80 @@ function PresentationsCatalog() {
 
         {/* Layouts Grid */}
         <section aria-label="Lista de layouts">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredLayouts.map((def: LayoutDefinition) => (
-              <LayoutCatalogCard
-                key={def.id}
-                def={def}
-                onInspect={() => setActiveInspectorLayout(def)}
-              />
-            ))}
-          </div>
+          {filteredLayouts.length === 0 ? (
+            <EmptyState
+              titleId="catalog-empty-heading"
+              title="No se encontraron layouts"
+              body={
+                <p>
+                  Prueba con otro término de búsqueda o selecciona una categoría
+                  distinta.
+                </p>
+              }
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredLayouts.map((def: LayoutDefinition) => (
+                <LayoutCatalogCard
+                  key={def.id}
+                  def={def}
+                  onInspect={() => setActiveInspectorLayout(def)}
+                />
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Inspector Modal */}
         {activeInspectorLayout && (
           <LayoutInspectorModal
             def={activeInspectorLayout}
+            selectedThemeId={selectedThemeId}
             onClose={() => setActiveInspectorLayout(null)}
           />
         )}
       </div>
-    </ThemeProvider>
+    </div>
+  );
+}
+
+function LayoutSchematic({ def }: { def: LayoutDefinition }) {
+  const slots = def.slots.slice(0, 6);
+  const overflow = def.slots.length - slots.length;
+  return (
+    <div aria-hidden="true" className="w-full h-full flex flex-col gap-2 p-1">
+      {/* Bloque de título abstracto */}
+      <div className="h-2.5 w-3/4 rounded bg-slate-700" />
+      <div className="h-1.5 w-1/2 rounded bg-slate-800" />
+      {/* Bloques por slot */}
+      <div className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
+        {slots.map((slot, i) =>
+          slot.type.includes('[]') ? (
+            <div
+              key={slot.name}
+              className={`rounded p-1.5 space-y-1 ${i === 0 ? 'bg-indigo-500/30 border border-indigo-500/40' : 'bg-slate-800 border border-slate-700/60'}`}
+            >
+              <div className="h-1 w-2/3 rounded bg-slate-700" />
+              <div className="h-1 w-1/2 rounded bg-slate-700/70" />
+              <div className="h-1 w-3/5 rounded bg-slate-700/50" />
+            </div>
+          ) : (
+            <div
+              key={slot.name}
+              className={`rounded p-1.5 flex flex-col gap-1 ${i === 0 ? 'bg-indigo-500/30 border border-indigo-500/40' : 'bg-slate-800 border border-slate-700/60'}`}
+            >
+              <div className="h-1 w-1/2 rounded bg-slate-700" />
+              <div className="h-1 w-3/4 rounded bg-slate-700/60" />
+            </div>
+          ),
+        )}
+      </div>
+      {overflow > 0 ? (
+        <p className="text-[10px] text-slate-500 font-mono">
+          +{overflow} bloques más
+        </p>
+      ) : null}
+    </div>
   );
 }
 
@@ -171,6 +228,48 @@ function LayoutCatalogCard({
   def: LayoutDefinition;
   onInspect: () => void;
 }) {
+  return (
+    <Card
+      padding="md"
+      className="group flex flex-col justify-between hover:border-slate-700 hover:shadow-xl hover:shadow-indigo-950/20"
+    >
+      <header className="flex items-center justify-between gap-2 mb-3">
+        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-indigo-400 text-[10px] font-bold uppercase tracking-wider">
+          {def.category}
+        </span>
+        <Button size="sm" variant="ghost" onClick={onInspect}>
+          Vista previa
+        </Button>
+      </header>
+
+      {/* Schematic thumbnail */}
+      <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 bg-slate-900 mb-4 p-3 select-none">
+        <LayoutSchematic def={def} />
+      </div>
+
+      <div>
+        <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors line-clamp-1">
+          {def.name}
+        </h3>
+        <p className="text-xs text-slate-400 font-mono mt-1 mb-3">{def.id}</p>
+        <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">
+          {def.description}
+        </p>
+      </div>
+    </Card>
+  );
+}
+
+function LayoutInspectorModal({
+  def,
+  selectedThemeId,
+  onClose,
+}: {
+  def: LayoutDefinition;
+  selectedThemeId: string;
+  onClose: () => void;
+}) {
+  const modalTitleId = useId();
   const Component = def.component;
   const sample = previewSamples[def.id] ?? {};
 
@@ -181,48 +280,6 @@ function LayoutCatalogCard({
     subtitle: def.description,
     ...sample,
   };
-
-  return (
-    <article className="group flex flex-col justify-between rounded-2xl bg-current/5 border border-current/10 hover:border-indigo-500/50 transition-all p-5 shadow-sm">
-      <header className="flex items-center justify-between gap-2 mb-3">
-        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-current/10 text-indigo-400">
-          {def.category}
-        </span>
-        <button
-          type="button"
-          onClick={onInspect}
-          className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold"
-        >
-          Ver Slots ({def.slots.length})
-        </button>
-      </header>
-
-      {/* Miniature preview viewport */}
-      <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-current/10 bg-[var(--slide-bg,#0b0f19)] mb-4 flex items-center justify-center p-3 select-none pointer-events-none scale-95 group-hover:scale-100 transition-transform">
-        <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight">
-          <Component {...previewProps} />
-        </div>
-      </div>
-
-      <div>
-        <h3 className="font-bold text-sm line-clamp-1">{def.name}</h3>
-        <p className="text-xs font-mono opacity-50 mt-0.5 mb-2">{def.id}</p>
-        <p className="text-xs opacity-75 line-clamp-2 leading-relaxed">
-          {def.description}
-        </p>
-      </div>
-    </article>
-  );
-}
-
-function LayoutInspectorModal({
-  def,
-  onClose,
-}: {
-  def: LayoutDefinition;
-  onClose: () => void;
-}) {
-  const modalTitleId = useId();
 
   const sampleSnippet = `// En deck.config.ts
 {
@@ -242,41 +299,54 @@ ${def.slots
       aria-labelledby={modalTitleId}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"
     >
-      <div className="bg-[var(--slide-bg,#0b0f19)] border border-current/20 rounded-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between border-b border-current/10 pb-4">
+      <div className="bg-slate-950 text-slate-200 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
               {def.category}
             </span>
-            <h2 id={modalTitleId} className="text-xl font-bold">
+            <h2 id={modalTitleId} className="text-xl font-bold text-white">
               {def.name}
             </h2>
-            <p className="text-xs font-mono opacity-50">{def.id}</p>
+            <p className="text-xs font-mono text-slate-500">{def.id}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-1.5 rounded-lg bg-current/10 hover:bg-current/20 text-xs font-bold"
+            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
           >
             ✕
           </button>
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+            Vista previa con tema
+          </h3>
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 select-none pointer-events-none">
+            <ThemeProvider theme={selectedThemeId}>
+              <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight p-3">
+                <Component {...previewProps} />
+              </div>
+            </ThemeProvider>
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             Descripción de Uso
           </h3>
-          <p className="text-sm opacity-80 leading-relaxed">
+          <p className="text-sm text-slate-400 leading-relaxed">
             {def.description}
           </p>
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             Slots Requeridos y Opcionales
           </h3>
-          <div className="rounded-xl border border-current/10 overflow-hidden divide-y divide-current/10">
+          <div className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800">
             {def.slots.map((slot: LayoutDefinition['slots'][number]) => (
               <div
                 key={slot.name}
@@ -291,9 +361,9 @@ ${def.slots
                       Requerido
                     </span>
                   )}
-                  <p className="opacity-70 mt-0.5">{slot.description}</p>
+                  <p className="text-slate-400 mt-0.5">{slot.description}</p>
                 </div>
-                <span className="font-mono text-[11px] opacity-50 shrink-0">
+                <span className="font-mono text-[11px] text-slate-500 shrink-0">
                   {slot.type}
                 </span>
               </div>
@@ -302,10 +372,10 @@ ${def.slots
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider opacity-60 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
             Configuración en deck.config.ts
           </h3>
-          <pre className="p-4 rounded-xl bg-black/60 border border-current/10 text-xs font-mono text-emerald-400 overflow-x-auto whitespace-pre">
+          <pre className="p-4 rounded-xl bg-black/60 border border-slate-800 text-xs font-mono text-emerald-400 overflow-x-auto whitespace-pre">
             {sampleSnippet}
           </pre>
         </div>

@@ -146,9 +146,6 @@ function RootComponent() {
             className="font-bold text-white mr-2 flex items-center gap-2 px-1 py-2"
           >
             UNSAReport
-            <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-              Slides
-            </span>
           </Link>
           <Link
             to="/"
@@ -161,28 +158,18 @@ function RootComponent() {
           >
             Inicio
           </Link>
-          <Link
-            to="/presentations"
-            activeOptions={{ exact: true }}
+          <a
+            href="/#informes"
             className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-            activeProps={{
-              className:
-                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-            }}
+          >
+            Reports
+          </a>
+          <a
+            href="/#slides"
+            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
           >
             Slides
-          </Link>
-          <Link
-            to="/presentations/catalog"
-            activeOptions={{ exact: true }}
-            className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-            activeProps={{
-              className:
-                'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-            }}
-          >
-            Catálogo
-          </Link>
+          </a>
           <div className="ml-auto flex flex-wrap items-center gap-1">
             {!user ? (
               <Link to="/auth/login" className={buttonClasses('primary', 'sm')}>
@@ -252,7 +239,7 @@ function RootComponent() {
           </div>
         </div>
       </nav>
-      <main style={{ padding: '1rem' }}>
+      <main className="px-4 py-6">
         <Outlet />
       </main>
     </RootDocument>

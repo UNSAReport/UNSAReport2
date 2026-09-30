@@ -5,6 +5,8 @@ import {
   useRouter,
 } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
+import { Button } from '@/components/Button';
+import { Card } from '@/components/Card';
 import { fetchCurrentUser } from '@/lib/auth/server';
 import {
   type AdminPackageItem,
@@ -591,207 +593,139 @@ function AdminDashboardComponent() {
   };
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-      <h1>Administration Dashboard</h1>
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-sans">
+      <header className="border-b border-slate-700/60 pb-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+          UNSAReport · Administración
+        </p>
+        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+          Panel de administración
+        </h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Modera el registro, gestiona publicadores, etiquetas, scopes y roles.
+        </p>
+      </header>
 
-      <div
-        style={{
-          border: '1px solid #e5e7eb',
-          backgroundColor: '#f9fafb',
-          padding: '1rem',
-          borderRadius: '6px',
-          marginBottom: '1.5rem',
-          display: 'flex',
-          flexWrap: 'wrap',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          gap: '1rem',
-        }}
-      >
-        <div>
-          <p style={{ margin: 0, fontWeight: 'bold' }}>
-            Tester Session: {user.name} ({user.email})
-          </p>
-          <p
-            style={{
-              margin: '0.25rem 0 0',
-              fontSize: '0.85rem',
-              color: '#4b5563',
-            }}
-          >
-            User ID: <code>{user.id}</code> | Roles:{' '}
-            {JSON.stringify(user.roles ?? {})}
-          </p>
-        </div>
-      </div>
-
+      <Card>
+        <p className="font-bold text-slate-100">
+          Sesión activa: {user.name} ({user.email})
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          ID:{' '}
+          <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+            {user.id}
+          </code>{' '}
+          · Roles: {JSON.stringify(user.roles ?? {})}
+        </p>
+      </Card>
       {errorMessage && (
         <div
-          style={{
-            backgroundColor: '#fee2e2',
-            border: '1px solid #f87171',
-            color: '#b91c1c',
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}
+          role="alert"
+          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
         >
           {errorMessage}
         </div>
       )}
       {successMessage && (
         <div
-          style={{
-            backgroundColor: '#dcfce7',
-            border: '1px solid #86efac',
-            color: '#15803d',
-            padding: '0.75rem 1rem',
-            borderRadius: '6px',
-            marginBottom: '1rem',
-          }}
+          role="status"
+          className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl"
         >
           {successMessage}
         </div>
       )}
 
       <div
-        style={{
-          display: 'flex',
-          gap: '0.5rem',
-          borderBottom: '2px solid #e5e7eb',
-          marginBottom: '1.5rem',
-          flexWrap: 'wrap',
-        }}
+        role="tablist"
+        aria-label="Secciones de administración"
+        className="flex gap-2 flex-wrap border-b border-slate-800 pb-3"
       >
         {hasRegistryAdmin && (
           <>
-            <button
-              type="button"
+            <Button
+              variant={activeTab === TAB_QUEUE ? 'primary' : 'ghost'}
+              size="sm"
+              ariaPressed={activeTab === TAB_QUEUE}
               onClick={() => {
                 clearNotifications();
                 setActiveTab(TAB_QUEUE);
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom:
-                  activeTab === TAB_QUEUE ? '3px solid #2563eb' : 'none',
-                fontWeight: activeTab === TAB_QUEUE ? 'bold' : 'normal',
-                backgroundColor: 'transparent',
-              }}
             >
-              1. Moderation Queue ({pendingList.length})
-            </button>
-            <button
-              type="button"
+              1. Cola de moderación ({pendingList.length})
+            </Button>
+            <Button
+              variant={activeTab === TAB_TRUSTED ? 'primary' : 'ghost'}
+              size="sm"
+              ariaPressed={activeTab === TAB_TRUSTED}
               onClick={() => {
                 clearNotifications();
                 setActiveTab(TAB_TRUSTED);
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom:
-                  activeTab === TAB_TRUSTED ? '3px solid #2563eb' : 'none',
-                fontWeight: activeTab === TAB_TRUSTED ? 'bold' : 'normal',
-                backgroundColor: 'transparent',
-              }}
             >
-              2. Trusted Publishers ({trustedList.length})
-            </button>
-            <button
-              type="button"
+              2. Publicadores de confianza ({trustedList.length})
+            </Button>
+            <Button
+              variant={activeTab === TAB_PACKAGES ? 'primary' : 'ghost'}
+              size="sm"
+              ariaPressed={activeTab === TAB_PACKAGES}
               onClick={() => {
                 clearNotifications();
                 setActiveTab(TAB_PACKAGES);
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom:
-                  activeTab === TAB_PACKAGES ? '3px solid #2563eb' : 'none',
-                fontWeight: activeTab === TAB_PACKAGES ? 'bold' : 'normal',
-                backgroundColor: 'transparent',
-              }}
             >
-              3. Packages Explorer & Deletion ({packagesList.length})
-            </button>
-            <button
-              type="button"
+              3. Paquetes y borrado ({packagesList.length})
+            </Button>
+            <Button
+              variant={activeTab === TAB_TAGS ? 'primary' : 'ghost'}
+              size="sm"
+              ariaPressed={activeTab === TAB_TAGS}
               onClick={() => {
                 clearNotifications();
                 setActiveTab(TAB_TAGS);
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom:
-                  activeTab === TAB_TAGS ? '3px solid #2563eb' : 'none',
-                fontWeight: activeTab === TAB_TAGS ? 'bold' : 'normal',
-                backgroundColor: 'transparent',
-              }}
             >
-              4. Tag Taxonomy ({tagsList.length})
-            </button>
-            <button
-              type="button"
+              4. Etiquetas ({tagsList.length})
+            </Button>
+            <Button
+              variant={activeTab === TAB_SCOPE_REQUESTS ? 'primary' : 'ghost'}
+              size="sm"
+              ariaPressed={activeTab === TAB_SCOPE_REQUESTS}
               onClick={() => {
                 clearNotifications();
                 setActiveTab(TAB_SCOPE_REQUESTS);
               }}
-              style={{
-                padding: '0.5rem 1rem',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom:
-                  activeTab === TAB_SCOPE_REQUESTS
-                    ? '3px solid #2563eb'
-                    : 'none',
-                fontWeight:
-                  activeTab === TAB_SCOPE_REQUESTS ? 'bold' : 'normal',
-                backgroundColor: 'transparent',
-              }}
             >
-              5. Scope Requests ({scopeRequestsList.length})
-            </button>
+              5. Solicitudes de scope ({scopeRequestsList.length})
+            </Button>
           </>
         )}
-        <button
-          type="button"
+        <Button
+          variant={activeTab === TAB_ROLES ? 'primary' : 'ghost'}
+          size="sm"
+          ariaPressed={activeTab === TAB_ROLES}
           onClick={() => {
             clearNotifications();
             setActiveTab(TAB_ROLES);
           }}
-          style={{
-            padding: '0.5rem 1rem',
-            cursor: 'pointer',
-            border: 'none',
-            borderBottom:
-              activeTab === TAB_ROLES ? '3px solid #2563eb' : 'none',
-            fontWeight: activeTab === TAB_ROLES ? 'bold' : 'normal',
-            backgroundColor: 'transparent',
-          }}
         >
           {hasRegistryAdmin
-            ? `6. Ecosystem Roles (${usersList.length} users)`
-            : `1. Sub-App Roles (${usersList.length} users)`}
-        </button>
+            ? `6. Roles del ecosistema (${usersList.length} usuarios)`
+            : `1. Roles por sub-app (${usersList.length} usuarios)`}
+        </Button>
       </div>
 
       {activeTab === TAB_QUEUE && hasRegistryAdmin && (
-        <section>
-          <h2>Pending Review Queue</h2>
-          <p style={{ color: '#4b5563' }}>
-            Package versions submitted by non-trusted users await moderation
-            before becoming active in the public registry.
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Cola de moderación
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Las versiones enviadas por usuarios no confiables esperan moderación
+            antes de activarse en el registro público.
           </p>
           {pendingList.length === 0 ? (
-            <p style={{ fontStyle: 'italic' }}>
-              No packages currently awaiting review.
+            <p className="text-sm italic text-slate-500 mt-2">
+              No hay paquetes en revisión.
             </p>
           ) : (
             <table
@@ -911,15 +845,17 @@ function AdminDashboardComponent() {
               </tbody>
             </table>
           )}
-        </section>
+        </Card>
       )}
 
       {activeTab === TAB_TRUSTED && hasRegistryAdmin && (
-        <section>
-          <h2>Trusted Publishers Management</h2>
-          <p style={{ color: '#4b5563' }}>
-            Users with trusted publisher status bypass the moderation queue.
-            Their package uploads are automatically approved.
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Publicadores de confianza
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Los publicadores de confianza omiten la cola de moderación. Sus
+            subidas se aprueban automáticamente.
           </p>
 
           <form
@@ -1020,15 +956,17 @@ function AdminDashboardComponent() {
               </tbody>
             </table>
           )}
-        </section>
+        </Card>
       )}
 
       {activeTab === TAB_PACKAGES && hasRegistryAdmin && (
-        <section>
-          <h2>All Packages Explorer & Deletion</h2>
-          <p style={{ color: '#4b5563' }}>
-            Audit all packages across every state (approved, pending, rejected).
-            Delete test versions to clean up database records and S3 assets.
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Explorador y borrado de paquetes
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Audita todos los paquetes (aprobados, pendientes, rechazados).
+            Elimina versiones de prueba para limpiar registros y almacenamiento.
           </p>
 
           <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -1174,15 +1112,17 @@ function AdminDashboardComponent() {
               </tbody>
             </table>
           )}
-        </section>
+        </Card>
       )}
 
       {activeTab === TAB_TAGS && hasRegistryAdmin && (
-        <section>
-          <h2>Tag Taxonomy Management</h2>
-          <p style={{ color: '#4b5563' }}>
-            Manage category tags used for package indexing and discovery across
-            the registry.
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Gestión de etiquetas
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Gestiona las etiquetas de categoría para indexar y descubrir
+            paquetes.
           </p>
 
           <form
@@ -1292,15 +1232,17 @@ function AdminDashboardComponent() {
               </tbody>
             </table>
           )}
-        </section>
+        </Card>
       )}
 
       {activeTab === TAB_SCOPE_REQUESTS && hasRegistryAdmin && (
-        <section>
-          <h2>Scope Requests Moderation</h2>
-          <p style={{ color: '#4b5563' }}>
-            Review pending requests for custom package scopes and manage scope
-            ownership.
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Moderación de solicitudes de scope
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Revisa las solicitudes de scopes personalizados y gestiona su
+            propiedad.
           </p>
 
           <h3>Pending Custom Scope Requests</h3>
@@ -1474,16 +1416,17 @@ function AdminDashboardComponent() {
               Create Scope
             </button>
           </form>
-        </section>
+        </Card>
       )}
 
       {activeTab === TAB_ROLES && (
-        <section>
-          <h2>User Search & Ecosystem Roles Configuration</h2>
-          <p style={{ color: '#4b5563' }}>
-            Search registered users and configure their roles across all
-            sub-apps in the UNSAReport ecosystem (e.g. <code>registry</code>,{' '}
-            <code>slides</code>).
+        <Card>
+          <h2 className="text-lg font-bold text-slate-100">
+            Búsqueda de usuarios y roles
+          </h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Busca usuarios y configura sus roles en las sub-apps del ecosistema
+            (p. ej. <code>registry</code>, <code>slides</code>).
           </p>
 
           <form
@@ -1939,7 +1882,7 @@ function AdminDashboardComponent() {
               </form>
             </div>
           </details>
-        </section>
+        </Card>
       )}
     </div>
   );
