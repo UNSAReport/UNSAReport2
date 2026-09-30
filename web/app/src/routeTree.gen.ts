@@ -18,6 +18,7 @@ import { Route as AuthPatRouteImport } from './routes/auth/pat'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations/index'
 import { Route as PresentationsSlugRouteImport } from './routes/presentations/$slug'
 import { Route as PresentationsCatalogRouteImport } from './routes/presentations/catalog'
+import { Route as PresentationsUploadRouteImport } from './routes/presentations/upload'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
 import { Route as RegistryUploadRouteImport } from './routes/registry/upload'
@@ -70,6 +71,11 @@ const PresentationsCatalogRoute = PresentationsCatalogRouteImport.update({
   path: '/catalog',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
+const PresentationsUploadRoute = PresentationsUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
+  getParentRoute: () => PresentationsRouteRoute,
+} as any)
 const RegistryIndexRoute = RegistryIndexRouteImport.update({
   id: '/registry/',
   path: '/registry/',
@@ -110,6 +116,7 @@ export interface FileRoutesByFullPath {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -126,6 +133,7 @@ export interface FileRoutesByTo {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -144,6 +152,7 @@ export interface FileRoutesById {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -163,6 +172,7 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -179,6 +189,7 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -196,6 +207,7 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -284,6 +296,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsCatalogRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
+    '/presentations/upload': {
+      id: '/presentations/upload'
+      path: '/upload'
+      fullPath: '/presentations/upload'
+      preLoaderRoute: typeof PresentationsUploadRouteImport
+      parentRoute: typeof PresentationsRouteRoute
+    }
     '/registry/': {
       id: '/registry/'
       path: '/registry'
@@ -332,12 +351,14 @@ declare module '@tanstack/react-router' {
 interface PresentationsRouteRouteChildren {
   PresentationsSlugRoute: typeof PresentationsSlugRoute
   PresentationsCatalogRoute: typeof PresentationsCatalogRoute
+  PresentationsUploadRoute: typeof PresentationsUploadRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
 }
 
 const PresentationsRouteRouteChildren: PresentationsRouteRouteChildren = {
   PresentationsSlugRoute: PresentationsSlugRoute,
   PresentationsCatalogRoute: PresentationsCatalogRoute,
+  PresentationsUploadRoute: PresentationsUploadRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
 }
 
