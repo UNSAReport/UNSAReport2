@@ -292,6 +292,24 @@ presentationsRouter.get('/', async (c) => {
   return c.json({ presentations: [...own, ...orgSlots] });
 });
 
+// Speaker notes travel inside the version manifest (`manifest.notes`,
+// Record<slideId, notes>). Surface them as a top-level `notes` map so
+// viewers can read `version.notes` without digging into the manifest.
+// Always an object ({} when the manifest predates notes or has none).
+function extractVersionNotes(manifest: unknown): Record<string, string> {
+  if (manifest && typeof manifest === 'object' && !Array.isArray(manifest)) {
+    const raw = (manifest as Record<string, unknown>).notes;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const notes: Record<string, string> = {};
+      for (const [slideId, text] of Object.entries(raw)) {
+        if (typeof text === 'string') notes[slideId] = text;
+      }
+      return notes;
+    }
+  }
+  return {};
+}
+
 presentationsRouter.get('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
@@ -363,7 +381,15 @@ presentationsRouter.get('/:id', async (c) => {
     .from(presentationVersions)
     .where(eq(presentationVersions.presentationId, presentation.id));
 
-  return c.json({ presentation, versions });
+  // Contract (S1-2): { versions: [{ versionNumber, manifest, notes? }] }.
+  // `notes` mirrors `manifest.notes` at the top level so viewers can read
+  // `version.notes` directly; always an object, never null/undefined.
+  const versionsWithNotes = versions.map((v) => ({
+    ...v,
+    notes: extractVersionNotes(v.manifest),
+  }));
+
+  return c.json({ presentation, versions: versionsWithNotes });
 });
 
 const updateSchema = z.object({
