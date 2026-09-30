@@ -1,6 +1,7 @@
 import {
   createRootRoute,
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   useRouter,
@@ -138,17 +139,23 @@ function RootComponent() {
     <RootDocument>
       <AuthHashConsumer />
       <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
-        <a href="/">/</a> | <a href="/registry">Registry</a> |{' '}
-        <a href="/presentations">Slides</a> | <a href="/auth/login">Login</a> |{' '}
-        <a href="/auth/me">Me</a> | <a href="/scopes">Scopes</a> |{' '}
-        <a href="/auth/pat">PATs</a>
+        <Link to="/">Inicio</Link> | <Link to="/presentations">Slides</Link> |{' '}
+        <Link to="/presentations/catalog">Catálogo</Link> |{' '}
+        <Link to="/auth/login">Login</Link>
+        {user ? (
+          <>
+            {' '}
+            | <Link to="/auth/me">Me</Link> | <Link to="/scopes">Scopes</Link> |{' '}
+            <Link to="/auth/pat">PATs</Link>
+          </>
+        ) : null}
         {hasAnyAdminRole ? (
           <>
             {' '}
             |{' '}
-            <a href="/admin" style={{ fontWeight: 'bold', color: '#dc2626' }}>
+            <Link to="/admin" style={{ fontWeight: 'bold', color: '#dc2626' }}>
               Admin
-            </a>
+            </Link>
           </>
         ) : null}
         {user ? (
