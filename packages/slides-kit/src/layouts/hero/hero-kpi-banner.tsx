@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 
 export interface HeroKPIBannerProps {
@@ -64,11 +65,14 @@ export function HeroKPIBanner({
           </div>
         </SlideCard>
 
-        <div className="flex justify-between items-center gap-4 text-xs opacity-60 pt-3 border-t border-current/10 shrink-0 min-w-0">
-          <div className="min-w-0 truncate">
-            {author && <span>Expositor: {author}</span>}
+        <div className="shrink-0 min-w-0">
+          <SlideDivider thickness="1px" opacity={0.12} />
+          <div className="flex justify-between items-center gap-4 text-xs opacity-60 pt-3">
+            <div className="min-w-0 truncate">
+              {author && <span>Expositor: {author}</span>}
+            </div>
+            <div className="shrink-0">{date && <span>{date}</span>}</div>
           </div>
-          <div className="shrink-0">{date && <span>{date}</span>}</div>
         </div>
 
         {children}

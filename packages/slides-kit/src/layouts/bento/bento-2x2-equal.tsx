@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 
@@ -56,8 +57,11 @@ export function Bento2x2Equal({
               </div>
             </div>
             {c.footer && (
-              <div className="mt-4 pt-3 border-t border-current/10 text-xs opacity-60 font-mono truncate">
-                {c.footer}
+              <div className="min-w-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <div className="pt-3 text-xs opacity-60 font-mono truncate">
+                  {c.footer}
+                </div>
               </div>
             )}
           </SlideCard>

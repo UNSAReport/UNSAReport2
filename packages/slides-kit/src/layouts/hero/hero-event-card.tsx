@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -106,9 +107,12 @@ export function HeroEventCard({
                   </div>
                 )}
                 {organizer && (
-                  <div className="pt-3 border-t border-current/10 text-xs opacity-70 line-clamp-2 break-words min-w-0">
-                    Organizado por:{' '}
-                    <strong className="opacity-100">{organizer}</strong>
+                  <div className="text-xs opacity-70 line-clamp-2 break-words min-w-0">
+                    <SlideDivider thickness="1px" opacity={0.12} spacing="0.75rem" />
+                    <div className="pt-3">
+                      Organizado por:{' '}
+                      <strong className="opacity-100">{organizer}</strong>
+                    </div>
                   </div>
                 )}
               </SlideCard>

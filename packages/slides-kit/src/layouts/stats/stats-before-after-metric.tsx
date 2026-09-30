@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
@@ -61,9 +62,10 @@ export function StatsBeforeAfterMetric({
               variant="elevated"
               className="p-6 justify-center min-w-0 min-h-0 overflow-hidden"
             >
-              <h4 className="text-base font-bold mb-3 border-b border-current/10 pb-2 line-clamp-2 break-words min-w-0">
+              <h4 className="text-base font-bold mb-0 line-clamp-2 break-words min-w-0">
                 {m.metricName}
               </h4>
+              <SlideDivider thickness="1px" opacity={0.12} spacing="0.5rem" />
               <SlideSplit
                 ratio="50-50"
                 gap="1rem"
@@ -88,10 +90,13 @@ export function StatsBeforeAfterMetric({
                   </div>
                 }
               />
-              <div className="mt-3 pt-3 border-t border-current/10 flex justify-center shrink-0">
-                <SlideBadge variant="success" className="font-mono text-xs">
-                  {m.improvement}
-                </SlideBadge>
+              <div className="mt-3 shrink-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <div className="pt-3 flex justify-center">
+                  <SlideBadge variant="success" className="font-mono text-xs">
+                    {m.improvement}
+                  </SlideBadge>
+                </div>
               </div>
             </SlideCard>
           ))}

@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 
@@ -50,18 +51,21 @@ export function StatsWithChange({
                 {item.metric}
               </div>
             </div>
-            <div className="flex justify-between items-center gap-2 border-t border-current/10 pt-3 shrink-0 min-w-0">
-              <SlideBadge
-                variant={item.isPositive ? 'success' : 'error'}
-                className="text-xs shrink-0"
-              >
-                {item.isPositive ? `+${item.change}` : `-${item.change}`}
-              </SlideBadge>
-              {item.timeframe && (
-                <span className="text-[10px] opacity-60 font-mono truncate min-w-0 flex-1 text-right">
-                  {item.timeframe}
-                </span>
-              )}
+            <div className="shrink-0 min-w-0">
+              <SlideDivider thickness="1px" opacity={0.12} />
+              <div className="flex justify-between items-center gap-2 pt-3">
+                <SlideBadge
+                  variant={item.isPositive ? 'success' : 'error'}
+                  className="text-xs shrink-0"
+                >
+                  {item.isPositive ? `+${item.change}` : `-${item.change}`}
+                </SlideBadge>
+                {item.timeframe && (
+                  <span className="text-[10px] opacity-60 font-mono truncate min-w-0 flex-1 text-right">
+                    {item.timeframe}
+                  </span>
+                )}
+              </div>
             </div>
           </SlideCard>
         ))}

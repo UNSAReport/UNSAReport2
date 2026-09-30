@@ -52,7 +52,10 @@ export function SlideSection({
           {title && (
             <h2
               className="text-4xl font-bold tracking-tight text-[var(--slide-text,#f1f5f9)] leading-tight line-clamp-2 break-words min-w-0 max-w-full overflow-hidden"
-              style={{ fontFamily: 'var(--slide-font-family, inherit)' }}
+              style={{
+                fontFamily: 'var(--slide-font-family, inherit)',
+                letterSpacing: 'var(--slide-heading-spacing, normal)',
+              }}
             >
               {title}
             </h2>

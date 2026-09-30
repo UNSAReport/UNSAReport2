@@ -82,6 +82,11 @@ export function DeckRenderer({
     margin = 0,
     autoSlide = 0,
     loop = false,
+    slideNumber = 'c/t',
+    center = false,
+    controls = true,
+    progress = true,
+    hash = true,
     slides = [],
   } = activeConfig || {};
 
@@ -101,12 +106,12 @@ export function DeckRenderer({
           transition,
           autoSlide,
           loop,
-          hash: true,
-          controls: true,
-          progress: true,
-          center: false,
+          hash,
+          controls,
+          progress,
+          center,
           overview: true,
-          slideNumber: 'c/t',
+          slideNumber,
         }}
       >
         {slides.map((slide, index) => (

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -69,9 +70,12 @@ export function SplitComparisonCards({
               </ul>
             </div>
             {left.summary && (
-              <p className="text-sm opacity-70 border-t border-current/10 pt-4 line-clamp-2 break-words shrink-0">
-                {left.summary}
-              </p>
+              <div className="shrink-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <p className="text-sm opacity-70 pt-4 line-clamp-2 break-words">
+                  {left.summary}
+                </p>
+              </div>
             )}
           </SlideCard>
         }
@@ -104,9 +108,12 @@ export function SplitComparisonCards({
               </ul>
             </div>
             {right.summary && (
-              <p className="text-sm opacity-70 border-t border-current/10 pt-4 line-clamp-2 break-words shrink-0">
-                {right.summary}
-              </p>
+              <div className="shrink-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <p className="text-sm opacity-70 pt-4 line-clamp-2 break-words">
+                  {right.summary}
+                </p>
+              </div>
             )}
           </SlideCard>
         }

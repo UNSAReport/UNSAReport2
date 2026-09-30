@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 
@@ -57,9 +58,12 @@ export function Stats4Grid({
               {item.metric}
             </div>
             {item.detail && (
-              <p className="text-xs opacity-70 border-t border-current/10 pt-2 line-clamp-2 break-words min-w-0">
-                {item.detail}
-              </p>
+              <div className="min-w-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <p className="text-xs opacity-70 pt-2 line-clamp-2 break-words">
+                  {item.detail}
+                </p>
+              </div>
             )}
           </SlideCard>
         ))}

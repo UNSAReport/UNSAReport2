@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 
 export interface HeroCenteredBoldProps {
@@ -51,12 +52,15 @@ export function HeroCenteredBold({
         )}
 
         {(author || date) && (
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full max-w-md overflow-hidden shrink-0">
-            {author && <span className="truncate max-w-full">{author}</span>}
-            {author && date && <span className="shrink-0">•</span>}
-            {date && (
-              <span className="opacity-70 truncate max-w-full">{date}</span>
-            )}
+          <div className="w-full max-w-md overflow-hidden shrink-0">
+            <SlideDivider thickness="1px" opacity={0.12} />
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-sm font-medium opacity-75 pt-4">
+              {author && <span className="truncate max-w-full">{author}</span>}
+              {author && date && <span className="shrink-0">•</span>}
+              {date && (
+                <span className="opacity-70 truncate max-w-full">{date}</span>
+              )}
+            </div>
           </div>
         )}
 

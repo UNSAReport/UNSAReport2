@@ -35,4 +35,6 @@ export const unsaDarkTheme: ThemeDefinition = {
     slideBorderGradient: true,
     watermarkOpacity: 0.04,
   },
+  thumbnail:
+    "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%230b0f19'/%3E%3Crect x='24' y='24' width='120' height='16' fill='%23800020'/%3E%3Crect x='24' y='48' width='200' height='10' fill='%23f1f5f9'/%3E%3Crect x='24' y='66' width='160' height='10' fill='%2394a3b8'/%3E%3Ccircle cx='272' cy='140' r='24' fill='%23D4AF37'/%3E%3C/svg%3E",
 };

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
-
 export interface HeroInstitutionalProps {
   university?: string;
   faculty?: string;
@@ -64,19 +64,22 @@ export function HeroInstitutional({
         </div>
 
         {/* Metadatos inferiores de autores y asesor */}
-        <div className="grid grid-cols-2 gap-4 text-xs pt-3 border-t border-current/10 opacity-75 shrink-0">
-          <div className="text-left min-w-0 truncate">
-            <span className="font-semibold">Autor(es): </span>
-            {author}
-          </div>
-          <div className="text-right min-w-0 truncate">
-            {advisor && (
-              <>
-                <span className="font-semibold">Docente / Asesor: </span>
-                {advisor}
-              </>
-            )}
-            {date && <span className="ml-3 font-mono">({date})</span>}
+        <div className="opacity-75 shrink-0">
+          <SlideDivider thickness="1px" opacity={0.12} />
+          <div className="grid grid-cols-2 gap-4 text-xs pt-3">
+            <div className="text-left min-w-0 truncate">
+              <span className="font-semibold">Autor(es): </span>
+              {author}
+            </div>
+            <div className="text-right min-w-0 truncate">
+              {advisor && (
+                <>
+                  <span className="font-semibold">Docente / Asesor: </span>
+                  {advisor}
+                </>
+              )}
+              {date && <span className="ml-3 font-mono">({date})</span>}
+            </div>
           </div>
         </div>
 

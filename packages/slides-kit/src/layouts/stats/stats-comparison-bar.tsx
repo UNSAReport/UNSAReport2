@@ -1,3 +1,4 @@
+import { SlideBar } from '@/primitives/SlideBar';
 import { SlideCard } from '@/primitives/SlideCard';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideStack } from '@/primitives/SlideStack';
@@ -47,14 +48,13 @@ export function StatsComparisonBar({
                   </span>
                 </div>
                 {/* Contenedor de la barra */}
-                <div className="w-full max-w-full min-w-0 h-3 rounded-full border border-current/20 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-current opacity-80"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, bar.percentage))}%`,
-                    }}
-                  />
-                </div>
+                <SlideBar
+                  value={bar.percentage}
+                  max={100}
+                  tone="accent"
+                  height="0.75rem"
+                  label={bar.label}
+                />
                 {bar.note && (
                   <span className="text-[10px] opacity-60 block line-clamp-1 break-words min-w-0">
                     {bar.note}

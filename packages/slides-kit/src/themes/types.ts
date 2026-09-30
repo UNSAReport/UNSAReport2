@@ -44,6 +44,8 @@ export const ThemeId = {
   UNSA_DARK: 'unsa-dark',
   UNSA_CLASSIC: 'unsa-classic',
   EPIS_TECH: 'epis-tech',
+  FIPS_LIGHT: 'fips-light',
+  EPIS_NIGHT: 'epis-night',
 } as const;
 
 export type ThemeId = (typeof ThemeId)[keyof typeof ThemeId];
@@ -70,4 +72,8 @@ export interface ThemeDefinition {
   customVariables?: Record<string, string>;
   /** Ruta o URI del thumbnail para la galería web */
   thumbnail?: string;
+  /** URL del logotipo institucional o de facultad (marca opcional) */
+  logoUrl?: string;
+  /** Nombre de la facultad o escuela propietaria de la marca (opcional) */
+  facultyName?: string;
 }

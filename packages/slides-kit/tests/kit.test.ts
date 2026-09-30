@@ -29,6 +29,32 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
     expect(config.theme).toBe('unsa-dark');
     expect(config.slides.length).toBe(1);
     expect(config.visibility).toBe('private');
+    expect(config.slideNumber).toBe('c/t');
+    expect(config.aspect).toBe('16:9');
+    expect(config.center).toBe(false);
+    expect(config.controls).toBe(true);
+    expect(config.progress).toBe(true);
+    expect(config.hash).toBe(true);
+  });
+
+  it('defineConfig respeta los knobs de renderer cuando se configuran', () => {
+    const config = defineConfig({
+      title: 'Knobs',
+      slides: [],
+      slideNumber: false,
+      center: true,
+      controls: false,
+      progress: false,
+      hash: false,
+      aspect: '4:3',
+    });
+
+    expect(config.slideNumber).toBe(false);
+    expect(config.center).toBe(true);
+    expect(config.controls).toBe(false);
+    expect(config.progress).toBe(false);
+    expect(config.hash).toBe(false);
+    expect(config.aspect).toBe('4:3');
   });
 
   describe('LayoutRegistry', () => {
@@ -100,26 +126,38 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
   });
 
   describe('ThemeRegistry', () => {
-    it('contiene los 3 temas oficiales', () => {
+    it('contiene los 5 temas oficiales con thumbnails', () => {
       const themes = listThemes();
-      expect(themes.length).toBeGreaterThanOrEqual(3);
+      expect(themes.length).toBeGreaterThanOrEqual(5);
 
       const unsaDark = getTheme(ThemeId.UNSA_DARK);
       expect(unsaDark.id).toBe('unsa-dark');
       expect(unsaDark.colors.accent).toBe('#800020'); // Granate UNSA
+      expect(unsaDark.thumbnail).toBeDefined();
 
       const unsaClassic = getTheme(ThemeId.UNSA_CLASSIC);
       expect(unsaClassic.id).toBe('unsa-classic');
       expect(unsaClassic.colors.background).toBe('#f8f9fa');
+      expect(unsaClassic.thumbnail).toBeDefined();
 
       const episTech = getTheme(ThemeId.EPIS_TECH);
       expect(episTech.id).toBe('epis-tech');
       expect(episTech.colors.accent).toBe('#06b6d4'); // Cian
+      expect(episTech.thumbnail).toBeDefined();
+
+      const fipsLight = getTheme(ThemeId.FIPS_LIGHT);
+      expect(fipsLight.id).toBe('fips-light');
+      expect(fipsLight.thumbnail).toBeDefined();
+
+      const episNight = getTheme(ThemeId.EPIS_NIGHT);
+      expect(episNight.id).toBe('epis-night');
+      expect(episNight.thumbnail).toBeDefined();
     });
 
-    it('realiza fallback seguro a unsa-dark si se solicita un tema inexistente', () => {
-      const fallback = getTheme('tema-que-no-existe');
-      expect(fallback.id).toBe('unsa-dark');
+    it('lanza un error descriptivo si se solicita un tema inexistente', () => {
+      expect(() => getTheme('tema-que-no-existe')).toThrow(
+        /not found in ThemeRegistry/,
+      );
     });
 
     it('permite registrar temas personalizados', () => {

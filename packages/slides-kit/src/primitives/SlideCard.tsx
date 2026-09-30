@@ -20,11 +20,11 @@ const variantStyles: Record<string, string> = {
     'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-border,rgba(255,255,255,0.08))] text-[var(--slide-text,#f1f5f9)]',
   elevated:
     'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-border,rgba(255,255,255,0.1))] shadow-xl shadow-black/40 text-[var(--slide-text,#f1f5f9)]',
-  glow: 'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-accent,#800020)] shadow-[0_0_25px_var(--slide-border-glow,rgba(128,0,32,0.35))] text-[var(--slide-text,#f1f5f9)]',
+  glow: 'bg-[var(--slide-surface,#131b2e)] border border-[var(--slide-accent,#800020)] shadow-[0_0_calc(25px_*_var(--slide-glow-opacity,1))_var(--slide-border-glow,rgba(128,0,32,0.35))] text-[var(--slide-text,#f1f5f9)]',
   outlined:
     'bg-transparent border border-[var(--slide-border,rgba(255,255,255,0.15))] text-[var(--slide-text,#f1f5f9)]',
   muted:
-    'bg-[var(--slide-surface-muted,#0f172a)] border border-[var(--slide-border,rgba(255,255,255,0.05))] text-[var(--slide-text-muted,#94a3b8)]',
+    'bg-[var(--slide-surface-muted,#0f172a)] border border-[var(--slide-border,rgba(255,255,255,0.05))] text-[var(--slide-text-muted,#94a3b8)] [backdrop-filter:blur(var(--slide-glass-blur,0px))]',
 };
 
 /**

@@ -30,6 +30,12 @@ export function defineConfig(config: DeckConfig): DeckConfig {
     visibility: PresentationVisibility.PRIVATE,
     autoSlide: 0,
     loop: false,
+    slideNumber: 'c/t',
+    aspect: '16:9',
+    center: false,
+    controls: true,
+    progress: true,
+    hash: true,
     ...config,
   };
 }
