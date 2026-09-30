@@ -12,6 +12,7 @@ import {
   useState,
 } from 'react';
 import {
+  getEmbedTokenServerFn,
   getPresentationServerFn,
   type SlidesPresentation,
   type SlidesPresentationVersion,
@@ -103,12 +104,21 @@ function PresentationViewer() {
   // Token is read client-side after hydration so SSR and first client render
   // agree on the iframe src (avoids a hydration mismatch); the effect below
   // fills it in, triggering one iframe load with ?token= when logged in.
+  // The auth cookie is HttpOnly (invisible to document.cookie), so ask the
+  // server for a short-lived embed token instead of reading cookies here.
   const [tokenQuery, setTokenQuery] = useState('');
 
   useEffect(() => {
-    const match = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
-    const value = match ? decodeURIComponent(match[1]) : '';
-    if (value) setTokenQuery(`?token=${encodeURIComponent(value)}`);
+    let cancelled = false;
+    getEmbedTokenServerFn()
+      .then(({ token }) => {
+        if (!cancelled && token)
+          setTokenQuery(`?token=${encodeURIComponent(token)}`);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
