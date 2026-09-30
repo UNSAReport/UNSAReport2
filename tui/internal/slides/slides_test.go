@@ -193,8 +193,8 @@ func TestCatalog(t *testing.T) {
 	}
 
 	themes := ListThemes()
-	if len(themes) != 3 {
-		t.Errorf("expected 3 themes, got %d", len(themes))
+	if len(themes) != 5 {
+		t.Errorf("expected 5 themes, got %d", len(themes))
 	}
 
 	allLayouts := ListLayouts("", "")

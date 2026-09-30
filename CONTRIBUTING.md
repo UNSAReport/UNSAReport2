@@ -102,7 +102,7 @@ También puedes iniciar servicios de manera aislada según tu tarea actual:
 - `bun run dev:auth`: Inicia el proveedor de identidad
 - `bun run dev:tui`: Ejecuta el CLI `unsarep` con `go run`
 
-- Entrada principal del Gateway (Traefik): `http://localhost:9876`
+- Entrada principal del Gateway (Traefik): `http://localhost:9876` (rutas `/api/auth` → `:3000`, `/api/registry` → `:3001`, `/api/slides` → `:3002`, `/` → web `:3100`)
 - Aplicación Web: `http://localhost:3100` (o enrutada mediante Traefik)
 
 #### 4. Firewall en Linux y enrutamiento del bridge de Docker 
@@ -110,9 +110,10 @@ Traefik opera en modo red bridge de Docker y reenvía tráfico a los servicios l
 
 | Puerto Host | Servicio | Acceso |
 |-------------|----------|--------|
-| `3000` | IdP de Autenticación (`auth/`) | Permitir TCP desde subred bridge de Docker |
-| `3001` | Registro de Paquetes (`registry/`) | Permitir TCP desde subred bridge de Docker |
-| `3100` | Aplicación Web (`web/app`) | Permitir TCP desde subred bridge de Docker |
+| `3000` | IdP de Autenticación (`auth/`, público vía `/api/auth`) | Permitir TCP desde subred bridge de Docker |
+| `3001` | Registro de Paquetes (`registry/`, público vía `/api/registry`) | Permitir TCP desde subred bridge de Docker |
+| `3002` | Servicio de Diapositivas (`slides/`, público vía `/api/slides`) | Permitir TCP desde subred bridge de Docker |
+| `3100` | Aplicación Web (`web/app`, público vía `/` del gateway) | Permitir TCP desde subred bridge de Docker |
 
 Obtén la subred de la red Docker y configura las reglas del firewall:
 
@@ -121,11 +122,12 @@ Obtén la subred de la red Docker y configura las reglas del firewall:
 SUBNET=$(docker network inspect unsareport-dev --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
 
 # En UFW:
-sudo ufw allow from "$SUBNET" to any port 3000,3001,3100 proto tcp
+sudo ufw allow from "$SUBNET" to any port 3000,3001,3002,3100 proto tcp
 
 # En Firewalld:
 sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3000 protocol=tcp accept"
 sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3001 protocol=tcp accept"
+sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3002 protocol=tcp accept"
 sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3100 protocol=tcp accept"
 sudo firewall-cmd --reload
 ```
@@ -140,16 +142,18 @@ El ecosistema de diapositivas de UNSAReport está compuesto por:
 - **`slides/`**: Microservicio backend para autorización, almacenamiento y servicio de presentaciones.
   - Gestiona metadatos con Drizzle ORM sobre PostgreSQL.
   - Almacena bundles comprimidos y archivos estáticos en SeaweedFS (S3).
-  - Sirve diapositivas en `/embed/:id/v:version/*` con verificación de políticas de visibilidad (`public`, `unlisted`, `private`, `org`).
+  - Sirve diapositivas en `/api/slides/embed/:id/v:version/*` (interno `/embed/:id/v:version/*`) con verificación de políticas de visibilidad (`public`, `unlisted`, `private`, `org`).
 - **`tui/`**: CLI oficial `unsarep` con subcomandos `slides`:
-  - `unsarep slides init <nombre>`: Inicializa un proyecto configurado con Vite y `@unsa/slides-kit`.
-  - `unsarep slides dev`: Servidor de previsualización local con HMR.
-  - `unsarep slides layouts` y `unsarep slides themes`: Exploración y catálogo de componentes en terminal.
-  - `unsarep slides link` y `unsarep slides deploy`: Empaquetado zip y subida multipart a S3.
+  - `unsarep slides init <nombre>`: Inicializa un proyecto configurado con Vite y `@unsa/slides-kit` (el tema se elige con la clave `theme` en `deck.config.ts`; no existe flag `--theme`).
+  - `unsarep slides dev` (default `--port 4000`): Servidor de previsualización local con HMR.
+  - `unsarep slides layouts` (110 en 9 familias) y `unsarep slides themes` (5 oficiales): Exploración y catálogo de componentes en terminal.
+  - `unsarep slides import deck.pptx`: Extrae colores/fuentes OOXML a un patch `themes/<slug>.ts` (fidelidad: solo colores/fuentes).
+  - `unsarep slides link --title/--slug/--org/--visibility` y `unsarep slides deploy --token/--yes`: Empaquetado zip (límite 50 MiB) y subida multipart a S3.
+  - `unsarep slides login` y `unsarep slides whoami --token/--json`: Auth IdP + estado del servicio.
 - **`web/`**: Plataforma web:
   - `/presentations`: Dashboard con filtrado por visibilidad y organización.
-  - `/presentations/$slug`: Visor institucional con iframe sandboxed y notas de orador.
-  - `/presentations/catalog`: Showcase interactivo de los 110 layouts y 3 temas.
+  - `/presentations/$slug`: Visor institucional con iframe sandboxed y notas de orador (`?present=1` modo presentación, botón PDF `?print-pdf`).
+  - `/presentations/catalog`: Showcase interactivo de los 110 layouts y 5 temas.
 
 Para consultar los diagramas de arquitectura detallados, estructura de archivos y flujos de registro, revisa la [Guía de Arquitectura de Slides](docs/slides.md) y la documentación de [`@unsa/slides-kit`](packages/slides-kit/README.md).
 

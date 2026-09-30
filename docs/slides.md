@@ -17,7 +17,7 @@ flowchart TD
     subgraph Kit["packages/slides-kit<br/>(@unsa/slides-kit)"]
         DefineConfig["defineConfig()"]
         Registry["LayoutRegistry<br/>(110 layouts registrados)"]
-        ThemeReg["ThemeRegistry<br/>(unsa-dark, unsa-classic, epis-tech)"]
+        ThemeReg["ThemeRegistry<br/>(5 temas: unsa-dark, unsa-classic, epis-tech, fips-light, epis-night)"]
         Primitives["Primitivas CSS<br/>(Grid, Split, Bento, Stack)"]
         Renderer["DeckRenderer<br/>(Reveal.js + React)"]
 
@@ -34,14 +34,14 @@ flowchart TD
     end
 
     subgraph CLI["unsarep CLI (Go)"]
-        Init["unsarep slides init --theme unsa-dark"]
+        Init["unsarep slides init (theme key in deck.config.ts)"]
         Layouts["unsarep slides layouts<br/>(catálogo en terminal)"]
         ThemesCmd["unsarep slides themes<br/>(explorador de temas)"]
+        Import["unsarep slides import deck.pptx<br/>(colores/fuentes a themes/slug.ts)"]
         Dev["unsarep slides dev<br/>(preview local Vite)"]
         Deploy["unsarep slides deploy<br/>(build → zip → S3)"]
-    end
 
-    subgraph Backend["Slides Service (:3002)"]
+    subgraph Backend["Slides Service (interno :3002; público vía gateway /api/slides)"]
         API["Hono API"]
         S3Lib["S3 Client<br/>(SeaweedFS)"]
         PG[("PostgreSQL<br/>slides_db")]
@@ -61,7 +61,7 @@ flowchart TD
     CLI -->|"POST /deploy multipart"| API
     API -->|"almacena assets"| S3Lib
     API -->|"persiste metadatos"| PG
-    Web -->|"GET /embed/:id/v:version/*"| API
+    Web -->|"GET /api/slides/embed/:id/v:version/*"| API
     Web -->|"consulta metadatos"| API
 ```
 
@@ -101,7 +101,7 @@ flowchart TD
             TRegistry["themes/registry.ts<br/>ThemeRegistry"]
             TCatalog["themes/catalog.ts<br/>Catálogo de Temas"]
             TTypes["themes/types.ts<br/>ThemeDefinition, ThemeId"]
-            TFiles["themes/{unsa-dark,unsa-classic,epis-tech}.ts"]
+            TFiles["themes/{unsa-dark,unsa-classic,epis-tech,fips-light,epis-night}.ts"]
 
             TRegistry --> TCatalog
             TCatalog --> TFiles
@@ -209,7 +209,7 @@ Describe el flujo de trabajo de un autor o estudiante desde la inicialización e
 
 ```mermaid
 flowchart TD
-    Start(["Inicio: Usuario desea crear slides"]) --> Init["unsarep slides init mi-presentacion<br/>--theme unsa-dark"]
+    Start(["Inicio: Usuario desea crear slides"]) --> Init["unsarep slides init mi-presentacion<br/>(theme: 'unsa-dark' en deck.config.ts)"]
 
     subgraph Scaffolding["1. Scaffolding Automático"]
         Init --> GenConfig["deck.config.ts<br/>(esqueleto tipado con ejemplos)"]
@@ -255,7 +255,7 @@ sequenceDiagram
     participant Dev as Máquina Local (Autor)
     participant CLI as unsarep CLI (Go)
     participant Vite as Vite / Bun Bundler
-    participant API as Slides API (:3002)
+    participant API as Slides API (gateway /api/slides)
     participant S3 as SeaweedFS S3
     participant PG as PostgreSQL (slides_db)
 
@@ -265,7 +265,7 @@ sequenceDiagram
     Vite-->>CLI: dist/ (index.html, JS, CSS, assets)
     CLI->>CLI: Empaqueta dist/ en memoria como bundle.zip
     CLI->>CLI: Calcula hash criptográfico SHA-256
-    CLI->>API: POST /presentations/deploy (multipart: metadata + bundle.zip)
+    CLI->>API: POST /api/slides/presentations/deploy (multipart: metadata + bundle.zip)
     API->>API: Valida autenticación (JWT/PAT con rol "slides")
     API->>API: Valida permisos de visibilidad y organización
     API->>S3: PUT presentations/{id}/v{version}/* (descomprime y almacena)
@@ -274,3 +274,63 @@ sequenceDiagram
     API-->>CLI: Response 200 { success: true, presentationId, slug, version, url }
     CLI-->>Dev: ✅ Presentación desplegada exitosamente en la plataforma
 ```
+
+---
+
+## 7. Runbook E2E: de login a PDF
+
+Flujo completo autor → nube → visor → PDF (local dev contra el gateway
+`http://localhost:9876`; en prod usa `https://unsareport.ynoacamino.tech`).
+
+```bash
+# 1. Login (requiere cuenta IdP; el deploy exige además el rol "slides")
+unsarep slides login
+unsarep slides whoami   # verifica usuario + alcance del servicio
+
+# 2. Scaffold + edición
+unsarep slides init mi-charla
+cd mi-charla            # edita deck.config.ts (theme: 'unsa-dark', slides, notas)
+
+# 3. Preview local (default --port 4000)
+unsarep slides dev      # abre http://localhost:4000
+
+# 4. Link (slug/org/visibilidad → .slidesrc.json; deck.config.ts gana)
+unsarep slides link --title "Mi charla" --slug mi-charla --visibility public
+# org: unsarep slides link --title "Mi charla" --org mi-facultad --visibility org
+
+# 5. Deploy (bundle ≤ 50 MiB; crea versión vN)
+unsarep slides deploy --yes
+
+# 6. Presentar en la web
+# Viewer: /presentations/mi-charla          (shell + iframe sandboxed)
+# Present: /presentations/mi-charla?present=1  (viewport completo)
+
+# 7. Notas de orador: viajan en manifest.notes (Record<slideId, texto>);
+# GET /api/slides/presentations/:id las expone como version.notes.
+
+# 8. PDF: botón "PDF" del visor (abre el embed con ?print-pdf).
+```
+
+### Semántica auth / org / visibilidad / versiones
+
+- **Auth**: PAT/JWT vía `unsarep slides login` (o `--token` / `UNSAREP_TOKEN`).
+  El deploy falla sin credencial; el 401/403 indica credencial ausente o
+  rol `slides` no otorgado (pide a un admin el rol vía el flujo IdP).
+- **Org**: `--org <slug>` publica bajo una organización; vacío = personal.
+- **Visibilidad**: `private` (solo dueño) · `org` (miembros) ·
+  `unlisted` (con enlace) · `public` (listada). Default `private`.
+- **Versiones**: cada deploy crea `vN` (`activeVersion = N`); el visor
+  permite elegir versión; el embed sirve `/api/slides/embed/:id/vN/...`.
+
+### Switch de entorno (env vars)
+
+| Variable | Local dev | Prod (default) |
+|----------|-----------|----------------|
+| `UNSAREP_SLIDES_URL` | `http://localhost:9876/api/slides` | `https://unsareport.ynoacamino.tech/api/slides` |
+| `SLIDES_URL` (web server) | `http://localhost:9876/api/slides` | según despliegue |
+| `UNSAREP_TOKEN` | PAT local | PAT prod |
+| `UNSAREP_IDP_ISSUER` | `http://localhost:9876/api/auth` | según despliegue |
+
+La web habla con slides vía `SLIDES_URL` (server) y el gateway
+`/api/slides/*` → servicio interno `:3002`; el CLI usa `UNSAREP_SLIDES_URL`.
+

@@ -20,12 +20,24 @@ func newSlidesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "slides",
 		Short: "Author, preview, and deploy slide decks",
+		Long: `Author, preview, and deploy UNSA slide decks.
+
+End-to-end: slides init <name> | slides dev | slides link | slides deploy.
+Publish a deck then open /presentations/<slug>?present=1 in the web app;
+append ?print-pdf (via the viewer PDF button) for the PDF export.`,
+		Example: `  unsarep slides init mi-charla --install
+  unsarep slides dev --port 4000
+  unsarep slides layouts --category bento
+  unsarep slides import deck.pptx --print
+  unsarep slides link --title "Mi charla" --visibility public
+  unsarep slides deploy --yes`,
 	}
 	cmd.AddCommand(
 		newSlidesInitCmd(),
 		newSlidesDevCmd(),
 		newSlidesLayoutsCmd(),
 		newSlidesThemesCmd(),
+		newSlidesImportCmd(),
 		newSlidesLoginCmd(),
 		newSlidesLinkCmd(),
 		newSlidesDeployCmd(),
@@ -48,7 +60,14 @@ func newSlidesInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init [name]",
 		Short: "Scaffold a new slide deck",
-		Args:  cobra.MaximumNArgs(1),
+		Long: `Scaffold a new slides-kit deck (deck.config.ts, src/slides.tsx, manifest.json, .slidesrc.json).
+
+Pick a starting theme with the 'theme' key in deck.config.ts (unsa-dark,
+unsa-classic, epis-tech, fips-light, epis-night); there is no --theme flag.`,
+		Example: `  unsarep slides init mi-charla
+  unsarep slides init mi-charla --install
+  unsarep slides init --name mi-charla`,
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			pos := ""
 			if len(args) > 0 {
@@ -157,7 +176,13 @@ func newSlidesDevCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dev",
 		Short: "Serve a local live preview",
-		Args:  cobra.NoArgs,
+		Long: `Serve a local live preview of the deck in the current directory.
+
+Uses package.json + Vite when present, otherwise a built-in static server.
+Default port is 4000 (override with --port).`,
+		Example: `  unsarep slides dev
+  unsarep slides dev --port 4000`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := slidesCwd()
 			title := "UNSA Slides Preview"
@@ -180,7 +205,13 @@ func newSlidesLayoutsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "layouts",
 		Short: "Explore and search official slide layouts",
-		Args:  cobra.NoArgs,
+		Long: `List the 110 official slides-kit layouts in 9 families
+(hero, split, bento, stats, process, code, list, quote, closing).
+Mirrors packages/slides-kit/src/layouts/catalog.ts (kit is the source of truth).`,
+		Example: `  unsarep slides layouts
+  unsarep slides layouts --category bento
+  unsarep slides layouts --search kpi`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layouts := slides.ListLayouts(category, search)
 			if len(layouts) == 0 {
@@ -226,7 +257,11 @@ func newSlidesThemesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "themes",
 		Short: "List official themes for UNSA slides",
-		Args:  cobra.NoArgs,
+		Long: `List the 5 official slides-kit themes
+(unsa-dark, unsa-classic, epis-tech, fips-light, epis-night).
+Mirrors packages/slides-kit/src/themes/catalog.ts (kit is the source of truth).`,
+		Example: `  unsarep slides themes`,
+		Args:    cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			themes := slides.ListThemes()
 			fmt.Println("\n  TEMAS DISPONIBLES EN @unsa/slides-kit:")
@@ -250,7 +285,14 @@ func newSlidesLoginCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Authenticate via the ecosystem IdP account",
-		Args:  cobra.NoArgs,
+		Long: `Authenticate against the ecosystem IdP and store the credential for slides commands.
+
+Deploy requires a stored credential (or --token / UNSAREP_TOKEN) AND the
+'slides' role on your account — without the role the API rejects the deploy.`,
+		Example: `  unsarep slides login
+  unsarep slides login --no-browser
+  unsarep slides login --token unsareport_pat_...`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cred, err := doLogin(cmd, noBrowser, cmd.Flags().Changed("no-browser"), token)
 			if err != nil {
@@ -300,7 +342,13 @@ func newSlidesLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: "Link directory to a cloud presentation",
-		Args:  cobra.NoArgs,
+		Long: `Write .slidesrc.json linking this directory to a cloud presentation
+(slug, title, org, visibility). deck.config.ts values win; .slidesrc.json
+fills gaps (config-overlay precedence). Run before 'slides deploy'.`,
+		Example: `  unsarep slides link --title "Mi charla" --slug mi-charla
+  unsarep slides link --title "Mi charla" --org mi-facultad --visibility org
+  unsarep slides link --title "Mi charla" --visibility public`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			dir := slidesCwd()
 			current := seedLinkConfig(dir)
@@ -413,12 +461,22 @@ func newSlidesDeployCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy",
 		Short: "Bundle and deploy to the slides service",
-		Args:  cobra.NoArgs,
+		Long: `Build the deck, zip dist/, and POST it to the slides service.
+
+Requires: linked project ('slides link'), a stored credential or --token /
+UNSAREP_TOKEN ('slides login'), and the 'slides' role. Bundle limit is
+50 MiB (server rejects larger archives). Service URL comes from
+UNSAREP_SLIDES_URL (default https://unsareport.ynoacamino.tech/api/slides,
+local dev http://localhost:9876/api/slides).`,
+		Example: `  unsarep slides deploy
+  unsarep slides deploy --yes
+  unsarep slides deploy --token unsareport_pat_...`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 			client, err := slides.NewClient()
 			if err != nil {
-				return err
+				return fmt.Errorf("slides deploy: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", err)
 			}
 			dir := slidesCwd()
 			project, err := slides.LoadProjectConfig(dir)
@@ -431,7 +489,7 @@ func newSlidesDeployCmd() *cobra.Command {
 			}
 			token := slides.ResolveToken(tokenFlag)
 			if token == "" {
-				return fmt.Errorf("slides deploy: not logged in — run 'unsarep slides login' first")
+				return fmt.Errorf("slides deploy: not logged in — run 'unsarep slides login' first (or pass --token / set UNSAREP_TOKEN)")
 			}
 			if !yes && canPrompt() {
 				var action string
@@ -482,7 +540,7 @@ func newSlidesDeployCmd() *cobra.Command {
 				ZipBytes:    zipBytes,
 			})
 			if err != nil {
-				return fmt.Errorf("slides deploy: %w", err)
+				return fmt.Errorf("slides deploy: %w\n\nIf unauthorized: run 'unsarep slides login' and ask an admin for the 'slides' role. If unreachable: check UNSAREP_SLIDES_URL.", err)
 			}
 			fmt.Printf("Deployment complete! Version v%d\nViewer URL: %s\n", resp.Version, resp.URL)
 			return nil
@@ -499,12 +557,18 @@ func newSlidesWhoamiCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "whoami",
 		Short: "Show user and slides service status",
-		Args:  cobra.NoArgs,
+		Long: `Show the logged-in user and whether the slides service is reachable.
+
+--token overrides the stored credential; --json prints machine-readable output.`,
+		Example: `  unsarep slides whoami
+  unsarep slides whoami --json
+  unsarep slides whoami --token unsareport_pat_...`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := context.Background()
 			client, err := slides.NewClient()
 			if err != nil {
-				return err
+				return fmt.Errorf("slides whoami: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", err)
 			}
 			authClient, err := auth.NewClient()
 			if err != nil {
@@ -512,13 +576,13 @@ func newSlidesWhoamiCmd() *cobra.Command {
 			}
 			cred, user, err := authClient.Status(ctx)
 			if err != nil {
-				return fmt.Errorf("slides whoami: %w", err)
+				return fmt.Errorf("slides whoami: %w\n\nRun 'unsarep slides login' first (or pass --token / set UNSAREP_TOKEN).", err)
 			}
 			if rerr := client.Reachable(ctx, slides.ResolveToken(tokenFlag)); rerr != nil {
 				if !jsonOut {
 					printWhoami(cred, user)
 				}
-				return fmt.Errorf("slides service: %w", rerr)
+				return fmt.Errorf("slides service: %w\n\nCheck UNSAREP_SLIDES_URL (local dev: http://localhost:9876/api/slides).", rerr)
 			}
 			if jsonOut {
 				out := map[string]any{
