@@ -37,7 +37,7 @@ export function TextInput({
     <div className="flex flex-col gap-1.5">
       <label
         htmlFor={inputId}
-        className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+        className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A]"
       >
         {label}
         {required ? <span aria-hidden="true"> *</span> : null}
@@ -53,19 +53,19 @@ export function TextInput({
         onChange={onChange}
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
-        className={`w-full px-3.5 py-2 rounded-xl bg-slate-900 border text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus-visible:ring-2 disabled:opacity-50 ${
+        className={`w-full px-3.5 py-2 rounded-none bg-transparent border text-sm text-[#141414] placeholder-[#7A7A7A] focus:outline-none focus-visible:ring-2 disabled:opacity-50 ${
           error
-            ? 'border-rose-500/60 focus-visible:ring-rose-500/50'
-            : 'border-slate-800 focus-visible:ring-indigo-500/50'
+            ? 'border-red-600 focus-visible:ring-red-600/50'
+            : 'border-[#C7C7C7] focus-visible:ring-[#1351AA]/50'
         }`}
       />
       {hint && !error ? (
-        <p id={hintId} className="text-xs text-slate-500">
+        <p id={hintId} className="text-xs text-[#7A7A7A]">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={errorId} role="alert" className="text-xs text-rose-400">
+        <p id={errorId} role="alert" className="text-xs text-red-700">
           {error}
         </p>
       ) : null}

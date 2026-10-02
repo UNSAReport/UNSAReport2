@@ -555,64 +555,64 @@ function AdminDashboardComponent() {
   const getStatusBadgeStyle = (status: string) => {
     if (status === STATUS_APPROVED) {
       return {
-        backgroundColor: '#dcfce7',
-        color: '#15803d',
+        backgroundColor: '#141414',
+        color: '#E3E2DE',
         padding: '0.2rem 0.5rem',
-        borderRadius: '4px',
+        borderRadius: '0',
         fontSize: '0.85rem',
         fontWeight: 'bold',
       };
     }
     if (status === STATUS_PENDING) {
       return {
-        backgroundColor: '#fef3c7',
-        color: '#b45309',
+        backgroundColor: 'transparent',
+        color: '#444343',
         padding: '0.2rem 0.5rem',
-        borderRadius: '4px',
+        borderRadius: '0',
         fontSize: '0.85rem',
         fontWeight: 'bold',
       };
     }
     if (status === STATUS_REJECTED) {
       return {
-        backgroundColor: '#fee2e2',
+        backgroundColor: 'transparent',
         color: '#b91c1c',
         padding: '0.2rem 0.5rem',
-        borderRadius: '4px',
+        borderRadius: '0',
         fontSize: '0.85rem',
         fontWeight: 'bold',
       };
     }
     return {
-      backgroundColor: '#f3f4f6',
-      color: '#374151',
+      backgroundColor: 'transparent',
+      color: '#444343',
       padding: '0.2rem 0.5rem',
-      borderRadius: '4px',
+      borderRadius: '0',
       fontSize: '0.85rem',
     };
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-sans">
-      <header className="border-b border-slate-700/60 pb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
+      <header className="border-b border-[#C7C7C7] pb-6">
+        <p className="grid-label">
           UNSAReport · Administración
         </p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Panel de administración
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-[#444343] mt-1">
           Modera el registro, gestiona publicadores, etiquetas, scopes y roles.
         </p>
       </header>
 
       <Card>
-        <p className="font-bold text-slate-100">
+        <p className="font-bold text-[#141414]">
           Sesión activa: {user.name} ({user.email})
         </p>
-        <p className="mt-1 text-xs text-slate-400">
+        <p className="mt-1 text-xs text-[#444343]">
           ID:{' '}
-          <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+          <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
             {user.id}
           </code>{' '}
           · Roles: {JSON.stringify(user.roles ?? {})}
@@ -621,7 +621,7 @@ function AdminDashboardComponent() {
       {errorMessage && (
         <div
           role="alert"
-          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-red-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {errorMessage}
         </div>
@@ -629,7 +629,7 @@ function AdminDashboardComponent() {
       {successMessage && (
         <div
           role="status"
-          className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-green-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {successMessage}
         </div>
@@ -638,7 +638,7 @@ function AdminDashboardComponent() {
       <div
         role="tablist"
         aria-label="Secciones de administración"
-        className="flex gap-2 flex-wrap border-b border-slate-800 pb-3"
+        className="flex gap-2 flex-wrap border-b border-[#C7C7C7] pb-3"
       >
         {hasRegistryAdmin && (
           <>
@@ -716,15 +716,15 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_QUEUE && hasRegistryAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Cola de moderación
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Las versiones enviadas por usuarios no confiables esperan moderación
             antes de activarse en el registro público.
           </p>
           {pendingList.length === 0 ? (
-            <p className="text-sm italic text-slate-500 mt-2">
+            <p className="text-sm italic text-[#7A7A7A] mt-2">
               No hay paquetes en revisión.
             </p>
           ) : (
@@ -799,7 +799,7 @@ function AdminDashboardComponent() {
                               color: '#ffffff',
                               border: 'none',
                               padding: '0.35rem 0.75rem',
-                              borderRadius: '4px',
+                              borderRadius: '0',
                               cursor: 'pointer',
                             }}
                           >
@@ -831,7 +831,7 @@ function AdminDashboardComponent() {
                               color: '#ffffff',
                               border: 'none',
                               padding: '0.35rem 0.75rem',
-                              borderRadius: '4px',
+                              borderRadius: '0',
                               cursor: 'pointer',
                             }}
                           >
@@ -850,10 +850,10 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_TRUSTED && hasRegistryAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Publicadores de confianza
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Los publicadores de confianza omiten la cola de moderación. Sus
             subidas se aprueban automáticamente.
           </p>
@@ -882,7 +882,7 @@ function AdminDashboardComponent() {
                 color: '#ffffff',
                 border: 'none',
                 padding: '0.4rem 0.8rem',
-                borderRadius: '4px',
+                borderRadius: '0',
                 cursor: 'pointer',
               }}
             >
@@ -944,7 +944,7 @@ function AdminDashboardComponent() {
                           color: '#b91c1c',
                           border: '1px solid #f87171',
                           padding: '0.3rem 0.6rem',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           cursor: 'pointer',
                         }}
                       >
@@ -961,10 +961,10 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_PACKAGES && hasRegistryAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Explorador y borrado de paquetes
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Audita todos los paquetes (aprobados, pendientes, rechazados).
             Elimina versiones de prueba para limpiar registros y almacenamiento.
           </p>
@@ -987,7 +987,7 @@ function AdminDashboardComponent() {
                 onClick={() => handleFilterStatus(st)}
                 style={{
                   padding: '0.35rem 0.75rem',
-                  borderRadius: '4px',
+                  borderRadius: '0',
                   cursor: 'pointer',
                   border:
                     statusFilter === st
@@ -1097,7 +1097,7 @@ function AdminDashboardComponent() {
                               color: '#b91c1c',
                               border: '1px solid #f87171',
                               padding: '0.25rem 0.5rem',
-                              borderRadius: '4px',
+                              borderRadius: '0',
                               cursor: 'pointer',
                               fontSize: '0.8rem',
                             }}
@@ -1117,10 +1117,10 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_TAGS && hasRegistryAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Gestión de etiquetas
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Gestiona las etiquetas de categoría para indexar y descubrir
             paquetes.
           </p>
@@ -1165,7 +1165,7 @@ function AdminDashboardComponent() {
                 color: '#ffffff',
                 border: 'none',
                 padding: '0.4rem 0.8rem',
-                borderRadius: '4px',
+                borderRadius: '0',
                 cursor: 'pointer',
               }}
             >
@@ -1220,7 +1220,7 @@ function AdminDashboardComponent() {
                           color: '#b91c1c',
                           border: '1px solid #f87171',
                           padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           cursor: 'pointer',
                         }}
                       >
@@ -1237,10 +1237,10 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_SCOPE_REQUESTS && hasRegistryAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Moderación de solicitudes de scope
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Revisa las solicitudes de scopes personalizados y gestiona su
             propiedad.
           </p>
@@ -1302,7 +1302,7 @@ function AdminDashboardComponent() {
                           color: '#ffffff',
                           border: 'none',
                           padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           cursor: 'pointer',
                         }}
                       >
@@ -1332,7 +1332,7 @@ function AdminDashboardComponent() {
                           color: '#b91c1c',
                           border: '1px solid #f87171',
                           padding: '0.25rem 0.5rem',
-                          borderRadius: '4px',
+                          borderRadius: '0',
                           cursor: 'pointer',
                         }}
                       >
@@ -1408,7 +1408,7 @@ function AdminDashboardComponent() {
                 color: '#ffffff',
                 border: 'none',
                 padding: '0.5rem',
-                borderRadius: '4px',
+                borderRadius: '0',
                 cursor: 'pointer',
                 marginTop: '0.5rem',
               }}
@@ -1421,10 +1421,10 @@ function AdminDashboardComponent() {
 
       {activeTab === TAB_ROLES && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Búsqueda de usuarios y roles
           </h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-[#444343] mt-1">
             Busca usuarios y configura sus roles en las sub-apps del ecosistema
             (p. ej. <code>registry</code>, <code>slides</code>).
           </p>
@@ -1454,7 +1454,7 @@ function AdminDashboardComponent() {
                 color: '#ffffff',
                 border: 'none',
                 padding: '0.4rem 0.8rem',
-                borderRadius: '4px',
+                borderRadius: '0',
                 cursor: 'pointer',
               }}
             >
@@ -1469,7 +1469,7 @@ function AdminDashboardComponent() {
                 color: '#374151',
                 border: '1px solid #d1d5db',
                 padding: '0.4rem 0.8rem',
-                borderRadius: '4px',
+                borderRadius: '0',
                 cursor: 'pointer',
               }}
             >
@@ -1554,7 +1554,7 @@ function AdminDashboardComponent() {
                         border: '1px solid #93c5fd',
                         backgroundColor: '#ffffff',
                         padding: '0.4rem 0.8rem',
-                        borderRadius: '4px',
+                        borderRadius: '0',
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.5rem',
@@ -1690,7 +1690,7 @@ function AdminDashboardComponent() {
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.35rem 0.75rem',
-                    borderRadius: '4px',
+                    borderRadius: '0',
                     cursor: 'pointer',
                   }}
                 >
@@ -1807,7 +1807,7 @@ function AdminDashboardComponent() {
                             color: '#ffffff',
                             border: 'none',
                             padding: '0.3rem 0.6rem',
-                            borderRadius: '4px',
+                            borderRadius: '0',
                             cursor: 'pointer',
                             fontSize: '0.85rem',
                           }}
@@ -1873,7 +1873,7 @@ function AdminDashboardComponent() {
                     color: '#ffffff',
                     border: 'none',
                     padding: '0.4rem 0.8rem',
-                    borderRadius: '4px',
+                    borderRadius: '0',
                     cursor: 'pointer',
                   }}
                 >

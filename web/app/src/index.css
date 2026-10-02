@@ -1,12 +1,113 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
+  --paper: #e3e2de;
+  --cobalt: #1351aa;
+  --jet: #141414;
+  --smoke: #444343;
+  --mute: #7a7a7a;
+  --rule: #c7c7c7;
+  color-scheme: light;
 }
 
 @layer base {
   /* Reverts a preflight rule on hidden that breaks some reveal.js */
   [hidden] {
     display: revert !important;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--paper);
+    color: var(--jet);
+    font-family: "General Sans", "Aileron", "Inter", ui-sans-serif, system-ui,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  ::selection {
+    background: var(--cobalt);
+    color: var(--paper);
+  }
+}
+
+@layer components {
+  /* 12px bold uppercase sticky sidebar label for the 3-col grid rail */
+  .grid-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--mute);
+  }
+
+  .poster-headline {
+    font-weight: 900;
+    line-height: 0.85;
+    letter-spacing: -0.04em;
+  }
+
+  .poster-section-headline {
+    font-weight: 700;
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+  }
+
+  /* Zero-radius high-contrast CTA. Linear 0.3s color swap only. */
+  .poster-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0;
+    padding: 16px 32px;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    transition: background-color 0.3s linear, color 0.3s linear;
+  }
+  .poster-button-primary {
+    background-color: var(--cobalt);
+    color: var(--paper);
+  }
+  .poster-button-primary:hover {
+    background-color: var(--jet);
+  }
+  .poster-button-dark {
+    background-color: var(--jet);
+    color: var(--paper);
+  }
+  .poster-button-dark:hover {
+    background-color: var(--cobalt);
+  }
+
+  /* Typographic list row: mono index + large title turning cobalt on hover */
+  .poster-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 1.5rem;
+    border-top: 1px solid var(--rule);
+    padding-top: 1.75rem;
+    padding-bottom: 1.75rem;
+  }
+  .poster-row .poster-row-title {
+    transition: color 0.3s linear;
+  }
+  .poster-row:hover .poster-row-title {
+    color: var(--cobalt);
+  }
+
+  /* Flat system-grid cell: 1px border, zero radius, white/20 hover */
+  .poster-cell {
+    border: 1px solid var(--rule);
+    border-radius: 0;
+    transition: background-color 0.3s linear;
+  }
+  .poster-cell:hover {
+    background-color: rgb(255 255 255 / 0.2);
   }
 }

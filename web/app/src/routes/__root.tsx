@@ -6,10 +6,9 @@ import {
   Scripts,
   useRouter,
 } from '@tanstack/react-router';
-import { createLogger } from '@unsa/logger';
 import { useEffect } from 'react';
 import { z } from 'zod';
-import { buttonClasses } from '@/components/Button';
+import { createLogger } from '@unsa/logger';
 import {
   DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
   fetchCurrentUser,
@@ -139,31 +138,28 @@ function RootComponent() {
   return (
     <RootDocument>
       <AuthHashConsumer />
-      <nav className="sticky top-0 z-40 bg-slate-950/80 backdrop-blur border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 min-h-14 py-2 flex flex-wrap items-center gap-1">
+      <nav className="sticky top-0 z-40 h-20 bg-[#E3E2DE]/95 backdrop-blur border-b border-[#C7C7C7]">
+        <div className="h-full max-w-none mx-auto px-6 grid grid-cols-12 items-center gap-4">
           <Link
             to="/"
-            className="font-bold text-white mr-2 flex items-center gap-2 px-1 py-2"
+            className="col-span-3 font-black uppercase tracking-tight text-[#141414] text-lg leading-none"
           >
             UNSAReport
           </Link>
-          <span className="text-sm text-slate-500 px-1 py-2">
-            Plataforma institucional UNSA
-          </span>
-          <div className="ml-auto flex flex-wrap items-center gap-1">
-            {!user ? (
-              <Link to="/auth/login" className={buttonClasses('primary', 'sm')}>
-                Login
-              </Link>
-            ) : null}
+          <div className="col-span-6 hidden md:flex items-center gap-3">
+            {user ? (
+              <span className="grid-label normal-case tracking-normal font-mono text-[11px]">
+                {user.email} · {user.name}
+              </span>
+            ) : (
+              <span className="grid-label">Plataforma institucional UNSA</span>
+            )}
+          </div>
+          <div className="col-span-9 md:col-span-3 flex items-center justify-end gap-5">
             {user ? (
               <Link
                 to="/dashboard"
-                className="text-sm text-slate-300 hover:text-white px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-                activeProps={{
-                  className:
-                    'text-sm text-white bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-                }}
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
               >
                 Dashboard
               </Link>
@@ -171,33 +167,31 @@ function RootComponent() {
             {hasAnyAdminRole ? (
               <Link
                 to="/admin"
-                className="text-sm font-semibold text-red-400 hover:text-red-300 px-3 py-2 rounded-lg hover:bg-slate-800/80 transition-colors"
-                activeProps={{
-                  className:
-                    'text-sm font-semibold text-red-300 bg-slate-800 px-3 py-2 rounded-lg transition-colors',
-                }}
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
               >
                 Admin
               </Link>
             ) : null}
-            {user ? (
-              <>
-                <span className="hidden md:block text-xs text-slate-500 px-2">
-                  {user.email} ({user.name})
-                </span>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="text-xs font-semibold text-red-300 border border-red-500/30 bg-red-500/10 hover:bg-red-500/20 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
-                >
-                  Logout
-                </button>
-              </>
-            ) : null}
+            {!user ? (
+              <Link
+                to="/auth/login"
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                Acceso
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA] cursor-pointer"
+              >
+                Salir
+              </button>
+            )}
           </div>
         </div>
       </nav>
-      <main className="px-4 py-6">
+      <main>
         <Outlet />
       </main>
     </RootDocument>

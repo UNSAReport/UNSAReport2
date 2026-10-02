@@ -16,17 +16,15 @@ export interface ButtonProps {
 }
 
 const variantClasses: Record<ButtonVariant, string> = {
-  primary:
-    'bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm focus:ring-indigo-400',
-  secondary:
-    'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 focus:ring-indigo-500',
+  primary: 'poster-button poster-button-primary',
+  secondary: 'poster-button poster-button-dark',
   ghost:
-    'bg-transparent hover:bg-slate-800/80 text-slate-300 hover:text-slate-100 focus:ring-indigo-500',
+    'inline-flex items-center justify-center gap-2 px-1 py-2 text-sm font-bold uppercase tracking-wider text-[#141414] underline decoration-[#1351AA] decoration-2 underline-offset-4 transition-colors duration-300 hover:text-[#1351AA]',
 };
 
 const sizeClasses: Record<ButtonSize, string> = {
-  sm: 'px-3 py-1.5 text-xs',
-  md: 'px-4 py-2 text-sm',
+  sm: 'px-4 py-2 text-xs',
+  md: 'px-8 py-4 text-sm',
 };
 
 export function buttonClasses(
@@ -34,7 +32,7 @@ export function buttonClasses(
   size: ButtonSize = 'md',
   className = '',
 ) {
-  return `inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+  return `${variantClasses[variant]} ${sizeClasses[size]} touch-manipulation focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA] focus-visible:ring-offset-2 focus-visible:ring-offset-[#E3E2DE] ${className}`;
 }
 export function Button({
   variant = 'primary',

@@ -9,16 +9,16 @@ export interface ChipProps {
 }
 
 const statusClasses: Record<ChipStatus, string> = {
-  public: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  org: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  private: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  unlisted: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
+  public: 'bg-[#1351AA] text-[#E3E2DE] border-[#1351AA]',
+  org: 'bg-transparent text-[#1351AA] border-[#1351AA]',
+  private: 'bg-[#141414] text-[#E3E2DE] border-[#141414]',
+  unlisted: 'bg-transparent text-[#444343] border-[#7A7A7A]',
 };
 
 export function Chip({ status, children, className = '' }: ChipProps) {
   return (
     <span
-      className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border uppercase tracking-wider ${statusClasses[status]} ${className}`}
+      className={`inline-flex items-center px-2 py-0.5 rounded-none text-[11px] font-bold border uppercase tracking-[0.2em] ${statusClasses[status]} ${className}`}
     >
       {children ?? status}
     </span>

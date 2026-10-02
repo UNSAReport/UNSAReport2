@@ -1,7 +1,4 @@
 import { createFileRoute, Link } from '@tanstack/react-router';
-import { buttonClasses } from '@/components/Button';
-import { Card } from '@/components/Card';
-import { Chip } from '@/components/Chip';
 
 export const Route = createFileRoute('/')({
   component: IndexComponent,
@@ -9,18 +6,21 @@ export const Route = createFileRoute('/')({
 
 const features = [
   {
+    index: '01',
     anchor: 'informes',
     title: 'Informes de laboratorio',
     body: 'Informes reproducibles en Typst desde plantillas oficiales. Inicializa con docs init, previsualiza en vivo con docs watch y compila el PDF final con docs build.',
     code: 'unsarep docs init @unsareport/epis-lab --report lab-01',
   },
   {
+    index: '02',
     anchor: 'paquetes',
     title: 'Paquetes y registro',
     body: 'Publica plantillas y paquetes Typst con scopes versionados. Inicia sesión, valida tu paquete y publícalo para reutilizarlo en cualquier informe.',
     code: 'unsarep registry publish ./mi-paquete',
   },
   {
+    index: '03',
     anchor: 'slides',
     title: 'Slides académicas',
     body: 'Inicializa un deck con el kit oficial, previsualiza en vivo con unsarep slides dev y despliega versiones inmutables para presentar o exportar a PDF.',
@@ -28,143 +28,187 @@ const features = [
   },
 ];
 
-const showcase = [
+const differences = [
   {
-    tag: 'Informe',
-    title: 'Informe de laboratorio',
-    body: 'Estructura lab-01 con portada EPIS, figuras y bibliografía lista para compilar con docs build.',
+    index: '001',
+    title: 'Plantillas que no se rompen',
+    body: 'Scopes versionados con manifiesto unsareport.toml. Lo que compila hoy compila en la defensa.',
   },
   {
-    tag: 'Paquete',
-    title: 'Paquete de plantilla',
-    body: 'Plantilla versionada con scope propio que tus compañeros instalan con docs add en segundos.',
+    index: '002',
+    title: 'PDFs que se pueden citar',
+    body: 'Versiones inmutables con install reproducible. Nada de final-v3-real.pdf por Drive.',
   },
   {
-    tag: 'Defensa',
-    title: 'Deck de defensa',
-    body: 'Portada institucional, metodología y resultados con temas de facultad, listo para presentar.',
+    index: '003',
+    title: 'Defensas con sello UNSA',
+    body: 'Kit oficial de slides, portada EPIS y export a PDF. Del informe al deck sin reescribir nada.',
   },
 ];
 
 function IndexComponent() {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
-      <section className="max-w-7xl mx-auto px-4 pt-16 pb-12 md:pt-24 md:pb-16 text-center space-y-6">
-        <Chip status="public" className="mx-auto">
-          Plataforma institucional UNSA
-        </Chip>
-        <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight text-balance">
-          UNSAReport
-        </h1>
-        <p className="text-lg md:text-xl text-slate-400 max-w-2xl mx-auto leading-relaxed">
-          Informes de laboratorio reproducibles, paquetes y plantillas
-          versionados, y slides académicas: todo el flujo institucional en una
-          sola plataforma.
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-          <a href="#informes" className={buttonClasses('primary', 'md')}>
-            Informes
-            <span aria-hidden="true">→</span>
-          </a>
-          <a href="#paquetes" className={buttonClasses('secondary', 'md')}>
-            Paquetes
-          </a>
-          <a href="#slides" className={buttonClasses('secondary', 'md')}>
-            Slides
-          </a>
-          <Link to="/dashboard" className={buttonClasses('ghost', 'md')}>
-            Ir a mi dashboard
-          </Link>
+    <div className="min-h-screen bg-[#E3E2DE] text-[#141414] font-sans">
+      {/* HERO — 85vh, label rail + massive headline */}
+      <section className="min-h-[85vh] grid grid-cols-12 border-b border-[#C7C7C7]">
+        <div className="col-span-12 md:col-span-3 md:border-r border-b md:border-b-0 border-[#C7C7C7] p-6 flex md:flex-col flex-row items-center md:items-start gap-4">
+          <span aria-hidden="true" className="block w-4 h-4 bg-[#141414]" />
+          <p className="grid-label">Manifiesto</p>
+          <p className="md:mt-auto font-mono text-[11px] text-[#7A7A7A]">
+            UNSA / EPIS
+            <br />
+            001 — 2026
+          </p>
+        </div>
+        <div className="col-span-12 md:col-span-9 p-6 md:p-12 flex flex-col justify-center gap-10">
+          <h1 className="poster-headline uppercase text-6xl md:text-8xl xl:text-9xl">
+            Escribe.
+            <br />
+            Publica.
+            <br />
+            <span className="text-[#1351AA]">Defiende.</span>
+          </h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+            <p className="max-w-[400px] text-lg text-[#444343] leading-relaxed">
+              Informes de laboratorio reproducibles, paquetes y plantillas
+              versionados, y slides académicas: todo el flujo institucional en
+              una sola plataforma.
+            </p>
+            <div className="flex flex-wrap items-center gap-6">
+              <Link to="/dashboard" className="poster-button poster-button-primary">
+                Mi dashboard
+              </Link>
+              <Link
+                to="/registry"
+                search={{ search: undefined, tag: undefined }}
+                className="text-sm font-bold uppercase tracking-wider underline decoration-[#1351AA] decoration-2 underline-offset-4 transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                Explorar paquetes
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
-      <section
-        aria-label="Pilares de la plataforma"
-        className="max-w-7xl mx-auto px-4 pb-12 md:pb-16"
-      >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {features.map((f) => (
-            <div key={f.title} id={f.anchor} className="scroll-mt-20">
-              <Card padding="md" className="flex flex-col gap-3 h-full">
-                <h2 className="text-lg font-bold text-white text-balance">
-                  {f.title}
-                </h2>
-                <p className="text-sm text-slate-400 leading-relaxed flex-1">
+      {/* SYSTEM GRID */}
+      <section className="grid grid-cols-12 border-b border-[#C7C7C7]">
+        <div className="col-span-12 md:col-span-3 p-6 md:border-r border-b md:border-b-0 border-[#C7C7C7]">
+          <p className="grid-label md:sticky md:top-32">System</p>
+        </div>
+        <div className="col-span-12 md:col-span-9 p-6 md:p-12 space-y-10">
+          <h2 className="poster-section-headline uppercase text-5xl md:text-7xl">
+            Todo.
+            <br />
+            Versionado.
+            <br />
+            Reproducible.
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            {features.map((f) => (
+              <div
+                key={f.anchor}
+                id={f.anchor}
+                className="poster-cell p-6 flex flex-col gap-4 scroll-mt-28"
+              >
+                <p className="font-mono text-xs text-[#7A7A7A]">{f.index}</p>
+                <h3 className="text-xl font-bold leading-tight">{f.title}</h3>
+                <p className="text-sm text-[#444343] leading-relaxed flex-1">
                   {f.body}
                 </p>
-                <code className="block p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-xs text-indigo-300 overflow-x-auto">
+                <code className="block p-3 rounded-none bg-[#141414] text-[#E3E2DE] border border-[#C7C7C7] font-mono text-xs overflow-x-auto">
                   {f.code}
                 </code>
-                {f.anchor === 'paquetes' ? (
-                  <Link
-                    to="/registry"
-                    search={{ search: undefined, tag: undefined }}
-                    className="text-sm font-semibold text-indigo-400 hover:text-indigo-300"
-                  >
-                    Explorar paquetes publicados →
-                  </Link>
-                ) : null}
-                {f.anchor === 'slides' ? (
-                  <Link
-                    to="/dashboard"
-                    className="text-sm font-semibold text-indigo-400 hover:text-indigo-300"
-                  >
-                    Ver mis slides publicadas →
-                  </Link>
-                ) : null}
-              </Card>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section
-        aria-label="Casos de uso"
-        className="border-t border-slate-800/80 bg-slate-900/30"
-      >
-        <div className="max-w-7xl mx-auto px-4 py-12 md:py-16 space-y-8">
-          <div className="text-center space-y-2">
-            <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight text-white text-balance">
-              Un flujo para todo tu trabajo académico
-            </h2>
-            <p className="text-sm text-slate-400 max-w-xl mx-auto">
-              Del informe al paquete reutilizable y a la defensa final: copia el
-              patrón y publícalo.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {showcase.map((s) => (
-              <Card key={s.title} padding="md" className="space-y-3">
-                <span className="inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold uppercase tracking-wider bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-                  {s.tag}
-                </span>
-                <h3 className="text-base font-bold text-white">{s.title}</h3>
-                <p className="text-sm text-slate-400 leading-relaxed">
-                  {s.body}
-                </p>
-              </Card>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-slate-800/80">
-        <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-slate-500">
-          <p>
-            <span className="font-semibold text-slate-300">UNSAReport</span> ·
-            Plataforma institucional UNSA
+      {/* WHY DIFFERENT */}
+      <section className="grid grid-cols-12 border-b border-[#C7C7C7]">
+        <div className="col-span-12 md:col-span-3 p-6 md:border-r border-b md:border-b-0 border-[#C7C7C7]">
+          <p className="grid-label md:sticky md:top-32">Why different</p>
+        </div>
+        <div className="col-span-12 md:col-span-9 p-6 md:p-12">
+          <div>
+            {differences.map((d) => (
+              <div
+                key={d.index}
+                className="poster-row min-h-[100px] md:min-h-[150px] items-start"
+              >
+                <p className="font-mono text-xs text-[#7A7A7A] pt-2 shrink-0 w-10">
+                  {d.index}
+                </p>
+                <div className="flex-1">
+                  <h3 className="poster-row-title text-3xl md:text-5xl font-bold leading-none tracking-tight">
+                    {d.title}
+                  </h3>
+                  <p className="text-sm text-[#444343] leading-relaxed mt-3 max-w-xl">
+                    {d.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+            <div className="border-b border-[#C7C7C7]" aria-hidden="true" />
+          </div>
+        </div>
+      </section>
+
+      {/* ACCESS */}
+      <section className="grid grid-cols-12 min-h-[50vh]">
+        <div className="col-span-12 md:col-span-3 p-6 md:border-r border-b md:border-b-0 border-[#C7C7C7]">
+          <p className="grid-label md:sticky md:top-32">Access</p>
+        </div>
+        <div className="col-span-12 md:col-span-9 p-6 md:p-12 flex flex-col gap-6">
+          <h2 className="poster-headline uppercase text-6xl md:text-8xl">
+            Empieza a explorar
+          </h2>
+          <p className="text-lg text-[#444343] leading-relaxed max-w-xl">
+            Del informe al paquete reutilizable y a la defensa final.
+            <br />
+            Copia el patrón y publícalo.
           </p>
-          <nav aria-label="Enlaces de pie" className="flex items-center gap-5">
-            <a href="#informes" className="hover:text-slate-300">
-              Informes
-            </a>
-            <a href="#paquetes" className="hover:text-slate-300">
-              Paquetes
-            </a>
-            <a href="#slides" className="hover:text-slate-300">
-              Slides
-            </a>
-            <Link to="/auth/login" className="hover:text-slate-300">
+          <div className="mt-auto flex md:justify-end pt-10">
+            <Link
+              to="/dashboard"
+              className="poster-button poster-button-dark px-10 py-5"
+            >
+              Ir a mi dashboard
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-[#C7C7C7]">
+        <div className="grid grid-cols-12 px-6 py-8 gap-4 items-center">
+          <p className="col-span-12 md:col-span-3 text-sm">
+            <span className="font-black uppercase tracking-tight">
+              UNSAReport
+            </span>{' '}
+            <span className="text-[#7A7A7A]">· UNSA / 2026</span>
+          </p>
+          <nav
+            aria-label="Enlaces de pie"
+            className="col-span-12 md:col-span-9 flex flex-wrap items-center gap-6 md:justify-end"
+          >
+            {[
+              { label: 'Informes', href: '#informes' },
+              { label: 'Paquetes', href: '#paquetes' },
+              { label: 'Slides', href: '#slides' },
+            ].map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                {l.label}
+              </a>
+            ))}
+            <Link
+              to="/auth/login"
+              className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
+            >
               Acceso
             </Link>
           </nav>

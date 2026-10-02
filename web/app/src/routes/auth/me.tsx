@@ -15,14 +15,14 @@ export const Route = createFileRoute('/auth/me')({
 function MeComponent() {
   const { user } = Route.useLoaderData();
   return (
-    <div className="max-w-md mx-auto px-4 py-10 font-sans">
+    <div className="max-w-md mx-auto px-4 py-10 font-sans bg-[#E3E2DE] text-[#141414]">
       <Card labelledBy="me-heading">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <p className="grid-label">
           UNSAReport · Cuenta
         </p>
         <h1
           id="me-heading"
-          className="text-3xl font-extrabold tracking-tight text-white mt-1"
+          className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1"
         >
           Mi cuenta
         </h1>
@@ -33,31 +33,31 @@ function MeComponent() {
                 <img
                   src={user.picture}
                   alt={user.name}
-                  className="w-12 h-12 rounded-full"
+                  className="w-12 h-12 rounded-none"
                 />
               ) : (
                 <div
                   aria-hidden="true"
-                  className="w-12 h-12 rounded-full bg-slate-700 flex items-center justify-center text-lg font-bold text-slate-200"
+                  className="w-12 h-12 rounded-none bg-[#141414] flex items-center justify-center text-lg font-bold text-[#E3E2DE]"
                 >
                   {(user.name ?? user.email ?? '?').slice(0, 1).toUpperCase()}
                 </div>
               )}
               <div>
-                <p className="font-bold text-slate-100">{user.name}</p>
-                <p className="text-sm text-slate-400">{user.email}</p>
+                <p className="font-bold text-[#141414]">{user.name}</p>
+                <p className="text-sm text-[#444343]">{user.email}</p>
               </div>
             </div>
             {user.roles && Object.keys(user.roles).length > 0 ? (
               <div className="mt-4">
-                <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <p className="grid-label">
                   Roles
                 </p>
                 <ul className="mt-1 flex flex-wrap gap-2">
                   {Object.entries(user.roles).map(([subApp, role]) => (
                     <li
                       key={subApp}
-                      className="text-xs px-2 py-1 rounded-md bg-slate-800 border border-slate-700 text-slate-200"
+                      className="text-xs px-2 py-1 rounded-none bg-[#141414] border border-[#C7C7C7] text-[#E3E2DE]"
                     >
                       {subApp}: {String(role)}
                     </li>
@@ -79,9 +79,9 @@ function MeComponent() {
                 Gestionar tokens de acceso
               </Link>
             </div>
-            <p className="text-xs text-slate-500 mt-4">
+            <p className="text-xs text-[#7A7A7A] mt-4">
               Endpoint directo:{' '}
-              <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+              <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
                 GET /api/auth/v1/me
               </code>{' '}
               (vía IDP)
@@ -101,9 +101,9 @@ function MeComponent() {
                 </Link>
               }
             />
-            <p className="text-xs text-slate-500 mt-4 text-center">
+            <p className="text-xs text-[#7A7A7A] mt-4 text-center">
               Endpoint directo:{' '}
-              <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+              <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
                 GET /api/auth/v1/me
               </code>{' '}
               (vía IDP)

@@ -200,31 +200,31 @@ function ScopeDetailComponent() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans">
-      <header className="border-b border-slate-700/60 pb-6">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
+      <header className="border-b border-[#C7C7C7] pb-6">
         <Link
           to="/scopes"
-          className="text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+          className="text-xs font-semibold text-[#444343] hover:text-[#141414] transition-colors duration-300"
         >
           ← Volver al centro de scopes
         </Link>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-2">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-2">
           Scope: {scope.name}
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-[#444343] mt-1">
           {scope.description || 'Sin descripción.'}
         </p>
       </header>
 
       <Card>
-        <p className="text-sm text-slate-300">
-          <strong className="text-slate-100">Tipo:</strong> {scope.scopeType} ·{' '}
-          <strong className="text-slate-100">Propietario:</strong>{' '}
-          <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200 text-xs">
+        <p className="text-sm text-[#444343]">
+          <strong className="text-[#141414]">Tipo:</strong> {scope.scopeType} ·{' '}
+          <strong className="text-[#141414]">Propietario:</strong>{' '}
+          <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE] text-xs">
             {scope.ownerId}
           </code>
         </p>
-        <p className="text-xs text-slate-500 mt-1">
+        <p className="text-xs text-[#7A7A7A] mt-1">
           Creado: {new Date(scope.createdAt).toLocaleString()} · Actualizado:{' '}
           {new Date(scope.updatedAt).toLocaleString()}
         </p>
@@ -233,7 +233,7 @@ function ScopeDetailComponent() {
       {errorMessage && (
         <div
           role="alert"
-          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-red-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {errorMessage}
         </div>
@@ -242,19 +242,19 @@ function ScopeDetailComponent() {
       {successMessage && (
         <div
           role="status"
-          className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-green-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {successMessage}
         </div>
       )}
 
       <Card>
-        <h2 className="text-lg font-bold text-slate-100">
+        <h2 className="text-lg font-bold text-[#141414]">
           Archivo y configuración del scope
         </h2>
         {scope.hasArchive ? (
           <div className="mt-2">
-            <p className="text-sm text-slate-400">
+            <p className="text-sm text-[#444343]">
               Este scope tiene un archivo activo.
             </p>
             <div className="mt-3">
@@ -267,20 +267,20 @@ function ScopeDetailComponent() {
                   : 'Descargar archivo del scope (.zip)'}
               </Button>
             </div>
-            <h3 className="text-sm font-bold text-slate-200 mt-4">
+            <h3 className="text-sm font-bold text-[#141414] mt-4">
               Archivos ({scope.files.length})
             </h3>
             <div className="overflow-x-auto mt-2">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b border-slate-800">
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <tr className="text-left border-b border-[#C7C7C7]">
+                    <th className="px-3 py-2 grid-label">
                       Ruta
                     </th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-3 py-2 grid-label">
                       Tamaño
                     </th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-3 py-2 grid-label">
                       SHA256
                     </th>
                   </tr>
@@ -289,14 +289,14 @@ function ScopeDetailComponent() {
                   {scope.files.map((file) => (
                     <tr
                       key={file.path}
-                      className="border-b border-slate-800/60 last:border-0"
+                      className="border-b border-[#C7C7C7] last:border-0"
                     >
-                      <td className="px-3 py-2 text-slate-200">{file.path}</td>
-                      <td className="px-3 py-2 text-slate-400">
+                      <td className="px-3 py-2 text-[#141414]">{file.path}</td>
+                      <td className="px-3 py-2 text-[#444343]">
                         {file.size} B
                       </td>
                       <td className="px-3 py-2 text-xs">
-                        <code className="text-slate-400 break-all">
+                        <code className="text-[#444343] break-all">
                           {file.checksum}
                         </code>
                       </td>
@@ -308,21 +308,21 @@ function ScopeDetailComponent() {
           </div>
         ) : (
           <div className="mt-2">
-            <p className="text-sm italic text-slate-500">
+            <p className="text-sm italic text-[#7A7A7A]">
               Aún no se ha subido ningún archivo a este scope.
             </p>
-            <p className="text-sm text-slate-400 mt-2">
+            <p className="text-sm text-[#444343] mt-2">
               Para subir archivos, define una tabla{' '}
-              <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+              <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
                 [scope]
               </code>{' '}
               en tu{' '}
-              <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+              <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
                 unsareport.toml
               </code>{' '}
               y ejecuta:
             </p>
-            <pre className="bg-slate-950 border border-slate-800 px-3 py-2 rounded-lg mt-2 text-xs text-slate-200 overflow-x-auto">
+            <pre className="bg-[#141414] border border-[#C7C7C7] px-3 py-2 rounded-none mt-2 text-xs text-[#E3E2DE] overflow-x-auto">
               unsarep registry scope push
             </pre>
           </div>
@@ -330,23 +330,23 @@ function ScopeDetailComponent() {
       </Card>
 
       <Card padding="none">
-        <h2 className="text-lg font-bold text-slate-100 px-6 pt-5">
+        <h2 className="text-lg font-bold text-[#141414] px-6 pt-5">
           Miembros del equipo
         </h2>
         <div className="overflow-x-auto mt-2">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left border-b border-slate-800">
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <tr className="text-left border-b border-[#C7C7C7]">
+                <th className="px-4 py-3 grid-label">
                   ID de usuario
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-4 py-3 grid-label">
                   Rol
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <th className="px-4 py-3 grid-label">
                   Desde
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                <th className="px-4 py-3 grid-label text-right">
                   Acciones
                 </th>
               </tr>
@@ -358,18 +358,18 @@ function ScopeDetailComponent() {
                 return (
                   <tr
                     key={m.userId}
-                    className="border-b border-slate-800/60 last:border-0"
+                    className="border-b border-[#C7C7C7] last:border-0"
                   >
-                    <td className="px-4 py-3 text-slate-200">
-                      <code className="text-xs text-slate-400">{m.userId}</code>
+                    <td className="px-4 py-3 text-[#141414]">
+                      <code className="text-xs text-[#444343]">{m.userId}</code>
                       {isMemberOwner && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-[#7A7A7A]">
                           {' '}
                           (Propietario)
                         </span>
                       )}
                       {isSelf && (
-                        <span className="text-xs text-slate-500"> (Tú)</span>
+                        <span className="text-xs text-[#7A7A7A]"> (Tú)</span>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -382,24 +382,24 @@ function ScopeDetailComponent() {
                               e.target.value as ScopeMemberRole,
                             )
                           }
-                          className="px-2 py-1 rounded-lg bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+                          className="px-2 py-1 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]/50"
                         >
                           <option value={ROLE_ADMIN}>admin</option>
                           <option value={ROLE_CONTRIBUTOR}>contributor</option>
                         </select>
                       ) : (
                         <span
-                          className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border uppercase tracking-wider ${
+                          className={`inline-flex items-center px-2 py-0.5 rounded-none text-[11px] font-semibold border uppercase tracking-wider ${
                             m.role === 'admin'
-                              ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
-                              : 'bg-slate-800 text-slate-300 border-slate-700'
+                              ? 'bg-[#141414] text-[#E3E2DE] border-[#C7C7C7]'
+                              : 'bg-transparent text-[#444343] border-[#C7C7C7]'
                           }`}
                         >
                           {m.role}
                         </span>
                       )}
                     </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
+                    <td className="px-4 py-3 text-[#444343] text-xs">
                       {new Date(m.createdAt).toLocaleDateString()}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -408,7 +408,7 @@ function ScopeDetailComponent() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveMember(m.userId)}
-                          className="text-rose-400 hover:text-rose-300"
+                          className="text-rose-400 hover:text-red-700"
                         >
                           Eliminar
                         </Button>
@@ -418,7 +418,7 @@ function ScopeDetailComponent() {
                           variant="ghost"
                           size="sm"
                           onClick={handleLeaveScope}
-                          className="text-rose-400 hover:text-rose-300"
+                          className="text-rose-400 hover:text-red-700"
                         >
                           Salir del scope
                         </Button>
@@ -434,7 +434,7 @@ function ScopeDetailComponent() {
 
       {isScopeAdmin && (
         <Card>
-          <h2 className="text-lg font-bold text-slate-100">
+          <h2 className="text-lg font-bold text-[#141414]">
             Invitar miembro del equipo
           </h2>
           <form
@@ -455,7 +455,7 @@ function ScopeDetailComponent() {
             <div className="flex flex-col gap-1.5">
               <label
                 htmlFor="invite-role"
-                className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+                className="grid-label"
               >
                 Rol
               </label>
@@ -465,7 +465,7 @@ function ScopeDetailComponent() {
                 onChange={(e) =>
                   setInviteRole(e.target.value as ScopeMemberRole)
                 }
-                className="px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+                className="px-3.5 py-2 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]/50"
               >
                 <option value={ROLE_CONTRIBUTOR}>
                   Colaborador (puede publicar)
@@ -476,28 +476,28 @@ function ScopeDetailComponent() {
             <Button type="submit">Enviar invitación</Button>
           </form>
 
-          <h3 className="text-sm font-bold text-slate-200 mt-6">
+          <h3 className="text-sm font-bold text-[#141414] mt-6">
             Invitaciones pendientes de este scope
           </h3>
           {invitationsList.length === 0 ? (
-            <p className="text-sm italic text-slate-500 mt-1">
+            <p className="text-sm italic text-[#7A7A7A] mt-1">
               No hay invitaciones pendientes para este scope.
             </p>
           ) : (
             <div className="overflow-x-auto mt-2">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left border-b border-slate-800">
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <tr className="text-left border-b border-[#C7C7C7]">
+                    <th className="px-3 py-2 grid-label">
                       Correo
                     </th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-3 py-2 grid-label">
                       Rol
                     </th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    <th className="px-3 py-2 grid-label">
                       Enviada el
                     </th>
-                    <th className="px-3 py-2 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                    <th className="px-3 py-2 grid-label text-right">
                       Acción
                     </th>
                   </tr>
@@ -506,11 +506,11 @@ function ScopeDetailComponent() {
                   {invitationsList.map((inv) => (
                     <tr
                       key={inv.id}
-                      className="border-b border-slate-800/60 last:border-0"
+                      className="border-b border-[#C7C7C7] last:border-0"
                     >
-                      <td className="px-3 py-2 text-slate-200">{inv.email}</td>
-                      <td className="px-3 py-2 text-slate-300">{inv.role}</td>
-                      <td className="px-3 py-2 text-slate-400 text-xs">
+                      <td className="px-3 py-2 text-[#141414]">{inv.email}</td>
+                      <td className="px-3 py-2 text-[#444343]">{inv.role}</td>
+                      <td className="px-3 py-2 text-[#444343] text-xs">
                         {new Date(inv.createdAt).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 text-right">
@@ -518,7 +518,7 @@ function ScopeDetailComponent() {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleCancelInvitation(inv.id)}
-                          className="text-rose-400 hover:text-rose-300"
+                          className="text-rose-400 hover:text-red-700"
                         >
                           Cancelar
                         </Button>
@@ -533,35 +533,35 @@ function ScopeDetailComponent() {
       )}
 
       <Card>
-        <h2 className="text-lg font-bold text-slate-100">
+        <h2 className="text-lg font-bold text-[#141414]">
           Paquetes de este scope
         </h2>
         {packages.length === 0 ? (
-          <p className="text-sm italic text-slate-500 mt-1">
+          <p className="text-sm italic text-[#7A7A7A] mt-1">
             Aún no se ha publicado ningún paquete bajo {scope.name}.
           </p>
         ) : (
           <ul className="mt-2 space-y-2">
             {packages.map((pkg) => (
-              <li key={pkg.name} className="text-sm text-slate-300">
+              <li key={pkg.name} className="text-sm text-[#444343]">
                 <Link
                   to="/registry/$name"
                   params={{ name: pkg.name }}
-                  className="text-indigo-400 hover:text-indigo-300 font-bold"
+                  className="text-[#1351AA] hover:text-[#1351AA] transition-colors duration-300 font-bold"
                 >
                   {pkg.name}
                 </Link>
                 {pkg.displayName && (
-                  <span className="text-slate-400"> — {pkg.displayName}</span>
+                  <span className="text-[#444343]"> — {pkg.displayName}</span>
                 )}
                 {pkg.latestVersion && (
-                  <span className="text-slate-500">
+                  <span className="text-[#7A7A7A]">
                     {' '}
                     (última: v{pkg.latestVersion})
                   </span>
                 )}
                 {pkg.description && (
-                  <span className="text-slate-400"> — {pkg.description}</span>
+                  <span className="text-[#444343]"> — {pkg.description}</span>
                 )}
               </li>
             ))}

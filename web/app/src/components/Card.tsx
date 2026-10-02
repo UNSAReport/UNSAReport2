@@ -25,7 +25,7 @@ export function Card({
   return (
     <article
       aria-labelledby={labelledBy}
-      className={`rounded-2xl bg-slate-900/60 border border-slate-800 ${paddingClasses[padding]} ${className}`}
+      className={`rounded-none bg-transparent border border-[#C7C7C7] ${paddingClasses[padding]} ${className}`}
     >
       {children}
     </article>

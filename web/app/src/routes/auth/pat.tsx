@@ -69,15 +69,15 @@ function PatComponent() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 font-sans">
-      <header className="border-b border-slate-700/60 pb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
+      <header className="border-b border-[#C7C7C7] pb-6">
+        <p className="grid-label">
           UNSAReport · Cuenta
         </p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Tokens de acceso personal
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-[#444343] mt-1">
           Crea y revoca tokens para el CLI y otras integraciones. El token solo
           se muestra una vez.
         </p>
@@ -86,22 +86,22 @@ function PatComponent() {
       {error && (
         <div
           role="alert"
-          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-red-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {error}
         </div>
       )}
 
       {newToken && (
-        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
-          <p className="font-bold text-emerald-300">
+        <div className="rounded-none border border-[#C7C7C7] bg-transparent p-4">
+          <p className="font-bold text-green-700">
             Token creado correctamente
           </p>
           <p className="mt-1 text-sm text-emerald-200/80">
             Cópialo ahora — no volverá a mostrarse:
           </p>
           <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <code className="flex-1 min-w-0 bg-slate-950 border border-emerald-500/20 px-3 py-2 rounded-lg break-all font-mono text-xs text-slate-100">
+            <code className="flex-1 min-w-0 bg-[#141414] border border-[#C7C7C7] px-3 py-2 rounded-none break-all font-mono text-xs text-[#E3E2DE]">
               {newToken}
             </code>
             <Button
@@ -148,14 +148,14 @@ function PatComponent() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-slate-800">
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <tr className="text-left border-b border-[#C7C7C7]">
+                  <th className="px-4 py-3 grid-label">
                     ID
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Nombre
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                  <th className="px-4 py-3 grid-label text-right">
                     Acciones
                   </th>
                 </tr>
@@ -164,12 +164,12 @@ function PatComponent() {
                 {pats.map((pat) => (
                   <tr
                     key={pat.id}
-                    className="border-b border-slate-800/60 last:border-0"
+                    className="border-b border-[#C7C7C7] last:border-0"
                   >
-                    <td className="px-4 py-3 font-mono text-xs text-slate-400 break-all">
+                    <td className="px-4 py-3 font-mono text-xs text-[#444343] break-all">
                       {pat.id}
                     </td>
-                    <td className="px-4 py-3 text-slate-200 font-medium">
+                    <td className="px-4 py-3 text-[#141414] font-medium">
                       {pat.name}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -177,7 +177,7 @@ function PatComponent() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleDelete(pat.id)}
-                        className="text-rose-400 hover:text-rose-300"
+                        className="text-rose-400 hover:text-red-700"
                       >
                         Revocar
                       </Button>

@@ -57,32 +57,32 @@ function PresentationsCatalog() {
   }, [allLayouts]);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-200 font-sans">
+    <div className="min-h-screen bg-[#E3E2DE] text-[#141414] font-sans">
       <div className="px-4 py-8 max-w-7xl mx-auto space-y-8">
         {/* Header and navigation */}
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-700/60 pb-6">
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#C7C7C7] pb-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <Link
                 to="/presentations"
-                className="text-xs font-semibold text-slate-400 hover:text-indigo-400 transition-colors"
+                className="text-xs font-semibold text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
               >
                 ← Volver al Dashboard
               </Link>
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">
+            <h1 className="text-3xl font-extrabold tracking-tight text-[#141414]">
               Catálogo Oficial de Layouts y Temas
             </h1>
-            <p className="text-sm text-slate-400 mt-1 max-w-2xl">
+            <p className="text-sm text-[#444343] mt-1 max-w-2xl">
               {allLayouts.length} layouts puros y modulares organizados en{' '}
               {categories.length} familias de diseño y {themes.length} temas.
             </p>
           </div>
 
           {/* Theme selector */}
-          <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-slate-900 border border-slate-800">
+          <div className="flex flex-col gap-1.5 p-3 rounded-none bg-transparent border border-[#C7C7C7]">
             <fieldset className="flex flex-wrap items-center gap-2">
-              <legend className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">
+              <legend className="text-[11px] font-bold uppercase tracking-[0.2em] text-[#7A7A7A] mb-1">
                 Tema de vista previa
               </legend>
               {themes.map((t: ThemeDefinition) => (
@@ -97,7 +97,7 @@ function PresentationsCatalog() {
                 </Button>
               ))}
             </fieldset>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-[11px] text-[#7A7A7A]">
               Se aplica a la vista previa completa dentro del modal.
             </p>
           </div>
@@ -106,7 +106,7 @@ function PresentationsCatalog() {
         {/* Search bar and category filters */}
         <div className="space-y-4">
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
-            <fieldset className="flex flex-wrap items-center gap-2 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <fieldset className="flex flex-wrap items-center gap-2 bg-transparent p-1 rounded-none border border-[#C7C7C7]">
               <legend className="sr-only">Filtrar por categoría</legend>
               <Button
                 size="sm"
@@ -187,33 +187,33 @@ function LayoutSchematic({ def }: { def: LayoutDefinition }) {
   return (
     <div aria-hidden="true" className="w-full h-full flex flex-col gap-2 p-1">
       {/* Bloque de título abstracto */}
-      <div className="h-2.5 w-3/4 rounded bg-slate-700" />
-      <div className="h-1.5 w-1/2 rounded bg-slate-800" />
+      <div className="h-2.5 w-3/4 rounded-none bg-[#C7C7C7]" />
+      <div className="h-1.5 w-1/2 rounded-none bg-[#C7C7C7]" />
       {/* Bloques por slot */}
       <div className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
         {slots.map((slot, i) =>
           slot.type.includes('[]') ? (
             <div
               key={slot.name}
-              className={`rounded p-1.5 space-y-1 ${i === 0 ? 'bg-indigo-500/30 border border-indigo-500/40' : 'bg-slate-800 border border-slate-700/60'}`}
+              className={`rounded-none p-1.5 space-y-1 border ${i === 0 ? 'bg-[#1351AA]/10 border-[#1351AA]' : 'bg-transparent border-[#C7C7C7]'}`}
             >
-              <div className="h-1 w-2/3 rounded bg-slate-700" />
-              <div className="h-1 w-1/2 rounded bg-slate-700/70" />
-              <div className="h-1 w-3/5 rounded bg-slate-700/50" />
+              <div className="h-1 w-2/3 rounded-none bg-[#C7C7C7]" />
+              <div className="h-1 w-1/2 rounded-none bg-[#C7C7C7]" />
+              <div className="h-1 w-3/5 rounded-none bg-[#C7C7C7]" />
             </div>
           ) : (
             <div
               key={slot.name}
-              className={`rounded p-1.5 flex flex-col gap-1 ${i === 0 ? 'bg-indigo-500/30 border border-indigo-500/40' : 'bg-slate-800 border border-slate-700/60'}`}
+              className={`rounded-none p-1.5 flex flex-col gap-1 border ${i === 0 ? 'bg-[#1351AA]/10 border-[#1351AA]' : 'bg-transparent border-[#C7C7C7]'}`}
             >
-              <div className="h-1 w-1/2 rounded bg-slate-700" />
-              <div className="h-1 w-3/4 rounded bg-slate-700/60" />
+              <div className="h-1 w-1/2 rounded-none bg-[#C7C7C7]" />
+              <div className="h-1 w-3/4 rounded-none bg-[#C7C7C7]" />
             </div>
           ),
         )}
       </div>
       {overflow > 0 ? (
-        <p className="text-[10px] text-slate-500 font-mono">
+        <p className="text-[10px] text-[#7A7A7A] font-mono">
           +{overflow} bloques más
         </p>
       ) : null}
@@ -231,10 +231,10 @@ function LayoutCatalogCard({
   return (
     <Card
       padding="md"
-      className="group flex flex-col justify-between hover:border-slate-700 hover:shadow-xl hover:shadow-indigo-950/20"
+      className="group flex flex-col justify-between transition-colors duration-300 hover:border-[#1351AA]"
     >
       <header className="flex items-center justify-between gap-2 mb-3">
-        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-indigo-400 text-[10px] font-bold uppercase tracking-wider">
+        <span className="px-2 py-0.5 rounded-none bg-[#141414] text-[#E3E2DE] text-[10px] font-bold uppercase tracking-[0.2em]">
           {def.category}
         </span>
         <Button size="sm" variant="ghost" onClick={onInspect}>
@@ -243,16 +243,16 @@ function LayoutCatalogCard({
       </header>
 
       {/* Schematic thumbnail */}
-      <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 bg-slate-900 mb-4 p-3 select-none">
+      <div className="relative w-full aspect-video rounded-none overflow-hidden border border-[#C7C7C7] bg-transparent mb-4 p-3 select-none">
         <LayoutSchematic def={def} />
       </div>
 
       <div>
-        <h3 className="text-lg font-bold text-white group-hover:text-indigo-400 transition-colors line-clamp-1">
+        <h3 className="text-lg font-bold text-[#141414] group-hover:text-[#1351AA] transition-colors duration-300 line-clamp-1">
           {def.name}
         </h3>
-        <p className="text-xs text-slate-400 font-mono mt-1 mb-3">{def.id}</p>
-        <p className="text-sm text-slate-400 line-clamp-2 leading-relaxed">
+        <p className="text-xs text-[#7A7A7A] font-mono mt-1 mb-3">{def.id}</p>
+        <p className="text-sm text-[#444343] line-clamp-2 leading-relaxed">
           {def.description}
         </p>
       </div>
@@ -297,34 +297,34 @@ ${def.slots
       role="dialog"
       aria-modal="true"
       aria-labelledby={modalTitleId}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
     >
-      <div className="bg-slate-950 text-slate-200 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+      <div className="bg-[#E3E2DE] text-[#141414] border border-[#C7C7C7] rounded-none max-w-2xl w-full p-6 space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-[#C7C7C7] pb-4">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400">
+            <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#1351AA]">
               {def.category}
             </span>
-            <h2 id={modalTitleId} className="text-xl font-bold text-white">
+            <h2 id={modalTitleId} className="text-xl font-bold text-[#141414]">
               {def.name}
             </h2>
-            <p className="text-xs font-mono text-slate-500">{def.id}</p>
+            <p className="text-xs font-mono text-[#7A7A7A]">{def.id}</p>
           </div>
           <button
             type="button"
             onClick={onClose}
             aria-label="Cerrar modal"
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold"
+            className="p-1.5 rounded-none bg-[#141414] text-[#E3E2DE] text-xs font-bold transition-colors duration-300 hover:bg-[#1351AA]"
           >
             ✕
           </button>
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A] mb-2">
             Vista previa con tema
           </h3>
-          <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-slate-800 select-none pointer-events-none">
+          <div className="relative w-full aspect-video rounded-none overflow-hidden border border-[#C7C7C7] select-none pointer-events-none">
             <ThemeProvider theme={selectedThemeId}>
               <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight p-3">
                 <Component {...previewProps} />
@@ -334,36 +334,36 @@ ${def.slots
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A] mb-2">
             Descripción de Uso
           </h3>
-          <p className="text-sm text-slate-400 leading-relaxed">
+          <p className="text-sm text-[#444343] leading-relaxed">
             {def.description}
           </p>
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A] mb-2">
             Slots Requeridos y Opcionales
           </h3>
-          <div className="rounded-xl border border-slate-800 overflow-hidden divide-y divide-slate-800">
+          <div className="rounded-none border border-[#C7C7C7] overflow-hidden divide-y divide-[#C7C7C7]">
             {def.slots.map((slot: LayoutDefinition['slots'][number]) => (
               <div
                 key={slot.name}
                 className="p-3 text-xs flex items-start justify-between gap-4"
               >
                 <div>
-                  <span className="font-mono font-bold text-indigo-400">
+                  <span className="font-mono font-bold text-[#1351AA]">
                     {slot.name}
                   </span>
                   {slot.required && (
-                    <span className="ml-2 text-[10px] uppercase font-bold text-rose-400">
+                    <span className="ml-2 text-[10px] uppercase font-bold text-red-700">
                       Requerido
                     </span>
                   )}
-                  <p className="text-slate-400 mt-0.5">{slot.description}</p>
+                  <p className="text-[#444343] mt-0.5">{slot.description}</p>
                 </div>
-                <span className="font-mono text-[11px] text-slate-500 shrink-0">
+                <span className="font-mono text-[11px] text-[#7A7A7A] shrink-0">
                   {slot.type}
                 </span>
               </div>
@@ -372,10 +372,10 @@ ${def.slots
         </div>
 
         <div>
-          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
+          <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A] mb-2">
             Configuración en deck.config.ts
           </h3>
-          <pre className="p-4 rounded-xl bg-black/60 border border-slate-800 text-xs font-mono text-emerald-400 overflow-x-auto whitespace-pre">
+          <pre className="p-4 rounded-none bg-[#141414] text-[#E3E2DE] font-mono border border-[#C7C7C7] text-xs overflow-x-auto whitespace-pre">
             {sampleSnippet}
           </pre>
         </div>
@@ -384,7 +384,7 @@ ${def.slots
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold"
+            className="px-4 py-2 rounded-none bg-[#1351AA] text-[#E3E2DE] text-xs font-semibold transition-colors duration-300 hover:bg-[#141414]"
           >
             Entendido
           </button>

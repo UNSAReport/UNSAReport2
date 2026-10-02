@@ -121,15 +121,15 @@ function ScopesIndexComponent() {
   };
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans">
-      <header className="border-b border-slate-700/60 pb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
+      <header className="border-b border-[#C7C7C7] pb-6">
+        <p className="grid-label">
           UNSAReport · Registro
         </p>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white mt-1">
+        <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Centro de scopes
         </h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-[#444343] mt-1">
           Gestiona tus scopes personales y de organización, responde
           invitaciones de equipo y solicita scopes personalizados.
         </p>
@@ -138,7 +138,7 @@ function ScopesIndexComponent() {
       {errorMessage && (
         <div
           role="alert"
-          className="text-sm text-rose-300 bg-rose-500/10 border border-rose-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-red-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {errorMessage}
         </div>
@@ -147,14 +147,14 @@ function ScopesIndexComponent() {
       {successMessage && (
         <div
           role="status"
-          className="text-sm text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 rounded-xl"
+          className="text-sm text-green-700 bg-transparent border border-[#C7C7C7] px-4 py-3 rounded-none"
         >
           {successMessage}
         </div>
       )}
 
       <Card padding="none">
-        <h2 className="text-lg font-bold text-slate-100 px-6 pt-5">
+        <h2 className="text-lg font-bold text-[#141414] px-6 pt-5">
           Mis scopes
         </h2>
         {scopesList.length === 0 ? (
@@ -168,20 +168,20 @@ function ScopesIndexComponent() {
           <div className="overflow-x-auto mt-2">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-slate-800">
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <tr className="text-left border-b border-[#C7C7C7]">
+                  <th className="px-4 py-3 grid-label">
                     Scope
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Tipo
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Tu rol
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Descripción
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                  <th className="px-4 py-3 grid-label text-right">
                     Acciones
                   </th>
                 </tr>
@@ -190,30 +190,30 @@ function ScopesIndexComponent() {
                 {scopesList.map((s) => (
                   <tr
                     key={s.id}
-                    className="border-b border-slate-800/60 last:border-0"
+                    className="border-b border-[#C7C7C7] last:border-0"
                   >
                     <td className="px-4 py-3 font-bold">
                       <Link
                         to="/scopes/$scope"
                         params={{ scope: s.name }}
-                        className="text-indigo-400 hover:text-indigo-300"
+                        className="text-[#1351AA] hover:text-[#1351AA] transition-colors duration-300"
                       >
                         {s.name}
                       </Link>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{s.scopeType}</td>
+                    <td className="px-4 py-3 text-[#444343]">{s.scopeType}</td>
                     <td className="px-4 py-3">
                       <span
-                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold border uppercase tracking-wider ${
+                        className={`inline-flex items-center px-2 py-0.5 rounded-none text-[11px] font-semibold border uppercase tracking-wider ${
                           s.role === 'admin'
-                            ? 'bg-indigo-500/10 text-indigo-300 border-indigo-500/30'
-                            : 'bg-slate-800 text-slate-300 border-slate-700'
+                            ? 'bg-[#141414] text-[#E3E2DE] border-[#C7C7C7]'
+                            : 'bg-transparent text-[#444343] border-[#C7C7C7]'
                         }`}
                       >
                         {s.role ?? 'member'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-400">
+                    <td className="px-4 py-3 text-[#444343]">
                       {s.description || '—'}
                     </td>
                     <td className="px-4 py-3 text-right">
@@ -234,28 +234,28 @@ function ScopesIndexComponent() {
       </Card>
 
       <Card padding="none">
-        <h2 className="text-lg font-bold text-slate-100 px-6 pt-5">
+        <h2 className="text-lg font-bold text-[#141414] px-6 pt-5">
           Invitaciones pendientes
         </h2>
         {invitationsList.length === 0 ? (
-          <p className="px-6 pb-6 pt-2 text-sm italic text-slate-500">
+          <p className="px-6 pb-6 pt-2 text-sm italic text-[#7A7A7A]">
             No tienes invitaciones pendientes.
           </p>
         ) : (
           <div className="overflow-x-auto mt-2">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left border-b border-slate-800">
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                <tr className="text-left border-b border-[#C7C7C7]">
+                  <th className="px-4 py-3 grid-label">
                     Scope
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Rol ofrecido
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+                  <th className="px-4 py-3 grid-label">
                     Invitado el
                   </th>
-                  <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wider text-slate-400 text-right">
+                  <th className="px-4 py-3 grid-label text-right">
                     Acciones
                   </th>
                 </tr>
@@ -264,13 +264,13 @@ function ScopesIndexComponent() {
                 {invitationsList.map((inv) => (
                   <tr
                     key={inv.id}
-                    className="border-b border-slate-800/60 last:border-0"
+                    className="border-b border-[#C7C7C7] last:border-0"
                   >
-                    <td className="px-4 py-3 font-bold text-slate-100">
+                    <td className="px-4 py-3 font-bold text-[#141414]">
                       {inv.scopeName ?? inv.scopeId}
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{inv.role}</td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">
+                    <td className="px-4 py-3 text-[#444343]">{inv.role}</td>
+                    <td className="px-4 py-3 text-[#444343] text-xs">
                       {new Date(inv.createdAt).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
@@ -285,7 +285,7 @@ function ScopesIndexComponent() {
                           size="sm"
                           variant="ghost"
                           onClick={() => handleDeclineInvitation(inv.id)}
-                          className="text-rose-400 hover:text-rose-300"
+                          className="text-rose-400 hover:text-red-700"
                         >
                           Rechazar
                         </Button>
@@ -300,12 +300,12 @@ function ScopesIndexComponent() {
       </Card>
 
       <Card>
-        <h2 className="text-lg font-bold text-slate-100">
+        <h2 className="text-lg font-bold text-[#141414]">
           Solicitar un scope personalizado
         </h2>
-        <p className="text-sm text-slate-400 mt-1">
+        <p className="text-sm text-[#444343] mt-1">
           Los scopes personalizados (como{' '}
-          <code className="bg-slate-800 px-1.5 py-0.5 rounded text-slate-200">
+          <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
             @organizacion
           </code>
           ) permiten que varios miembros publiquen paquetes juntos bajo un
@@ -327,7 +327,7 @@ function ScopesIndexComponent() {
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="scope-reason"
-              className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+              className="grid-label"
             >
               Motivo / justificación *
             </label>
@@ -338,7 +338,7 @@ function ScopesIndexComponent() {
               value={reasonInput}
               onChange={(e) => setReasonInput(e.target.value)}
               required
-              className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+              className="w-full px-3.5 py-2 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] placeholder-[#7A7A7A] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]/50"
             />
           </div>
           <div>

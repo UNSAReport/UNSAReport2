@@ -14,10 +14,10 @@ Checked client-side by `unsarep slides link`/`deploy`, enforced server-side
 
 ## Env switch (local vs prod)
 
-| Variable | Local dev | Prod (default) |
-|----------|-----------|----------------|
+| Variable             | Local dev                          | Prod (default)                                  |
+| -------------------- | ---------------------------------- | ----------------------------------------------- |
 | `UNSAREP_SLIDES_URL` | `http://localhost:9876/api/slides` | `https://unsareport.ynoacamino.tech/api/slides` |
-| `UNSAREP_TOKEN` | local PAT | prod PAT |
+| `UNSAREP_TOKEN`      | local PAT                          | prod PAT                                        |
 
 Each `deploy` creates version `vN`; the viewer serves
 `/api/slides/embed/:id/vN/...`; speaker notes travel as

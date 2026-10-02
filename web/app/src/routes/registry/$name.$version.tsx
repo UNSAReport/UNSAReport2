@@ -30,8 +30,8 @@ function VersionComponent() {
   return (
     <Card padding="md" className="mt-6 space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-white">Versión {version}</h2>
-        <div className="mt-3 bg-slate-950 px-3 py-2 rounded-lg border border-slate-800 font-mono text-xs text-indigo-300">
+        <h2 className="text-lg font-bold text-[#141414]">Versión {version}</h2>
+        <div className="mt-3 bg-[#141414] px-3 py-2 rounded-none border border-[#C7C7C7] font-mono text-xs text-[#E3E2DE]">
           unsarep install {name}@{version}
         </div>
         {archive_url && (
@@ -48,27 +48,27 @@ function VersionComponent() {
         )}
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-slate-200 mb-2">
+        <h3 className="text-sm font-semibold text-[#141414] mb-2">
           Manifiesto / dependencias
         </h3>
-        <pre className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs font-mono text-slate-300 overflow-x-auto">
+        <pre className="bg-[#141414] border border-[#C7C7C7] rounded-none p-4 text-xs font-mono text-[#E3E2DE] overflow-x-auto">
           {JSON.stringify(manifest, null, 2)}
         </pre>
       </div>
       <div>
-        <h3 className="text-sm font-semibold text-slate-200 mb-2">
+        <h3 className="text-sm font-semibold text-[#141414] mb-2">
           Archivos ({files.length})
         </h3>
         {files.length === 0 ? (
-          <p className="text-sm text-slate-500 italic">Sin archivos</p>
+          <p className="text-sm text-[#7A7A7A] italic">Sin archivos</p>
         ) : (
           <ul className="space-y-1.5">
             {files.map((f) => (
-              <li key={f.path} className="text-sm text-slate-400">
-                <code className="font-mono text-xs text-slate-200">
+              <li key={f.path} className="text-sm text-[#444343]">
+                <code className="font-mono text-xs text-[#141414]">
                   {f.path}
                 </code>{' '}
-                <span className="text-xs text-slate-500">({f.size} bytes)</span>
+                <span className="text-xs text-[#7A7A7A]">({f.size} bytes)</span>
               </li>
             ))}
           </ul>

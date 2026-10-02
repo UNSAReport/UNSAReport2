@@ -14,10 +14,10 @@ export function Spinner({
     <span
       role="status"
       aria-live="polite"
-      className={`inline-flex items-center gap-2 text-slate-400 ${className}`}
+      className={`inline-flex items-center gap-2 text-[#444343] ${className}`}
     >
       <svg
-        className={`${sizeClass} animate-spin text-indigo-400`}
+        className={`${sizeClass} animate-spin text-[#1351AA]`}
         viewBox="0 0 24 24"
         fill="none"
         aria-hidden="true"

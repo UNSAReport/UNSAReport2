@@ -132,16 +132,16 @@ export function DeployForm() {
     return (
       <section
         aria-label="Publicación exitosa"
-        className="p-6 rounded-2xl bg-slate-900/60 border border-emerald-500/30 space-y-3"
+        className="p-6 rounded-none bg-transparent border border-[#C7C7C7] space-y-3"
       >
-        <h2 className="text-lg font-bold text-emerald-300">
+        <h2 className="text-lg font-bold text-green-700">
           Versión v{result.version} publicada
         </h2>
-        <p className="text-sm text-slate-400">{result.message}</p>
+        <p className="text-sm text-[#444343]">{result.message}</p>
         <Link
           to="/presentations/$slug"
           params={{ slug: result.presentationId }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-medium text-sm transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-none bg-[#1351AA] text-[#E3E2DE] font-medium text-sm transition-colors duration-300 hover:bg-[#141414]"
         >
           Ver presentación →
         </Link>
@@ -152,14 +152,14 @@ export function DeployForm() {
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {formError ? (
-        <p role="alert" className="text-sm text-rose-400">
+        <p role="alert" className="text-sm text-red-700">
           {formError}
         </p>
       ) : null}
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={fileInputId}
-          className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+          className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A]"
         >
           Bundle (.zip) <span aria-hidden="true">*</span>
         </label>
@@ -170,12 +170,12 @@ export function DeployForm() {
           accept=".zip"
           required
           onChange={handleFileChange}
-          className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 file:mr-3 file:px-3 file:py-1.5 file:rounded-lg file:border-0 file:bg-slate-800 file:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+          className="w-full px-3.5 py-2 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] file:mr-3 file:px-3 file:py-1.5 file:rounded-none file:border file:border-[#C7C7C7] file:bg-[#141414] file:text-[#E3E2DE] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
         />
         {fileName ? (
-          <p className="text-xs text-slate-500">{fileName}</p>
+          <p className="text-xs text-[#7A7A7A]">{fileName}</p>
         ) : (
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-[#7A7A7A]">
             Zip generado por `unsarep slides deploy` (máx. 50 MiB)
           </p>
         )}
@@ -208,7 +208,7 @@ export function DeployForm() {
       <div className="flex flex-col gap-1.5">
         <label
           htmlFor={visibilitySelectId}
-          className="text-xs font-semibold uppercase tracking-wider text-slate-400"
+          className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A]"
         >
           Visibilidad
         </label>
@@ -217,7 +217,7 @@ export function DeployForm() {
           name="visibility"
           value={visibility}
           onChange={(e) => setVisibility(e.target.value as Visibility)}
-          className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-sm text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50"
+          className="w-full px-3.5 py-2 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
         >
           <option value="private">Privada</option>
           <option value="org">Organización</option>
