@@ -8,13 +8,25 @@
       "types": "./dist/config.d.ts",
       "import": "./dist/config.js"
     },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js",
+      "default": "./dist/config.js"
+    },
     "./types": {
-      "types": "./dist/types.d.ts"
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js",
+      "default": "./dist/types.js"
     },
     "./layouts": {
       "types": "./dist/layouts/registry.d.ts",
       "import": "./dist/layouts/registry.js",
       "default": "./dist/layouts/registry.js"
+    },
+    "./layouts/catalog": {
+      "types": "./dist/layouts/catalog.d.ts",
+      "import": "./dist/layouts/catalog.js",
+      "default": "./dist/layouts/catalog.js"
     },
     "./layouts/types": {
       "types": "./dist/layouts/types.d.ts"
@@ -24,8 +36,10 @@
       "import": "./dist/themes/registry.js",
       "default": "./dist/themes/registry.js"
     },
-    "./themes/types": {
-      "types": "./dist/themes/types.d.ts"
+    "./themes/catalog": {
+      "types": "./dist/themes/catalog.d.ts",
+      "import": "./dist/themes/catalog.js",
+      "default": "./dist/themes/catalog.js"
     },
     "./renderer": {
       "types": "./dist/renderer/DeckRenderer.d.ts",
@@ -48,14 +62,16 @@
       "default": "./dist/renderer/ThemeProvider.js"
     },
     "./primitives/*": {
-      "types": "./dist/primitives/*.d.ts"
+      "types": "./dist/primitives/*.d.ts",
+      "import": "./dist/primitives/*.js",
+      "default": "./dist/primitives/*.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/config.ts src/layouts/registry.ts src/themes/registry.ts src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && rm -f tsconfig.tsbuildinfo && tsc --declaration --emitDeclarationOnly --outDir dist-types && cp -r dist-types/. dist/ && rm -rf dist-types",
+    "build": "bun build src/config.ts src/types.ts src/layouts/registry.ts src/layouts/catalog.ts src/themes/registry.ts src/themes/catalog.ts src/primitives/SlideAccent.tsx src/primitives/SlideCard.tsx src/primitives/SlideGrid.tsx src/primitives/SlideSection.tsx src/primitives/SlideSplit.tsx src/primitives/SlideStack.tsx src/primitives/SlideDivider.tsx src/primitives/SlideBackground.tsx src/primitives/SlideBar.tsx src/primitives/SlideDonut.tsx src/primitives/SlideGauge.tsx src/primitives/SlideSparkline.tsx src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --root src --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && rm -f tsconfig.tsbuildinfo && tsc --declaration --emitDeclarationOnly --outDir dist-types && cp -r dist-types/. dist/ && rm -rf dist-types",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit"

@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -53,15 +54,18 @@ export function SplitQuoteContext({
                 “{quote}”
               </blockquote>
             </div>
-            <div className="pt-4 border-t border-current/10 shrink-0 min-w-0">
-              <cite className="not-italic font-bold text-lg block truncate">
-                {quoteAuthor}
-              </cite>
-              {quoteSource && (
-                <span className="text-xs opacity-60 font-mono block mt-1 truncate">
-                  {quoteSource}
-                </span>
-              )}
+            <div className="shrink-0 min-w-0">
+              <SlideDivider thickness="1px" opacity={0.12} />
+              <div className="pt-4">
+                <cite className="not-italic font-bold text-lg block truncate">
+                  {quoteAuthor}
+                </cite>
+                {quoteSource && (
+                  <span className="text-xs opacity-60 font-mono block mt-1 truncate">
+                    {quoteSource}
+                  </span>
+                )}
+              </div>
             </div>
           </SlideCard>
         }

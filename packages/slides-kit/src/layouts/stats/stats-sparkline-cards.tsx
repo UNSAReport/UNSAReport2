@@ -1,7 +1,9 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
+import { SlideSparkline } from '@/primitives/SlideSparkline';
 
 export interface SparklineItem {
   metric: string;
@@ -69,19 +71,26 @@ export function StatsSparklineCards({
                 {c.metric}
               </div>
             </div>
-            <div className="pt-3 border-t border-current/10 shrink-0 min-w-0 overflow-hidden">
-              {/* Línea simulada de sparkline */}
-              <div className="min-h-0 flex items-end gap-1 mb-2 opacity-60 overflow-hidden">
-                <span className="flex-1 min-w-0 h-2 bg-current rounded-t" />
-                <span className="flex-1 min-w-0 h-3 bg-current rounded-t" />
-                <span className="flex-1 min-w-0 h-2.5 bg-current rounded-t" />
-                <span className="flex-1 min-w-0 h-4 bg-current rounded-t" />
-                <span className="flex-1 min-w-0 h-5 bg-current rounded-t" />
-                <span className="flex-1 min-w-0 h-6 max-h-full bg-current rounded-t" />
+            <div className="shrink-0 min-w-0 overflow-hidden">
+              <SlideDivider thickness="1px" opacity={0.12} />
+              <div className="pt-3">
+                {/* Línea simulada de sparkline */}
+                <SlideSparkline
+                  values={[8, 12, 10, 16, 20, 24]}
+                  tone={
+                    c.trend === 'a la baja'
+                      ? 'error'
+                      : c.trend === 'al alza'
+                        ? 'success'
+                        : 'accent'
+                  }
+                  maxHeight="1.5rem"
+                  label={`Tendencia ${c.label}`}
+                />
+                <p className="text-xs opacity-75 line-clamp-3 break-words min-w-0 mt-2">
+                  {c.summary}
+                </p>
               </div>
-              <p className="text-xs opacity-75 line-clamp-3 break-words min-w-0">
-                {c.summary}
-              </p>
             </div>
           </SlideCard>
         ))}

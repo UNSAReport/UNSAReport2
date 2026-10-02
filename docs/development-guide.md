@@ -49,11 +49,11 @@ bun run dev
 ```
 
 Los servicios estarán accesibles en:
-- **Gateway Traefik**: `http://localhost:9876`
+- **Gateway Traefik**: `http://localhost:9876` (rutas: `/api/auth` → auth `:3000`, `/api/registry` → registry `:3001`, `/api/slides` → slides `:3002`, `/` → web `:3100`)
 - **Frontend Web**: `http://localhost:3100` (o a través del gateway)
-- **Servicio Auth (IdP)**: `http://localhost:3000`
-- **Servicio Registry**: `http://localhost:3001`
-- **Servicio Slides**: `http://localhost:3002`
+- **Servicio Auth (IdP)**: `http://localhost:3000` (interno; público vía `/api/auth`)
+- **Servicio Registry**: `http://localhost:3001` (interno; público vía `/api/registry`)
+- **Servicio Slides**: `http://localhost:3002` (interno; público vía `/api/slides`)
 - **SeaweedFS S3 Console / Filer**: `http://localhost:8333` / `http://localhost:8888`
 
 ---
@@ -180,13 +180,13 @@ El monorepo utiliza un sistema determinista de resolución de variables en casca
 - Si los puertos `5432` (PostgreSQL), `8333`/`8888` (SeaweedFS) o `9876` (Traefik) están en conflicto con otros servicios locales, detén los contenedores existentes o personaliza los mapeos en `compose.dev.yml`.
 
 ### Firewall en Linux (UFW / Firewalld) bloqueando Traefik
-Traefik en contenedor Docker se comunica con los microservicios host a través de `host.docker.internal`. En distribuciones con firewall activo, permite el tráfico desde la subred bridge de Docker:
+Traefik en contenedor Docker se comunica con los microservicios host a través de `host.docker.internal`. En distribuciones con firewall activo, permite el tráfico desde la subred bridge de Docker hacia los puertos de servicio (el gateway público es `:9876` con rutas `/api/auth`, `/api/registry`, `/api/slides` y `/` → web):
 
 ```bash
 # Obtener subred de unsareport-dev:
 SUBNET=$(docker network inspect unsareport-dev --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
 
-# En UFW:
+# En UFW (servicios host detrás del gateway):
 sudo ufw allow from "$SUBNET" to any port 3000,3001,3002,3100 proto tcp
 
 # En Firewalld:

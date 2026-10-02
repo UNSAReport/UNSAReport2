@@ -22,19 +22,31 @@ var officialThemes = []ThemeInfo{
 	{
 		ID:          "unsa-dark",
 		Name:        "UNSA Dark",
-		Description: "Fondo pizarra (#0b0f19), granate y dorado UNSA. Ideal para labs y tech.",
+		Description: "Estilo institucional oscuro con tonos granate y dorado UNSA. Ideal para informes de laboratorio, proyectos y defensas técnicas.",
 		Default:     true,
 	},
 	{
 		ID:          "unsa-classic",
 		Name:        "UNSA Classic",
-		Description: "Fondo claro formal, azul marino. Ideal para defensas de tesis y grado.",
+		Description: "Estilo formal claro con tipografía editorial y azul marino. Diseñado para sustentaciones formales de grado, defensas de tesis y eventos protocolares.",
 		Default:     false,
 	},
 	{
 		ID:          "epis-tech",
 		Name:        "EPIS Tech",
-		Description: "Dark mode con bordes cian (#06b6d4) glow. Ideal para ciencias de la computación.",
+		Description: "Estilo oscuro futurista con acentos cian y verde esmeralda. Recomendado para Ciencias de la Computación, arquitectura de software, demos y hackathons.",
+		Default:     false,
+	},
+	{
+		ID:          "fips-light",
+		Name:        "FIPS Light",
+		Description: "Tema claro institucional de la Facultad de Ingeniería de Producción y Servicios, fondo cálido con acentos azul FIPS. Ideal para sustentaciones diurnas y actos formales.",
+		Default:     false,
+	},
+	{
+		ID:          "epis-night",
+		Name:        "EPIS Night",
+		Description: "Tema nocturno azul profundo de EPIS con acentos cian y violeta. Ideal para demos en vivo, live coding y charlas técnicas nocturnas.",
 		Default:     false,
 	},
 }

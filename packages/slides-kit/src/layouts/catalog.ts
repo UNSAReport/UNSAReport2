@@ -120,7 +120,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Layout de portada con título imponente centrado, subtítulo y metadatos de autor.',
-    tags: ['hero', 'hero', 'centered', 'bold'],
+    tags: ['hero', 'centered', 'bold'],
     slots: [
       {
         name: 'title',
@@ -149,7 +149,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada con énfasis equilibrado entre título y un subtítulo explicativo amplio.',
-    tags: ['hero', 'hero', 'centered', 'subtitle'],
+    tags: ['hero', 'centered', 'subtitle'],
     slots: [
       {
         name: 'title',
@@ -178,7 +178,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada estilo tarjeta de evento institucional o seminario de posgrado.',
-    tags: ['hero', 'hero', 'event', 'card'],
+    tags: ['hero', 'event', 'card'],
     slots: [
       {
         name: 'title',
@@ -207,7 +207,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada a pantalla completa con imagen de fondo y overlay de contraste estructural.',
-    tags: ['hero', 'hero', 'full', 'image'],
+    tags: ['hero', 'full', 'image'],
     slots: [
       {
         name: 'title',
@@ -235,7 +235,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     name: 'Hero Gradient Accent',
     category: LayoutCategory.HERO,
     description: 'Portada moderna con énfasis visual y metadatos de autor.',
-    tags: ['hero', 'hero', 'gradient', 'accent'],
+    tags: ['hero', 'gradient', 'accent'],
     slots: [
       {
         name: 'title',
@@ -264,7 +264,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada académica formal con datos institucionales completos (universidad, facultad, curso, asesor).',
-    tags: ['hero', 'hero', 'institutional'],
+    tags: ['hero', 'institutional'],
     slots: [
       {
         name: 'title',
@@ -293,7 +293,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada con bloque o banner de métrica clave integrada para presentaciones de resultados.',
-    tags: ['hero', 'hero', 'kpi', 'banner'],
+    tags: ['hero', 'kpi', 'banner'],
     slots: [
       {
         name: 'title',
@@ -322,7 +322,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada ultraminimalista con abundante espacio en blanco (o negro) y tipografía cuidada.',
-    tags: ['hero', 'hero', 'minimal'],
+    tags: ['hero', 'minimal'],
     slots: [
       {
         name: 'title',
@@ -351,7 +351,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada con texto principal a la izquierda e imagen representativa a la derecha.',
-    tags: ['hero', 'hero', 'split', 'image'],
+    tags: ['hero', 'split', 'image'],
     slots: [
       {
         name: 'title',
@@ -380,7 +380,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.HERO,
     description:
       'Portada con título en dos líneas jerárquicas y tipografía estructural.',
-    tags: ['hero', 'hero', 'two', 'line'],
+    tags: ['hero', 'two', 'line'],
     slots: [
       {
         name: 'title',
@@ -409,7 +409,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Columna lateral estrecha (30%) con resumen o metadatos y área de contenido principal amplia (70%).',
-    tags: ['split', 'split', '30', '70'],
+    tags: ['split', '30', '70'],
     slots: [
       {
         name: 'title',
@@ -438,7 +438,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Layout de dos columnas 50/50 balanceadas para comparaciones estructurales de conceptos.',
-    tags: ['split', 'split', '50', '50', 'text'],
+    tags: ['split', '50', 'text'],
     slots: [
       {
         name: 'title',
@@ -467,7 +467,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Área principal dominante (70%) a la izquierda y barra lateral de métricas o notas (30%) a la derecha.',
-    tags: ['split', 'split', '70', '30'],
+    tags: ['split', '70', '30'],
     slots: [
       {
         name: 'title',
@@ -496,7 +496,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Dos tarjetas asimétricas desfasadas para romper la monotonía visual con dinamismo arquitectónico.',
-    tags: ['split', 'split', 'asymmetric', 'cards'],
+    tags: ['split', 'asymmetric', 'cards'],
     slots: [
       {
         name: 'title',
@@ -525,7 +525,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Comparación estructural directa de estado previo vs estado optimizado (Antes vs Después).',
-    tags: ['split', 'split', 'before', 'after'],
+    tags: ['split', 'before', 'after'],
     slots: [
       {
         name: 'title',
@@ -554,7 +554,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Código fuente a la izquierda con vista previa visual o componente interactivo a la derecha.',
-    tags: ['split', 'split', 'code', 'preview'],
+    tags: ['split', 'code', 'preview'],
     slots: [
       {
         name: 'title',
@@ -583,7 +583,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Layout de comparación directa entre dos alternativas o tecnologías con tarjetas balanceadas.',
-    tags: ['split', 'split', 'comparison', 'cards'],
+    tags: ['split', 'comparison', 'cards'],
     slots: [
       {
         name: 'title',
@@ -612,7 +612,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Definición formal académica a la izquierda y aplicación práctica o ejemplo a la derecha.',
-    tags: ['split', 'split', 'definition', 'example'],
+    tags: ['split', 'definition', 'example'],
     slots: [
       {
         name: 'title',
@@ -641,7 +641,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Diagrama de arquitectura o flujo a la izquierda con puntos explicativos en la derecha.',
-    tags: ['split', 'split', 'diagram', 'text'],
+    tags: ['split', 'diagram', 'text'],
     slots: [
       {
         name: 'title',
@@ -670,7 +670,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Imagen en columna izquierda y texto explicativo estructurado en la derecha.',
-    tags: ['split', 'split', 'image', 'text'],
+    tags: ['split', 'image', 'text'],
     slots: [
       {
         name: 'title',
@@ -699,7 +699,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Resumen metodológico a la izquierda y lista secuencial numerada de pasos a la derecha.',
-    tags: ['split', 'split', 'numbered', 'steps'],
+    tags: ['split', 'numbered', 'steps'],
     slots: [
       {
         name: 'title',
@@ -728,7 +728,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Dos columnas balanceadas de ventajas (Pros) y desventajas o riesgos (Cons).',
-    tags: ['split', 'split', 'pros', 'cons'],
+    tags: ['split', 'pros', 'cons'],
     slots: [
       {
         name: 'title',
@@ -757,7 +757,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Contexto analítico formal a la izquierda con testimonio o cita clave enmarcada a la derecha.',
-    tags: ['split', 'split', 'quote', 'context'],
+    tags: ['split', 'quote', 'context'],
     slots: [
       {
         name: 'title',
@@ -786,7 +786,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Dos tarjetas apiladas verticalmente a la izquierda con un bloque principal continuo a la derecha.',
-    tags: ['split', 'split', 'stacked', 'left'],
+    tags: ['split', 'stacked', 'left'],
     slots: [
       {
         name: 'title',
@@ -815,7 +815,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.SPLIT,
     description:
       'Texto argumentativo en columna izquierda e imagen complementaria en columna derecha.',
-    tags: ['split', 'split', 'text', 'image'],
+    tags: ['split', 'text', 'image'],
     slots: [
       {
         name: 'title',
@@ -844,7 +844,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Dos tarjetas superiores en columnas simétricas y una tarjeta ancha completa en la base.',
-    tags: ['bento', 'bento', '1', 'wide', '2', 'stacked'],
+    tags: ['bento', '1', 'wide', '2', 'stacked'],
     slots: [
       {
         name: 'title',
@@ -873,7 +873,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Dos tarjetas anchas apiladas a la izquierda y una tarjeta vertical dominante a la derecha.',
-    tags: ['bento', 'bento', '2', 'wide', '1', 'tall'],
+    tags: ['bento', '2', 'wide', '1', 'tall'],
     slots: [
       {
         name: 'title',
@@ -902,7 +902,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Cuadrícula Bento simétrica de 4 tarjetas 2x2 de igual tamaño.',
-    tags: ['bento', 'bento', '2x2', 'equal'],
+    tags: ['bento', '2x2', 'equal'],
     slots: [
       {
         name: 'title',
@@ -931,7 +931,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       '3 columnas verticales equivalentes en disposición horizontal balanceada.',
-    tags: ['bento', 'bento', '3', 'horizontal'],
+    tags: ['bento', '3', 'horizontal'],
     slots: [
       {
         name: 'title',
@@ -960,7 +960,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       '3 tarjetas horizontales apiladas verticalmente para flujos o capas de alto nivel.',
-    tags: ['bento', 'bento', '3', 'vertical'],
+    tags: ['bento', '3', 'vertical'],
     slots: [
       {
         name: 'title',
@@ -989,7 +989,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Layout estilo Bento Grid con tarjeta destacada grande a la izquierda y cuadrícula 3-card a la derecha.',
-    tags: ['bento', 'bento', '4', 'featured', 'left'],
+    tags: ['bento', '4', 'featured', 'left'],
     slots: [
       {
         name: 'title',
@@ -1018,7 +1018,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Tarjeta ancha dominante superior y fila inferior de 3 tarjetas compactas.',
-    tags: ['bento', 'bento', '4', 'featured', 'top'],
+    tags: ['bento', '4', 'featured', 'top'],
     slots: [
       {
         name: 'title',
@@ -1047,7 +1047,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Mosaico asimétrico de 5 tarjetas (1 destacada, 2 medianas y 2 inferiores).',
-    tags: ['bento', 'bento', '5', 'mosaic'],
+    tags: ['bento', '5', 'mosaic'],
     slots: [
       {
         name: 'title',
@@ -1076,7 +1076,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Cuadrícula Bento estándar de 6 tarjetas ordenadas en matriz 3x2.',
-    tags: ['bento', 'bento', '6', 'grid'],
+    tags: ['bento', '6', 'grid'],
     slots: [
       {
         name: 'title',
@@ -1105,7 +1105,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Disposición Bento cruciforme con tarjeta destacada central y 4 satélites ortogonales.',
-    tags: ['bento', 'bento', 'cross'],
+    tags: ['bento', 'cross'],
     slots: [
       {
         name: 'title',
@@ -1134,7 +1134,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Panel de control integral estilo Dashboard con KPIs superiores, gráfico central y actividad lateral.',
-    tags: ['bento', 'bento', 'dashboard'],
+    tags: ['bento', 'dashboard'],
     slots: [
       {
         name: 'title',
@@ -1163,7 +1163,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Cuadrícula Bento con énfasis diagonal (Top-Left y Bottom-Right destacados).',
-    tags: ['bento', 'bento', 'diagonal'],
+    tags: ['bento', 'diagonal'],
     slots: [
       {
         name: 'title',
@@ -1192,7 +1192,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Cuadrícula de 4 tarjetas superiores con una tarjeta horizontal de síntesis anclada en el pie.',
-    tags: ['bento', 'bento', 'footer', 'grid'],
+    tags: ['bento', 'footer', 'grid'],
     slots: [
       {
         name: 'title',
@@ -1221,7 +1221,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Tarjeta horizontal completa superior con fila inferior de 4 tarjetas en cuadrícula.',
-    tags: ['bento', 'bento', 'header', 'grid'],
+    tags: ['bento', 'header', 'grid'],
     slots: [
       {
         name: 'title',
@@ -1250,7 +1250,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Tarjeta monumental a la izquierda (70%) y dos tarjetas widget apiladas en la barra lateral derecha (30%).',
-    tags: ['bento', 'bento', 'hero', 'sidebar'],
+    tags: ['bento', 'hero', 'sidebar'],
     slots: [
       {
         name: 'title',
@@ -1279,7 +1279,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Disposición Bento en forma de L con tarjeta vertical izquierda, superior derecha y barra ancha inferior.',
-    tags: ['bento', 'bento', 'l', 'shape'],
+    tags: ['bento', 'l', 'shape'],
     slots: [
       {
         name: 'title',
@@ -1308,7 +1308,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Maquetación editorial estilo revista con titular prominente, cita destacada, métrica y columna de texto.',
-    tags: ['bento', 'bento', 'magazine'],
+    tags: ['bento', 'magazine'],
     slots: [
       {
         name: 'title',
@@ -1337,7 +1337,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Cuadrícula Bento en pirámide jerárquica (1 cúspide, 2 nivel medio, 3 base).',
-    tags: ['bento', 'bento', 'pyramid'],
+    tags: ['bento', 'pyramid'],
     slots: [
       {
         name: 'title',
@@ -1366,7 +1366,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Columna lateral izquierda continua (30%) y matriz modular principal de 3 tarjetas a la derecha (70%).',
-    tags: ['bento', 'bento', 'sidebar', 'main'],
+    tags: ['bento', 'sidebar', 'main'],
     slots: [
       {
         name: 'title',
@@ -1395,7 +1395,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.BENTO,
     description:
       'Disposición Bento en forma de T con barra horizontal superior y tallo central flanqueado.',
-    tags: ['bento', 'bento', 't', 'shape'],
+    tags: ['bento', 't', 'shape'],
     slots: [
       {
         name: 'title',
@@ -1424,7 +1424,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Layout de métricas destacadas con 3 números de gran impacto en una fila.',
-    tags: ['stats', 'stats', '3', 'row'],
+    tags: ['stats', '3', 'row'],
     slots: [
       {
         name: 'title',
@@ -1453,7 +1453,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Cuadrícula 2x2 de métricas balanceadas para informes de rendimiento multidimensionales.',
-    tags: ['stats', 'stats', '4', 'grid'],
+    tags: ['stats', '4', 'grid'],
     slots: [
       {
         name: 'title',
@@ -1482,7 +1482,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Comparación directa del impacto cuantitativo antes y después de la intervención técnica.',
-    tags: ['stats', 'stats', 'before', 'after', 'metric'],
+    tags: ['stats', 'before', 'after', 'metric'],
     slots: [
       {
         name: 'title',
@@ -1511,7 +1511,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Gran número de impacto en la columna izquierda y contexto analítico en la derecha.',
-    tags: ['stats', 'stats', 'big', 'number', 'context'],
+    tags: ['stats', 'big', 'number', 'context'],
     slots: [
       {
         name: 'title',
@@ -1540,7 +1540,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Comparación cuantitativa mediante barras de progreso horizontales proporcionadas.',
-    tags: ['stats', 'stats', 'comparison', 'bar'],
+    tags: ['stats', 'comparison', 'bar'],
     slots: [
       {
         name: 'title',
@@ -1569,7 +1569,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Métrica circular central con desglose analítico en lista detallada a la derecha.',
-    tags: ['stats', 'stats', 'donut', 'text'],
+    tags: ['stats', 'donut', 'text'],
     slots: [
       {
         name: 'title',
@@ -1598,7 +1598,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Fila de medidores porcentuales de capacidad o utilización de recursos del sistema.',
-    tags: ['stats', 'stats', 'gauge', 'row'],
+    tags: ['stats', 'gauge', 'row'],
     slots: [
       {
         name: 'title',
@@ -1627,7 +1627,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Cuadrícula de tarjetas de métricas emparejadas con símbolos e iconos visuales.',
-    tags: ['stats', 'stats', 'icon', 'cards'],
+    tags: ['stats', 'icon', 'cards'],
     slots: [
       {
         name: 'title',
@@ -1656,7 +1656,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Cuadrícula de tarjetas de avance de metas con barras de progreso y estado.',
-    tags: ['stats', 'stats', 'progress', 'cards'],
+    tags: ['stats', 'progress', 'cards'],
     slots: [
       {
         name: 'title',
@@ -1685,7 +1685,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Tabla o lista clasificada de benchmarking con posiciones ordenadas (#1, #2, #3).',
-    tags: ['stats', 'stats', 'ranked', 'list'],
+    tags: ['stats', 'ranked', 'list'],
     slots: [
       {
         name: 'title',
@@ -1714,7 +1714,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Métrica individual monumental para enfatizar el hallazgo cuantitativo central de la investigación.',
-    tags: ['stats', 'stats', 'single', 'hero'],
+    tags: ['stats', 'single', 'hero'],
     slots: [
       {
         name: 'title',
@@ -1743,7 +1743,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Tarjetas de métricas con indicador de tendencia y resumen contextual.',
-    tags: ['stats', 'stats', 'sparkline', 'cards'],
+    tags: ['stats', 'sparkline', 'cards'],
     slots: [
       {
         name: 'title',
@@ -1772,7 +1772,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Diapositiva de contenido analítico superior con barra de resumen de KPIs anclada en el pie.',
-    tags: ['stats', 'stats', 'summary', 'footer'],
+    tags: ['stats', 'summary', 'footer'],
     slots: [
       {
         name: 'title',
@@ -1801,7 +1801,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Evolución cronológica de un indicador a lo largo de hitos o periodos secuenciales.',
-    tags: ['stats', 'stats', 'timeline', 'metric'],
+    tags: ['stats', 'timeline', 'metric'],
     slots: [
       {
         name: 'title',
@@ -1830,7 +1830,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.STATS,
     description:
       'Métricas con variación porcentual / delta comparativo respecto a un periodo anterior.',
-    tags: ['stats', 'stats', 'with', 'change'],
+    tags: ['stats', 'with', 'change'],
     slots: [
       {
         name: 'title',
@@ -1859,7 +1859,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Proceso en acordeón escalonado para profundizar en etapas metodológicas complejas.',
-    tags: ['process', 'process', 'accordion'],
+    tags: ['process', 'accordion'],
     slots: [
       {
         name: 'title',
@@ -1888,7 +1888,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Proceso con bifurcación paralela (Branch A / Branch B) y posterior convergencia.',
-    tags: ['process', 'process', 'branching'],
+    tags: ['process', 'branching'],
     slots: [
       {
         name: 'title',
@@ -1917,7 +1917,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Múltiples fuentes o entradas metodológicas convergiendo en un único resultado o síntesis.',
-    tags: ['process', 'process', 'convergent'],
+    tags: ['process', 'convergent'],
     slots: [
       {
         name: 'title',
@@ -1946,7 +1946,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Ciclo cerrado de retroalimentación continua (ej: PDCA, Scrum Sprint, DevOps Loop).',
-    tags: ['process', 'process', 'cycle'],
+    tags: ['process', 'cycle'],
     slots: [
       {
         name: 'title',
@@ -1975,7 +1975,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Diagrama de árbol de decisión con bifurcación binaria (Sí / No) basada en condiciones algorítmicas.',
-    tags: ['process', 'process', 'decision', 'tree'],
+    tags: ['process', 'decision', 'tree'],
     slots: [
       {
         name: 'title',
@@ -2004,7 +2004,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Diagrama de embudo (Funnel) para modelar filtrado de requisitos o conversión de usuarios.',
-    tags: ['process', 'process', 'funnel'],
+    tags: ['process', 'funnel'],
     slots: [
       {
         name: 'title',
@@ -2033,7 +2033,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Layout de proceso horizontal secuencial de 3 etapas con indicadores numerados.',
-    tags: ['process', 'process', 'horizontal', '3'],
+    tags: ['process', 'horizontal', '3'],
     slots: [
       {
         name: 'title',
@@ -2062,7 +2062,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Proceso horizontal secuencial de 4 fases con indicadores de progreso ordenados.',
-    tags: ['process', 'process', 'horizontal', '4'],
+    tags: ['process', 'horizontal', '4'],
     slots: [
       {
         name: 'title',
@@ -2091,7 +2091,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Cadena secuencial compacta de 5 pasos para pipelines continuos o ciclos de vida de software.',
-    tags: ['process', 'process', 'horizontal', '5'],
+    tags: ['process', 'horizontal', '5'],
     slots: [
       {
         name: 'title',
@@ -2120,7 +2120,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Barra de hitos trimestrales o compuertas de decisión de un cronograma de investigación.',
-    tags: ['process', 'process', 'milestone', 'bar'],
+    tags: ['process', 'milestone', 'bar'],
     slots: [
       {
         name: 'title',
@@ -2149,7 +2149,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Cuadrícula de tarjetas de etapas numeradas con entregables o productos asociados.',
-    tags: ['process', 'process', 'numbered', 'cards'],
+    tags: ['process', 'numbered', 'cards'],
     slots: [
       {
         name: 'title',
@@ -2178,7 +2178,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Visualizador de pipeline de integración o procesamiento de datos con estados temáticos.',
-    tags: ['process', 'process', 'pipeline'],
+    tags: ['process', 'pipeline'],
     slots: [
       {
         name: 'title',
@@ -2207,7 +2207,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Diagrama de carriles (Swimlane) para visualizar procesos distribuidos entre múltiples actores o capas.',
-    tags: ['process', 'process', 'swimlane'],
+    tags: ['process', 'swimlane'],
     slots: [
       {
         name: 'title',
@@ -2236,7 +2236,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Proceso vertical continuo con riel conector lateral y tarjetas de fase descriptivas.',
-    tags: ['process', 'process', 'vertical', 'steps'],
+    tags: ['process', 'vertical', 'steps'],
     slots: [
       {
         name: 'title',
@@ -2265,7 +2265,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.PROCESS,
     description:
       'Trayectoria en zigzag alternando bloques a izquierda y derecha con marcadores de enlace.',
-    tags: ['process', 'process', 'zigzag'],
+    tags: ['process', 'zigzag'],
     slots: [
       {
         name: 'title',
@@ -2294,7 +2294,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Fragmento de código con anotaciones y llamadas numéricas explicativas asociadas.',
-    tags: ['code', 'code', 'annotated'],
+    tags: ['code', 'annotated'],
     slots: [
       {
         name: 'title',
@@ -2323,7 +2323,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Documentación estructurada de endpoints API con método HTTP, ruta, cuerpo de petición y respuesta JSON.',
-    tags: ['code', 'code', 'api', 'endpoint'],
+    tags: ['code', 'api', 'endpoint'],
     slots: [
       {
         name: 'title',
@@ -2352,7 +2352,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Fragmento de código clave acoplado al desglose vertical de capas arquitectónicas del sistema.',
-    tags: ['code', 'code', 'architecture', 'stack'],
+    tags: ['code', 'architecture', 'stack'],
     slots: [
       {
         name: 'title',
@@ -2381,7 +2381,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Comparación lado a lado de cambios de código (diff) para refactorizaciones o parches de seguridad.',
-    tags: ['code', 'code', 'diff'],
+    tags: ['code', 'diff'],
     slots: [
       {
         name: 'title',
@@ -2410,7 +2410,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Layout enfocado en presentación de código en formato ventana de editor con cabecera y filename.',
-    tags: ['code', 'code', 'fullscreen'],
+    tags: ['code', 'fullscreen'],
     slots: [
       {
         name: 'title',
@@ -2439,7 +2439,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Galería cuadrícula de pequeños snippets o funciones utilitarias en tarjetas compactas.',
-    tags: ['code', 'code', 'snippet', 'gallery'],
+    tags: ['code', 'snippet', 'gallery'],
     slots: [
       {
         name: 'title',
@@ -2468,7 +2468,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Diapositiva con código fuente a la izquierda y terminal interactiva de comandos a la derecha.',
-    tags: ['code', 'code', 'split', 'terminal'],
+    tags: ['code', 'split', 'terminal'],
     slots: [
       {
         name: 'title',
@@ -2497,7 +2497,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Evolución de código paso a paso mostrando la transformación gradual de un algoritmo o componente.',
-    tags: ['code', 'code', 'step', 'by', 'step'],
+    tags: ['code', 'step', 'by'],
     slots: [
       {
         name: 'title',
@@ -2526,7 +2526,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Diapositiva con pestañas navegables para comparar implementaciones en diferentes lenguajes o capas.',
-    tags: ['code', 'code', 'tabs'],
+    tags: ['code', 'tabs'],
     slots: [
       {
         name: 'title',
@@ -2555,7 +2555,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CODE,
     description:
       'Diapositiva que muestra un fragmento de código a la izquierda y su salida/resultado en consola a la derecha.',
-    tags: ['code', 'code', 'with', 'output'],
+    tags: ['code', 'with', 'output'],
     slots: [
       {
         name: 'title',
@@ -2584,7 +2584,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Agenda de presentación o tabla de contenidos con insignias temáticas y marcas temporales.',
-    tags: ['list', 'list', 'agenda', 'badges'],
+    tags: ['list', 'agenda', 'badges'],
     slots: [
       {
         name: 'title',
@@ -2613,7 +2613,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Layout de lista estructurada con tarjetas informativas y viñetas visuales.',
-    tags: ['list', 'list', 'bullet', 'cards'],
+    tags: ['list', 'bullet', 'cards'],
     slots: [
       {
         name: 'title',
@@ -2642,7 +2642,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Lista de verificación de requerimientos (Checklist) con indicadores de estado temáticos.',
-    tags: ['list', 'list', 'checklist'],
+    tags: ['list', 'checklist'],
     slots: [
       {
         name: 'title',
@@ -2671,7 +2671,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Glosario o lista de definiciones terminológicas esenciales para fundamentación teórica.',
-    tags: ['list', 'list', 'definition', 'terms'],
+    tags: ['list', 'definition', 'terms'],
     slots: [
       {
         name: 'title',
@@ -2700,7 +2700,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Diagrama de estructura jerárquica con nodo raíz superior y ramas subordinadas en tarjetas.',
-    tags: ['list', 'list', 'hierarchy', 'tree'],
+    tags: ['list', 'hierarchy', 'tree'],
     slots: [
       {
         name: 'title',
@@ -2729,7 +2729,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Lista en cuadrícula con iconos estructurales y descripciones explicativas.',
-    tags: ['list', 'list', 'icon', 'items'],
+    tags: ['list', 'icon', 'items'],
     slots: [
       {
         name: 'title',
@@ -2758,7 +2758,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Lista vertical numerada de alto impacto visual para fases o prioridades críticas.',
-    tags: ['list', 'list', 'numbered', 'vertical'],
+    tags: ['list', 'numbered', 'vertical'],
     slots: [
       {
         name: 'title',
@@ -2787,7 +2787,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Matriz comparativa de múltiples columnas evaluando fortalezas y debilidades.',
-    tags: ['list', 'list', 'pros', 'cons', 'columns'],
+    tags: ['list', 'pros', 'cons', 'columns'],
     slots: [
       {
         name: 'title',
@@ -2816,7 +2816,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Jerarquía piramidal estilizada con niveles de ancho escalonado (cúspide a base).',
-    tags: ['list', 'list', 'pyramid'],
+    tags: ['list', 'pyramid'],
     slots: [
       {
         name: 'title',
@@ -2845,7 +2845,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.LIST,
     description:
       'Línea de tiempo vertical con nodos cronológicos e hitos históricos o de desarrollo.',
-    tags: ['list', 'list', 'timeline', 'vertical'],
+    tags: ['list', 'timeline', 'vertical'],
     slots: [
       {
         name: 'title',
@@ -2874,7 +2874,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Cita a pantalla completa sobre fotografía de fondo con contraste estructural.',
-    tags: ['quote', 'quote', 'background', 'image'],
+    tags: ['quote', 'background', 'image'],
     slots: [
       {
         name: 'title',
@@ -2902,7 +2902,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     name: 'Quote Callout',
     category: LayoutCategory.QUOTE,
     description: 'Cita tipo callout integrada con contexto explicativo previo.',
-    tags: ['quote', 'quote', 'callout'],
+    tags: ['quote', 'callout'],
     slots: [
       {
         name: 'title',
@@ -2931,7 +2931,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Cita célebre o declaración académica destacada en tipografía monumental centrada.',
-    tags: ['quote', 'quote', 'centered', 'large'],
+    tags: ['quote', 'centered', 'large'],
     slots: [
       {
         name: 'title',
@@ -2960,7 +2960,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Diálogo o debate entre dos posiciones contrastadas o interlocutores académicos.',
-    tags: ['quote', 'quote', 'dialogue'],
+    tags: ['quote', 'dialogue'],
     slots: [
       {
         name: 'title',
@@ -2989,7 +2989,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Múltiples citas de fuentes o autores concurrentes para contrastar opiniones teóricas.',
-    tags: ['quote', 'quote', 'multi', 'source'],
+    tags: ['quote', 'multi', 'source'],
     slots: [
       {
         name: 'title',
@@ -3018,7 +3018,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Cita destacada en barra lateral con cuerpo de texto analítico al lado derecho.',
-    tags: ['quote', 'quote', 'sidebar', 'highlight'],
+    tags: ['quote', 'sidebar', 'highlight'],
     slots: [
       {
         name: 'title',
@@ -3047,7 +3047,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Cita con cita textual prominente a la izquierda y tarjeta de autor a la derecha.',
-    tags: ['quote', 'quote', 'split', 'author'],
+    tags: ['quote', 'split', 'author'],
     slots: [
       {
         name: 'title',
@@ -3076,7 +3076,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.QUOTE,
     description:
       'Cita estructurada estilo testimonio profesional o evaluación externa.',
-    tags: ['quote', 'quote', 'testimonial', 'card'],
+    tags: ['quote', 'testimonial', 'card'],
     slots: [
       {
         name: 'title',
@@ -3105,7 +3105,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva de contacto profesional con canales institucionales y redes de investigación.',
-    tags: ['closing', 'closing', 'contact', 'card'],
+    tags: ['closing', 'contact', 'card'],
     slots: [
       {
         name: 'title',
@@ -3134,7 +3134,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva de agradecimientos institucionales y créditos para proyectos colaborativos.',
-    tags: ['closing', 'closing', 'credits', 'scroll'],
+    tags: ['closing', 'credits', 'scroll'],
     slots: [
       {
         name: 'title',
@@ -3163,7 +3163,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva de llamada a la acción (Call To Action) con enlace o código de acceso destacado.',
-    tags: ['closing', 'closing', 'cta', 'centered'],
+    tags: ['closing', 'cta', 'centered'],
     slots: [
       {
         name: 'title',
@@ -3192,7 +3192,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva de próximos pasos estructurados o plan de continuidad del proyecto.',
-    tags: ['closing', 'closing', 'next', 'steps'],
+    tags: ['closing', 'next', 'steps'],
     slots: [
       {
         name: 'title',
@@ -3221,7 +3221,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva final para sesión de preguntas y respuestas (Q&A) y cierre formal.',
-    tags: ['closing', 'closing', 'qa', 'centered'],
+    tags: ['closing', 'qa', 'centered'],
     slots: [
       {
         name: 'title',
@@ -3250,7 +3250,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     category: LayoutCategory.CLOSING,
     description:
       'Diapositiva de cierre con 3 conclusiones o puntos clave indispensables.',
-    tags: ['closing', 'closing', 'summary', '3', 'points'],
+    tags: ['closing', 'summary', '3', 'points'],
     slots: [
       {
         name: 'title',
@@ -3278,7 +3278,7 @@ export const defaultLayouts: LayoutDefinition[] = [
     name: 'Closing Thank You',
     category: LayoutCategory.CLOSING,
     description: 'Diapositiva clásica y elegante de agradecimiento final.',
-    tags: ['closing', 'closing', 'thank', 'you'],
+    tags: ['closing', 'thank', 'you'],
     slots: [
       {
         name: 'title',

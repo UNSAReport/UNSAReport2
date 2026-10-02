@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 
 export interface HeroTwoLineProps {
@@ -53,12 +54,17 @@ export function HeroTwoLine({
           )}
 
           {(author || date) && (
-            <div className="flex items-center gap-4 text-sm font-mono opacity-70 pt-4 border-t border-current/10 shrink-0 min-w-0 overflow-hidden">
-              {author && (
-                <span className="font-bold opacity-100 truncate">{author}</span>
-              )}
-              {author && date && <span className="shrink-0">/</span>}
-              {date && <span className="truncate">{date}</span>}
+            <div className="shrink-0 min-w-0 overflow-hidden">
+              <SlideDivider thickness="1px" opacity={0.12} />
+              <div className="flex items-center gap-4 text-sm font-mono opacity-70 pt-4">
+                {author && (
+                  <span className="font-bold opacity-100 truncate">
+                    {author}
+                  </span>
+                )}
+                {author && date && <span className="shrink-0">/</span>}
+                {date && <span className="truncate">{date}</span>}
+              </div>
             </div>
           )}
         </div>

@@ -57,6 +57,9 @@ export const SlideManifestSchema = z.object({
   entrypoint: z.string().default('index.js'),
   assets: z.array(z.string()).default([]),
   createdAt: z.string().datetime().optional(),
+  // Speaker notes keyed by slide id. Additive: older manifests without this
+  // field parse with an empty map.
+  notes: z.record(z.string(), z.string()).default({}),
 });
 
 export type SlideManifest = z.infer<typeof SlideManifestSchema>;

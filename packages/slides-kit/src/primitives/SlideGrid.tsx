@@ -1,5 +1,33 @@
 import type { CSSProperties, ReactNode } from 'react';
 
+export interface SlideGridItemProps {
+  /** Columnas que ocupa el item (1 a 12, backward compatible: sin span = 1) */
+  span?: number;
+  /** Elementos hijos */
+  children: ReactNode;
+  /** Clases CSS adicionales */
+  className?: string;
+}
+
+/**
+ * Item de cuadrícula con soporte de span de columnas (backward compatible).
+ */
+export function SlideGridItem({
+  span = 1,
+  children,
+  className = '',
+}: SlideGridItemProps) {
+  const clamped = Math.min(12, Math.max(1, span));
+  return (
+    <div
+      className={`min-w-0 min-h-0 ${className}`}
+      style={{ gridColumn: `span ${clamped} / span ${clamped}` }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export interface SlideGridProps {
   /** Número de columnas (1 a 12) */
   cols?: 1 | 2 | 3 | 4 | 5 | 6 | 12;

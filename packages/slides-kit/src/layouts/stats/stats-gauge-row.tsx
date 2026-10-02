@@ -1,4 +1,5 @@
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideGauge } from '@/primitives/SlideGauge';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 
@@ -50,16 +51,14 @@ export function StatsGaugeRow({
                 {g.label}
               </span>
               <div className="flex-1 min-h-0 max-h-full overflow-hidden flex items-center justify-center w-full my-3">
-                <div className="relative w-32 h-32 max-w-full max-h-full aspect-square shrink-0 rounded-full border-4 border-current/20 flex flex-col items-center justify-center overflow-hidden p-2">
-                  <span className="text-4xl font-black font-mono truncate max-w-full min-w-0">
-                    {g.value}
-                    {g.unit || '%'}
-                  </span>
-                  <div
-                    className="absolute inset-0 rounded-full border-4 border-current border-t-transparent transition-all"
-                    style={{ transform: `rotate(${(g.value / 100) * 360}deg)` }}
-                  />
-                </div>
+                <SlideGauge
+                  value={g.value}
+                  max={100}
+                  tone={g.value >= 80 ? 'warning' : 'accent'}
+                  size="8rem"
+                  unit={g.unit || '%'}
+                  label={g.label}
+                />
               </div>
               <span className="text-xs opacity-75 font-mono line-clamp-2 break-words max-w-full min-w-0">
                 {g.statusNote}

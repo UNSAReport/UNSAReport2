@@ -130,6 +130,17 @@ export const getPresentationServerFn = createServerFn({ method: 'GET' })
   .validator((data: { id: string }) => data)
   .handler(async ({ data }) => getPresentationInternal(data.id));
 
+// The auth session cookie is HttpOnly (invisible to document.cookie), so
+// the viewer asks the server for the raw session token to append as
+// ?token= on the sandboxed iframe. Same-session passthrough, no elevation:
+// the token returned is exactly the caller's own session token.
+export const getEmbedTokenServerFn = createServerFn({ method: 'GET' }).handler(
+  async (): Promise<{ token: string | null }> => {
+    const token = getCookie('access_token');
+    return { token: token ?? null };
+  },
+);
+
 export const listOrganizationsServerFn = createServerFn({ method: 'GET' })
   .validator((data: Record<string, never> = {}) => data)
   .handler(async () => listOrganizationsInternal());

@@ -109,7 +109,9 @@ describe('POST /presentations/deploy', () => {
     expect(data.presentationId).toBe(CREATED_PRESENTATION_ID);
     expect(data.slug).toBe('demo-deck');
     expect(data.version).toBe(1);
-    expect(data.url).toMatch(/demo-deck/);
+    expect(data.url).toBe(
+      `http://localhost:9876/presentations/${CREATED_PRESENTATION_ID}`,
+    );
   });
 
   it('rejects a missing bundle with 400', async () => {

@@ -1,7 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router';
+import { createFileRoute, Link } from '@tanstack/react-router';
 import { createLogger } from '@unsa/logger';
 import { useEffect, useState } from 'react';
 import { z } from 'zod';
+import { Button, buttonClasses } from '@/components/Button';
+import { TextInput } from '@/components/TextInput';
 import {
   authorizeCliServerFn,
   fetchCurrentUser,
@@ -34,9 +36,83 @@ function isLoopback(callbackUrl?: string): boolean {
       (u.hostname === '127.0.0.1' || u.hostname === 'localhost')
     );
   } catch (err) {
-    logger.warn('Invalid callback URL', { err });
+    logger.warn('Invalid tui_callback URL', { err });
     return false;
   }
+}
+
+const accessSteps = [
+  {
+    index: '01',
+    title: 'Inicia sesión',
+    body: 'Google o GitHub como proveedor de identidad.',
+  },
+  {
+    index: '02',
+    title: 'Conecta tus espacios',
+    body: 'Scopes, organizaciones y tokens de acceso personal.',
+  },
+  {
+    index: '03',
+    title: 'Publica y presenta',
+    body: 'Despliega slides y paquetes versionados e inmutables.',
+  },
+];
+
+function LoginSplit({
+  eyebrow,
+  panelLabel,
+  children,
+}: {
+  eyebrow: string;
+  panelLabel: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="min-h-[calc(100vh-5rem)] bg-[#E3E2DE] text-[#141414] font-sans grid grid-cols-12 border-b border-[#C7C7C7]">
+      <div className="col-span-12 md:col-span-7 bg-[#141414] text-[#E3E2DE] p-6 md:p-12 flex flex-col gap-8">
+        <div className="flex items-center gap-4">
+          <span aria-hidden="true" className="block w-4 h-4 bg-[#E3E2DE]" />
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-[#7A7A7A]">
+            {eyebrow}
+          </p>
+        </div>
+        <h1 className="poster-headline uppercase text-5xl md:text-7xl">
+          Entra.
+          <br />
+          Publica.
+          <br />
+          <span className="text-[#1351AA]">Defiende.</span>
+        </h1>
+        <p className="max-w-[400px] text-base text-[#C7C7C7] leading-relaxed">
+          Una sola identidad para informes reproducibles, paquetes versionados
+          y slides académicas: todo el flujo institucional UNSA.
+        </p>
+        <ol className="mt-auto pt-8 space-y-0">
+          {accessSteps.map((s) => (
+            <li
+              key={s.index}
+              className="flex items-start gap-6 border-t border-[#444343] py-5"
+            >
+              <p className="font-mono text-xs text-[#7A7A7A] pt-1 shrink-0 w-8">
+                {s.index}
+              </p>
+              <div>
+                <p className="font-bold leading-tight">{s.title}</p>
+                <p className="text-sm text-[#C7C7C7] mt-1">{s.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="col-span-12 md:col-span-5 p-6 md:p-12 flex flex-col gap-6">
+        <p className="grid-label md:sticky md:top-32">{panelLabel}</p>
+        <div className="border border-[#C7C7C7] p-6 md:p-8 space-y-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function LoginComponent() {
@@ -79,7 +155,7 @@ function LoginComponent() {
 
   const handleAuthorizeCli = async () => {
     if (!tui_callback || !isLoopback(tui_callback)) {
-      setError('Invalid callback URL');
+      setError('URL de retorno inválida');
       return;
     }
     setSubmitting(true);
@@ -107,7 +183,7 @@ function LoginComponent() {
       setError(
         err instanceof Error
           ? err.message
-          : 'Failed to authorize CLI. Please try again.',
+          : 'No se pudo autorizar el CLI. Inténtalo de nuevo.',
       );
     }
   };
@@ -126,364 +202,217 @@ function LoginComponent() {
   if (tui_callback) {
     if (!isLoopback(tui_callback)) {
       return (
-        <div
-          style={{ maxWidth: '480px', margin: '2rem auto', padding: '1rem' }}
-        >
-          <h2 style={{ color: '#dc2626' }}>Invalid Callback URL</h2>
-          <p>
-            For security reasons, CLI authorization callbacks must point to a
-            local loopback address (<code>127.0.0.1</code> or{' '}
-            <code>localhost</code>).
+        <LoginSplit eyebrow="UNSAReport · CLI" panelLabel="Error">
+          <h2 className="text-xl font-bold text-red-700">
+            URL de retorno inválida
+          </h2>
+          <p className="text-sm text-[#444343] leading-relaxed">
+            Por seguridad, la autorización del CLI solo admite direcciones
+            locales (<code className="text-[#141414]">127.0.0.1</code> o{' '}
+            <code className="text-[#141414]">localhost</code>).
           </p>
-        </div>
+        </LoginSplit>
       );
     }
 
     if (user) {
       if (authorizedPat) {
         return (
-          <div
-            style={{
-              maxWidth: '520px',
-              margin: '2rem auto',
-              padding: '1.5rem',
-              border: '1px solid #bbf7d0',
-              backgroundColor: '#f0fdf4',
-              borderRadius: '8px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-            }}
-          >
-            <h2 style={{ margin: '0 0 0.75rem 0', color: '#16a34a' }}>
-              ✓ Authorization Successful
+          <LoginSplit eyebrow="UNSAReport · CLI" panelLabel="Autorización">
+            <h2 className="text-xl font-bold text-green-700">
+              ✓ Autorización exitosa
             </h2>
-            <p style={{ color: '#374151', margin: '0 0 1rem 0' }}>
-              A personal access token was created for your terminal session.
-              Redirecting to CLI...
+            <p className="text-sm text-[#444343] leading-relaxed">
+              Se creó un token de acceso personal para tu sesión de terminal.
+              Redirigiendo al CLI…
             </p>
-            <div
-              style={{
-                background: '#ffffff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '6px',
-                padding: '0.75rem',
-                marginBottom: '1rem',
-                wordBreak: 'break-all',
-                fontFamily: 'monospace',
-                fontSize: '0.85rem',
-                color: '#0f172a',
-              }}
-            >
+            <div className="bg-[#141414] border border-[#C7C7C7] rounded-none p-3 break-all font-mono text-xs text-[#E3E2DE]">
               {authorizedPat}
             </div>
-            <div
-              style={{
-                display: 'flex',
-                gap: '0.75rem',
-                marginBottom: '1.25rem',
-              }}
-            >
-              <button
-                type="button"
+            <div className="flex flex-wrap gap-3">
+              <Button
                 onClick={() => {
                   navigator.clipboard.writeText(authorizedPat);
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
                 }}
-                style={{
-                  padding: '0.5rem 1rem',
-                  backgroundColor: '#16a34a',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '4px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                }}
               >
-                {copied ? 'Copied to Clipboard!' : 'Copy Token'}
-              </button>
+                {copied ? '¡Copiado!' : 'Copiar token'}
+              </Button>
               {callbackUrlWithToken && (
                 <a
                   href={callbackUrlWithToken}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    backgroundColor: '#e2e8f0',
-                    color: '#334155',
-                    border: 'none',
-                    borderRadius: '4px',
-                    textDecoration: 'none',
-                    fontWeight: '500',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                  }}
+                  className={buttonClasses('secondary', 'md')}
                 >
-                  Open Callback
+                  Abrir retorno
                 </a>
               )}
             </div>
-            <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-              If your terminal didn't update automatically, you can close this
-              window and run:{' '}
-              <code
-                style={{
-                  background: '#e2e8f0',
-                  padding: '0.15rem 0.35rem',
-                  borderRadius: '3px',
-                }}
-              >
+            <p className="text-xs text-[#7A7A7A]">
+              Si tu terminal no se actualizó automáticamente, cierra esta
+              ventana y ejecuta:{' '}
+              <code className="bg-[#141414] px-1.5 py-0.5 rounded-none text-[#E3E2DE]">
                 unsarep login --token {authorizedPat.slice(0, 18)}...
               </code>
             </p>
-          </div>
+          </LoginSplit>
         );
       }
 
       return (
-        <div
-          style={{
-            maxWidth: '520px',
-            margin: '2rem auto',
-            padding: '1.5rem',
-            border: '1px solid #e2e8f0',
-            borderRadius: '8px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-          }}
-        >
-          <h2 style={{ margin: '0 0 1rem 0' }}>Authorize UNSAReport CLI</h2>
-          <p style={{ color: '#4b5563', margin: '0 0 1.25rem 0' }}>
-            A terminal session on your computer is requesting access to your
-            UNSAReport account.
+        <LoginSplit eyebrow="UNSAReport · CLI" panelLabel="Autorizar">
+          <h2 className="text-2xl font-extrabold tracking-tight text-[#141414]">
+            Autorizar el CLI de UNSAReport
+          </h2>
+          <p className="text-sm text-[#444343] leading-relaxed">
+            Una sesión de terminal en tu equipo solicita acceso a tu cuenta de
+            UNSAReport.
           </p>
 
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              backgroundColor: '#f8fafc',
-              borderRadius: '6px',
-              border: '1px solid #e2e8f0',
-              marginBottom: '1.25rem',
-            }}
-          >
+          <div className="flex items-center gap-3 p-3 bg-transparent border border-[#C7C7C7] rounded-none">
             {user.picture ? (
               <img
                 src={user.picture}
                 alt={user.name}
-                style={{ width: '40px', height: '40px', borderRadius: '50%' }}
+                className="w-10 h-10 rounded-none"
               />
             ) : (
-              <div
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  backgroundColor: '#cbd5e1',
-                }}
-              />
+              <div className="w-10 h-10 rounded-none bg-[#141414] text-[#E3E2DE]" />
             )}
             <div>
-              <div style={{ fontWeight: 'bold' }}>{user.name}</div>
-              <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-                {user.email}
-              </div>
+              <div className="font-bold text-[#141414]">{user.name}</div>
+              <div className="text-xs text-[#444343]">{user.email}</div>
             </div>
           </div>
 
           {error && (
             <div
-              style={{
-                color: '#dc2626',
-                backgroundColor: '#fef2f2',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '4px',
-                marginBottom: '1rem',
-              }}
+              role="alert"
+              className="text-sm text-red-700 bg-transparent border border-[#C7C7C7] px-3 py-2 rounded-none"
             >
               {error}
             </div>
           )}
 
-          <div style={{ marginBottom: '1rem' }}>
-            <label
-              htmlFor="tokenName"
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                marginBottom: '0.35rem',
-              }}
-            >
-              Token Description:
-            </label>
-            <input
-              id="tokenName"
-              type="text"
-              value={tokenName}
-              onChange={(e) => setTokenName(e.target.value)}
-              disabled={submitting}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #cbd5e1',
-                boxSizing: 'border-box',
-              }}
-            />
-          </div>
+          <TextInput
+            label="Descripción del token"
+            name="tokenName"
+            id="tokenName"
+            value={tokenName}
+            onChange={(e) => setTokenName(e.target.value)}
+            disabled={submitting}
+          />
 
-          <div style={{ marginBottom: '1.5rem' }}>
-            <label
-              htmlFor="expiryDays"
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: '500',
-                marginBottom: '0.35rem',
-              }}
-            >
-              Expiration:
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="expiryDays" className="grid-label">
+              Vencimiento
             </label>
             <select
               id="expiryDays"
               value={expiryDays}
               onChange={(e) => setExpiryDays(Number(e.target.value))}
               disabled={submitting}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                boxSizing: 'border-box',
-              }}
+              className="w-full px-3.5 py-2 rounded-none bg-transparent border border-[#C7C7C7] text-sm text-[#141414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]/50 disabled:opacity-50"
             >
-              <option value={30}>30 days</option>
-              <option value={90}>90 days (recommended)</option>
-              <option value={365}>1 year</option>
-              <option value={0}>No expiration</option>
+              <option value={30}>30 días</option>
+              <option value={90}>90 días (recomendado)</option>
+              <option value={365}>1 año</option>
+              <option value={0}>Sin vencimiento</option>
             </select>
           </div>
 
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button
-              type="button"
+          <div className="flex flex-wrap gap-3">
+            <Button
               onClick={handleAuthorizeCli}
               disabled={submitting}
-              style={{
-                flex: 1,
-                padding: '0.6rem 1rem',
-                backgroundColor: '#16a34a',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '4px',
-                fontWeight: 'bold',
-                cursor: submitting ? 'not-allowed' : 'pointer',
-                opacity: submitting ? 0.7 : 1,
-              }}
+              className="flex-1"
             >
-              {submitting ? 'Authorizing...' : 'Authorize CLI'}
-            </button>
-            <button
-              type="button"
+              {submitting ? 'Autorizando…' : 'Autorizar CLI'}
+            </Button>
+            <Button
+              variant="secondary"
               onClick={handleCancelCli}
               disabled={submitting}
-              style={{
-                padding: '0.6rem 1rem',
-                backgroundColor: '#e2e8f0',
-                color: '#334155',
-                border: 'none',
-                borderRadius: '4px',
-                fontWeight: '500',
-                cursor: 'pointer',
-              }}
             >
-              Cancel
-            </button>
+              Cancelar
+            </Button>
           </div>
-        </div>
+        </LoginSplit>
       );
     }
 
     return (
-      <div
-        style={{
-          maxWidth: '480px',
-          margin: '2rem auto',
-          padding: '1.5rem',
-          border: '1px solid #e2e8f0',
-          borderRadius: '8px',
-          textAlign: 'center',
-        }}
-      >
-        <h2>Sign In to Authorize CLI</h2>
-        <p style={{ color: '#4b5563', marginBottom: '1.5rem' }}>
-          Please sign in to your UNSAReport account to authorize the terminal
-          session.
+      <LoginSplit eyebrow="UNSAReport · CLI" panelLabel="Sign in">
+        <h2 className="text-2xl font-extrabold tracking-tight text-[#141414]">
+          Inicia sesión para autorizar el CLI
+        </h2>
+        <p className="text-sm text-[#444343] leading-relaxed">
+          Inicia sesión en tu cuenta de UNSAReport para autorizar la sesión de
+          terminal.
         </p>
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
-            maxWidth: '280px',
-            margin: '0 auto',
-          }}
-        >
-          <a href={googleUrl} style={{ textDecoration: 'none' }}>
-            <button
-              type="button"
-              style={{
-                width: '100%',
-                padding: '0.6rem 1rem',
-                cursor: 'pointer',
-              }}
-            >
-              Sign in with Google
-            </button>
+        <div className="flex flex-col gap-3">
+          <a href={googleUrl} className={buttonClasses('primary', 'md', 'w-full')}>
+            Continuar con Google
           </a>
-          <a href={githubUrl} style={{ textDecoration: 'none' }}>
-            <button
-              type="button"
-              style={{
-                width: '100%',
-                padding: '0.6rem 1rem',
-                cursor: 'pointer',
-              }}
-            >
-              Sign in with GitHub
-            </button>
+          <a
+            href={githubUrl}
+            className={buttonClasses('secondary', 'md', 'w-full')}
+          >
+            Continuar con GitHub
           </a>
         </div>
-      </div>
+      </LoginSplit>
     );
   }
 
   return (
-    <div>
-      <h1>Login</h1>
+    <LoginSplit eyebrow="UNSAReport · Acceso" panelLabel="Sign in">
+      <h1 className="text-3xl font-extrabold tracking-tight text-[#141414]">
+        Acceso
+      </h1>
       {user ? (
-        <div>
-          <p>
-            You are signed in as <strong>{user.name}</strong> ({user.email}).
+        <div className="space-y-6">
+          <p className="text-sm text-[#444343] leading-relaxed">
+            Sesión iniciada como{' '}
+            <strong className="text-[#141414]">{user.name}</strong> (
+            {user.email}).
           </p>
-          <p>
-            Manage tokens at <a href="/auth/pat">Personal Access Tokens</a>.
-          </p>
+          <div className="flex flex-col gap-3">
+            <Link
+              to="/auth/pat"
+              className={buttonClasses('primary', 'md', 'w-full')}
+            >
+              Gestionar tokens de acceso
+            </Link>
+            <Link
+              to="/scopes"
+              className={buttonClasses('secondary', 'md', 'w-full')}
+            >
+              Ver mis scopes
+            </Link>
+          </div>
         </div>
       ) : (
-        <div>
-          <p>Sign in via Identity Provider.</p>
-          <div style={{ display: 'flex', gap: '1rem' }}>
-            <a href={googleUrl}>
-              <button type="button">Login with Google</button>
+        <div className="space-y-6">
+          <p className="text-sm text-[#444343] leading-relaxed">
+            Inicia sesión con tu proveedor de identidad.
+          </p>
+          <div className="flex flex-col gap-3">
+            <a
+              href={googleUrl}
+              className={buttonClasses('primary', 'md', 'w-full')}
+            >
+              Continuar con Google
             </a>
-            <a href={githubUrl}>
-              <button type="button">Login with GitHub</button>
+            <a
+              href={githubUrl}
+              className={buttonClasses('secondary', 'md', 'w-full')}
+            >
+              Continuar con GitHub
             </a>
           </div>
         </div>
       )}
-    </div>
+    </LoginSplit>
   );
 }

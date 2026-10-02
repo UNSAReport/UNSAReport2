@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -66,9 +67,12 @@ export function SplitBeforeAfter({
               </ul>
             </div>
             {before.summary && (
-              <p className="text-sm opacity-60 border-t border-current/10 pt-4 line-clamp-2 break-words shrink-0">
-                {before.summary}
-              </p>
+              <div className="shrink-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <p className="text-sm opacity-60 pt-4 line-clamp-2 break-words">
+                  {before.summary}
+                </p>
+              </div>
             )}
           </SlideCard>
         }
@@ -104,9 +108,12 @@ export function SplitBeforeAfter({
               </ul>
             </div>
             {after.summary && (
-              <p className="text-sm opacity-80 border-t border-current/10 pt-4 line-clamp-2 break-words shrink-0">
-                {after.summary}
-              </p>
+              <div className="shrink-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <p className="text-sm opacity-80 pt-4 line-clamp-2 break-words">
+                  {after.summary}
+                </p>
+              </div>
             )}
           </SlideCard>
         }

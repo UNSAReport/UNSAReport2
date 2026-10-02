@@ -30,6 +30,12 @@ export function defineConfig(config: DeckConfig): DeckConfig {
     visibility: PresentationVisibility.PRIVATE,
     autoSlide: 0,
     loop: false,
+    // UNSA viewer owns all chrome: Reveal arrows/progress/counter off.
+    slideNumber: false,
+    center: false,
+    controls: false,
+    progress: false,
+    hash: true,
     ...config,
   };
 }

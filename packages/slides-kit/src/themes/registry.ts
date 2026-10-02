@@ -23,17 +23,15 @@ export class ThemeRegistry {
   registerTheme(theme: ThemeDefinition): void {
     this.themes.set(theme.id, theme);
   }
-
   /**
-   * Obtiene un tema por su id. Si no existe, realiza fallback a 'unsa-dark'.
+   * Obtiene un tema por su id. Lanza un error descriptivo si no existe.
    */
   getTheme(id: string): ThemeDefinition {
     const theme = this.themes.get(id);
     if (!theme) {
-      const fallback = this.themes.get(ThemeId.UNSA_DARK);
-      if (fallback) return fallback;
+      const known = Array.from(this.themes.keys()).sort().join(', ');
       throw new Error(
-        `Theme '${id}' not found and default '${ThemeId.UNSA_DARK}' is missing.`,
+        `Theme '${id}' not found in ThemeRegistry. Available themes: ${known}. Register it with registerTheme() or use one of the listed ids.`,
       );
     }
     return theme;

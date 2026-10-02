@@ -66,7 +66,11 @@ export function SlideGradientBar({
   return (
     <div
       className={`w-full bg-gradient-to-r from-[var(--slide-accent,#800020)] via-[var(--slide-accent-secondary,#D4AF37)] to-[var(--slide-accent,#800020)] ${className}`}
-      style={{ height, ...style }}
+      style={{
+        height,
+        backgroundImage: 'var(--slide-frame-style)',
+        ...style,
+      }}
     />
   );
 }

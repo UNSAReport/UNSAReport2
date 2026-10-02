@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideBackground } from '@/primitives/SlideBackground';
+import { SlideDivider } from '@/primitives/SlideDivider';
 
 export interface HeroFullImageProps {
   tag?: string;
@@ -27,18 +29,7 @@ export function HeroFullImage({
 }: HeroFullImageProps) {
   return (
     <div className="relative w-full h-full flex flex-col p-12 overflow-hidden">
-      {/* Imagen de fondo */}
-      <img
-        src={imageUrl}
-        alt="Fondo de portada"
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-
-      {/* Capa de contraste estructural que usa el fondo del tema */}
-      <div
-        className="absolute inset-0 bg-[var(--slide-bg)]"
-        style={{ opacity: overlayOpacity }}
-      />
+      <SlideBackground imageUrl={imageUrl} overlayOpacity={overlayOpacity} />
 
       {/* Cabecera con tag */}
       <div className="relative z-10 shrink-0 min-w-0">
@@ -58,9 +49,12 @@ export function HeroFullImage({
       </div>
 
       {/* Footer */}
-      <div className="relative z-10 flex flex-wrap gap-x-6 gap-y-1 justify-between items-center text-sm font-medium opacity-80 pt-4 border-t border-current/20 shrink-0 min-w-0 overflow-hidden">
-        {author && <span className="truncate max-w-full">{author}</span>}
-        {date && <span className="truncate max-w-full">{date}</span>}
+      <div className="relative z-10 shrink-0 min-w-0 overflow-hidden">
+        <SlideDivider thickness="1px" opacity={0.2} />
+        <div className="flex flex-wrap gap-x-6 gap-y-1 justify-between items-center text-sm font-medium opacity-80 pt-4">
+          {author && <span className="truncate max-w-full">{author}</span>}
+          {date && <span className="truncate max-w-full">{date}</span>}
+        </div>
       </div>
 
       {children}

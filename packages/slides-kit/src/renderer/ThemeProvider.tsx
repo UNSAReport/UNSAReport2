@@ -57,7 +57,14 @@ export function ThemeProvider({
       '--slide-font-family': typography.fontFamily,
       '--slide-mono-family': typography.monoFamily,
       '--slide-heading-weight': String(typography.headingWeight),
+      '--slide-heading-spacing': typography.headingLetterSpacing ?? 'normal',
       '--slide-radius': effects.cardBorderRadius,
+      '--slide-glow-opacity': effects.glowEnabled ? '1' : '0',
+      '--slide-glass-blur': effects.glassmorphism ? '12px' : '0px',
+      '--slide-frame-style': effects.slideBorderGradient
+        ? 'linear-gradient(90deg, var(--slide-accent), var(--slide-accent-secondary), var(--slide-accent))'
+        : 'none',
+      '--slide-watermark-opacity': String(effects.watermarkOpacity ?? 0),
       ...customVariables,
     } as CSSProperties;
   }, [resolvedTheme]);

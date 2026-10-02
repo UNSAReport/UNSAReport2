@@ -79,6 +79,16 @@ export interface DeckConfig {
   autoSlide?: number;
   /** Si la presentación vuelve al inicio tras la última diapositiva */
   loop?: boolean;
+  /** Formato de numeración de diapositivas (default: false; el visor UNSA muestra su propio contador) */
+  slideNumber?: 'c/t' | 'c' | false;
+  /** Si centra verticalmente las diapositivas (default: false) */
+  center?: boolean;
+  /** Controles de navegación Reveal (default: false; el visor UNSA es dueño del chrome) */
+  controls?: boolean;
+  /** Barra de progreso Reveal (default: false; el visor UNSA es dueño del chrome) */
+  progress?: boolean;
+  /** Si sincroniza la diapositiva actual con el hash de la URL (default: true) */
+  hash?: boolean;
   /** Diapositivas que componen la presentación */
   slides: SlideDefinition[];
 }

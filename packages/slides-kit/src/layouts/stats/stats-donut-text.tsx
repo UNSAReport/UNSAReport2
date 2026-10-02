@@ -1,5 +1,6 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDonut } from '@/primitives/SlideDonut';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -46,14 +47,15 @@ export function StatsDonutText({
               className="h-full min-h-0 min-w-0 items-center justify-center text-center p-8 overflow-hidden"
             >
               <div className="flex-1 min-h-0 max-h-full overflow-hidden flex items-center justify-center w-full">
-                <div className="w-40 h-40 max-w-full max-h-full aspect-square shrink-0 rounded-full border-8 border-current flex flex-col items-center justify-center shadow-xl overflow-hidden p-2">
-                  <span className="text-5xl font-black font-mono truncate max-w-full min-w-0">
-                    {mainPercentage}
-                  </span>
-                  <span className="text-xs uppercase font-mono tracking-wider opacity-60 mt-1 line-clamp-2 break-words max-w-full min-w-0">
-                    {mainLabel}
-                  </span>
-                </div>
+                <SlideDonut
+                  value={Number.parseFloat(mainPercentage) || 0}
+                  max={100}
+                  tone="accent"
+                  size="10rem"
+                  thickness="8px"
+                  label={mainPercentage}
+                  sublabel={mainLabel}
+                />
               </div>
             </SlideCard>
           }

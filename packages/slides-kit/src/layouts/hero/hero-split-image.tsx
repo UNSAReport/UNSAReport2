@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideSection } from '@/primitives/SlideSection';
 import { SlideSplit } from '@/primitives/SlideSplit';
 
@@ -52,12 +53,15 @@ export function HeroSplitImage({
               </p>
             )}
             {(author || date) && (
-              <div className="flex items-center gap-3 text-sm font-medium opacity-75 pt-4 border-t border-current/10 w-full shrink-0 min-w-0 overflow-hidden">
-                {author && <span className="truncate">{author}</span>}
-                {author && date && <span className="shrink-0">•</span>}
-                {date && (
-                  <span className="opacity-70 shrink-0 truncate">{date}</span>
-                )}
+              <div className="w-full shrink-0 min-w-0 overflow-hidden">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <div className="flex items-center gap-3 text-sm font-medium opacity-75 pt-4">
+                  {author && <span className="truncate">{author}</span>}
+                  {author && date && <span className="shrink-0">•</span>}
+                  {date && (
+                    <span className="opacity-70 shrink-0 truncate">{date}</span>
+                  )}
+                </div>
               </div>
             )}
             {children}

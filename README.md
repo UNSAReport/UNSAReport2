@@ -140,13 +140,17 @@ Crea, previsualiza y publica presentaciones interactivas institucionales:
 
 ```bash
 # Crear la estructura de una nueva presentación con el kit oficial
+# (el tema se elige con la clave 'theme' en deck.config.ts, no con --theme)
 unsarep slides init mi-presentacion
 
-# Explorar el catálogo de 110 layouts y 3 temas oficiales
+# Explorar el catálogo de 110 layouts y 5 temas oficiales
 unsarep slides layouts --category bento
 unsarep slides themes
 
-# Iniciar el servidor local de desarrollo con recarga en vivo (HMR)
+# Importar colores/fuentes de un .pptx a un patch de tema (solo colores/fuentes)
+unsarep slides import deck.pptx --print
+
+# Iniciar el servidor local de desarrollo con recarga en vivo (HMR, puerto 4000)
 cd mi-presentacion && unsarep slides dev
 
 # Vincular y desplegar la presentación en la plataforma en la nube
@@ -154,7 +158,9 @@ unsarep slides link
 unsarep slides deploy
 ```
 
-Para más detalles sobre la arquitectura modular, estructura de archivos y diagramas de flujo de diapositivas, consulta la [Guía de Arquitectura de Slides](docs/slides.md).
+El visor vive en `/presentations/<slug>` (`?present=1` para modo
+presentación, botón PDF para exportar); el servicio interno `:3002` se
+expone públicamente vía el gateway `/api/slides`.
 
 ---
 

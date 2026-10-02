@@ -170,12 +170,9 @@ presentationsRouter.post('/deploy', async (c) => {
 
   let presentationId: string;
   let nextVersion: number;
-  const presentationUrl = `${config.baseUrl}/p/${payload.slug}`;
-
   if (existing) {
     presentationId = existing.id;
     nextVersion = existing.activeVersion + 1;
-
     await db
       .update(presentations)
       .set({
@@ -237,7 +234,7 @@ presentationsRouter.post('/deploy', async (c) => {
   await db.insert(presentationVersions).values({
     presentationId,
     versionNumber: nextVersion,
-    entrypointUrl: `/p/${payload.slug}`,
+    entrypointUrl: `/presentations/${presentationId}`,
     manifest: payload.manifest as Record<string, unknown>,
     bundleS3Prefix: s3Prefix,
     bundleSizeBytes: bundleBuffer.length,
@@ -245,12 +242,14 @@ presentationsRouter.post('/deploy', async (c) => {
     deployedBy: user?.id || '',
   });
 
+  // Canonical viewer URL is UUID-addressed: slugs are scoped per
+  // (ownerType, ownerId), not globally unique, so slug URLs were ambiguous.
   const response: CliDeployResponse = {
     success: true,
     presentationId,
     slug: payload.slug,
     version: nextVersion,
-    url: presentationUrl,
+    url: `${config.baseUrl}/presentations/${presentationId}`,
     message: `Successfully deployed version v${nextVersion} of "${payload.title}"`,
   };
   return c.json(response);
@@ -292,17 +291,43 @@ presentationsRouter.get('/', async (c) => {
   return c.json({ presentations: [...own, ...orgSlots] });
 });
 
+// Speaker notes travel inside the version manifest (`manifest.notes`,
+// Record<slideId, notes>). Surface them as a top-level `notes` map so
+// viewers can read `version.notes` without digging into the manifest.
+// Always an object ({} when the manifest predates notes or has none).
+function extractVersionNotes(manifest: unknown): Record<string, string> {
+  if (manifest && typeof manifest === 'object' && !Array.isArray(manifest)) {
+    const raw = (manifest as Record<string, unknown>).notes;
+    if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+      const notes: Record<string, string> = {};
+      for (const [slideId, text] of Object.entries(raw)) {
+        if (typeof text === 'string') notes[slideId] = text;
+      }
+      return notes;
+    }
+  }
+  return {};
+}
+
 presentationsRouter.get('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
   const id = c.req.param('id');
 
+  // Canonical lookup is by presentation UUID. Slugs are scoped per
+  // (ownerType, ownerId) and NOT globally unique, so slug resolution here
+  // was ambiguous across owners (wrong-owner row -> spurious 404).
+  // All web clients address details by id; slugs remain write-only
+  // metadata carried on the presentation record.
   const isUuid =
     /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+  if (!isUuid) {
+    throw new NotFoundError('Presentation not found');
+  }
   const [presentation] = await db
     .select()
     .from(presentations)
-    .where(isUuid ? eq(presentations.id, id) : eq(presentations.slug, id))
+    .where(eq(presentations.id, id))
     .limit(1);
 
   if (!presentation) {
@@ -363,7 +388,15 @@ presentationsRouter.get('/:id', async (c) => {
     .from(presentationVersions)
     .where(eq(presentationVersions.presentationId, presentation.id));
 
-  return c.json({ presentation, versions });
+  // Contract (S1-2): { versions: [{ versionNumber, manifest, notes? }] }.
+  // `notes` mirrors `manifest.notes` at the top level so viewers can read
+  // `version.notes` directly; always an object, never null/undefined.
+  const versionsWithNotes = versions.map((v) => ({
+    ...v,
+    notes: extractVersionNotes(v.manifest),
+  }));
+
+  return c.json({ presentation, versions: versionsWithNotes });
 });
 
 const updateSchema = z.object({

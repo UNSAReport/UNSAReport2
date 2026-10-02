@@ -1,5 +1,7 @@
 import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideBar } from '@/primitives/SlideBar';
 import { SlideCard } from '@/primitives/SlideCard';
+import { SlideDivider } from '@/primitives/SlideDivider';
 import { SlideGrid } from '@/primitives/SlideGrid';
 import { SlideSection } from '@/primitives/SlideSection';
 
@@ -75,13 +77,20 @@ export function StatsProgressCards({
                   {item.current}
                 </p>
               </div>
-              <div className="mt-4 pt-3 border-t border-current/10 shrink-0 min-w-0">
-                <div className="w-full max-w-full h-2 rounded-full border border-current/20 overflow-hidden">
-                  <div
-                    className="h-full bg-current opacity-80 rounded-full max-w-full overflow-hidden"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, item.percentage))}%`,
-                    }}
+              <div className="mt-4 shrink-0 min-w-0">
+                <SlideDivider thickness="1px" opacity={0.12} />
+                <div className="pt-3">
+                  <SlideBar
+                    value={item.percentage}
+                    max={100}
+                    tone={
+                      item.status === 'completado'
+                        ? 'success'
+                        : item.status === 'retrasado'
+                          ? 'warning'
+                          : 'accent'
+                    }
+                    label={item.goal}
                   />
                 </div>
               </div>

@@ -193,8 +193,8 @@ func TestCatalog(t *testing.T) {
 	}
 
 	themes := ListThemes()
-	if len(themes) != 3 {
-		t.Errorf("expected 3 themes, got %d", len(themes))
+	if len(themes) != 5 {
+		t.Errorf("expected 5 themes, got %d", len(themes))
 	}
 
 	allLayouts := ListLayouts("", "")
@@ -210,6 +210,44 @@ func TestCatalog(t *testing.T) {
 	searchLayouts := ListLayouts("", "hero-centered-bold")
 	if len(searchLayouts) != 1 {
 		t.Errorf("expected 1 search result, got %d", len(searchLayouts))
+	}
+}
+
+func TestCatalog_ThemeAgreementWithKit(t *testing.T) {
+	// Contrato con packages/slides-kit/src/themes/types.ts ThemeId: si el kit
+	// agrega/quita un tema (K1), este test falla y recuerda sincronizar
+	// officialThemes (DT-3: el catálogo web lee "5 temas" del kit).
+	want := []string{
+		"unsa-dark",
+		"unsa-classic",
+		"epis-tech",
+		"fips-light",
+		"epis-night",
+	}
+	themes := ListThemes()
+	if len(themes) != len(want) {
+		t.Fatalf("expected %d themes, got %d", len(want), len(themes))
+	}
+	got := make(map[string]bool, len(themes))
+	for _, th := range themes {
+		got[th.ID] = true
+	}
+	for _, id := range want {
+		if !got[id] {
+			t.Errorf("kit theme %q missing from tui/internal/slides catalog", id)
+		}
+	}
+	for _, th := range themes {
+		found := false
+		for _, id := range want {
+			if th.ID == id {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("tui theme %q has no counterpart in kit ThemeId", th.ID)
+		}
 	}
 }
 
