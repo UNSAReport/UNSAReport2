@@ -35,8 +35,7 @@ function RegistryIndexComponent() {
           <span aria-hidden="true" className="block w-4 h-4 bg-[#141414]" />
           <p className="grid-label">Registry</p>
           <p className="md:mt-auto font-mono text-[11px] text-[#7A7A7A]">
-            {packages.length}{' '}
-            {packages.length === 1 ? 'paquete' : 'paquetes'}
+            {packages.length} {packages.length === 1 ? 'paquete' : 'paquetes'}
             <br />
             Scopes + versiones
           </p>
@@ -51,8 +50,8 @@ function RegistryIndexComponent() {
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
             <p className="max-w-[400px] text-lg text-[#444343] leading-relaxed">
-              Plantillas Typst, scopes y versiones publicadas para tus
-              informes. Lo que compila hoy compila en la defensa.
+              Plantillas Typst, scopes y versiones publicadas para tus informes.
+              Lo que compila hoy compila en la defensa.
             </p>
             <div className="flex flex-wrap items-center gap-6">
               <Link
@@ -129,9 +128,7 @@ function RegistryIndexComponent() {
               {packages.map((pkg, i) => {
                 const isScoped =
                   pkg.name.startsWith('@') && pkg.name.includes('/');
-                const scopePart = isScoped
-                  ? pkg.name.split('/')[0]
-                  : null;
+                const scopePart = isScoped ? pkg.name.split('/')[0] : null;
                 return (
                   <article
                     key={pkg.name}
@@ -203,10 +200,7 @@ function RegistryIndexComponent() {
                   </article>
                 );
               })}
-              <div
-                className="border-b border-[#C7C7C7]"
-                aria-hidden="true"
-              />
+              <div className="border-b border-[#C7C7C7]" aria-hidden="true" />
             </div>
           )}
         </div>

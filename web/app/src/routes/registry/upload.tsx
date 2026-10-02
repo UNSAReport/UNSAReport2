@@ -108,10 +108,7 @@ function UploadComponent() {
         className="space-y-5"
       >
         <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor={fileInputId}
-            className="grid-label"
-          >
+          <label htmlFor={fileInputId} className="grid-label">
             Paquete (.zip, .tgz) <span aria-hidden="true">*</span>
           </label>
           <input

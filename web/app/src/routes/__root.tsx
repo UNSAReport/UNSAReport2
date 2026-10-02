@@ -6,9 +6,9 @@ import {
   Scripts,
   useRouter,
 } from '@tanstack/react-router';
+import { createLogger } from '@unsa/logger';
 import { useEffect } from 'react';
 import { z } from 'zod';
-import { createLogger } from '@unsa/logger';
 import {
   DEFAULT_ACCESS_TOKEN_TTL_SECONDS,
   fetchCurrentUser,

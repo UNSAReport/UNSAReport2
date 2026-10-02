@@ -85,8 +85,8 @@ function LoginSplit({
           <span className="text-[#1351AA]">Defiende.</span>
         </h1>
         <p className="max-w-[400px] text-base text-[#C7C7C7] leading-relaxed">
-          Una sola identidad para informes reproducibles, paquetes versionados
-          y slides académicas: todo el flujo institucional UNSA.
+          Una sola identidad para informes reproducibles, paquetes versionados y
+          slides académicas: todo el flujo institucional UNSA.
         </p>
         <ol className="mt-auto pt-8 space-y-0">
           {accessSteps.map((s) => (
@@ -351,7 +351,10 @@ function LoginComponent() {
           terminal.
         </p>
         <div className="flex flex-col gap-3">
-          <a href={googleUrl} className={buttonClasses('primary', 'md', 'w-full')}>
+          <a
+            href={googleUrl}
+            className={buttonClasses('primary', 'md', 'w-full')}
+          >
             Continuar con Google
           </a>
           <a

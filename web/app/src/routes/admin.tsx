@@ -595,9 +595,7 @@ function AdminDashboardComponent() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
       <header className="border-b border-[#C7C7C7] pb-6">
-        <p className="grid-label">
-          UNSAReport · Administración
-        </p>
+        <p className="grid-label">UNSAReport · Administración</p>
         <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Panel de administración
         </h1>

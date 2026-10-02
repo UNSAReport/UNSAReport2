@@ -123,9 +123,7 @@ function ScopesIndexComponent() {
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
       <header className="border-b border-[#C7C7C7] pb-6">
-        <p className="grid-label">
-          UNSAReport · Registro
-        </p>
+        <p className="grid-label">UNSAReport · Registro</p>
         <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Centro de scopes
         </h1>
@@ -169,21 +167,11 @@ function ScopesIndexComponent() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-[#C7C7C7]">
-                  <th className="px-4 py-3 grid-label">
-                    Scope
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Tipo
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Tu rol
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Descripción
-                  </th>
-                  <th className="px-4 py-3 grid-label text-right">
-                    Acciones
-                  </th>
+                  <th className="px-4 py-3 grid-label">Scope</th>
+                  <th className="px-4 py-3 grid-label">Tipo</th>
+                  <th className="px-4 py-3 grid-label">Tu rol</th>
+                  <th className="px-4 py-3 grid-label">Descripción</th>
+                  <th className="px-4 py-3 grid-label text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -246,18 +234,10 @@ function ScopesIndexComponent() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-[#C7C7C7]">
-                  <th className="px-4 py-3 grid-label">
-                    Scope
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Rol ofrecido
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Invitado el
-                  </th>
-                  <th className="px-4 py-3 grid-label text-right">
-                    Acciones
-                  </th>
+                  <th className="px-4 py-3 grid-label">Scope</th>
+                  <th className="px-4 py-3 grid-label">Rol ofrecido</th>
+                  <th className="px-4 py-3 grid-label">Invitado el</th>
+                  <th className="px-4 py-3 grid-label text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -325,10 +305,7 @@ function ScopesIndexComponent() {
             required
           />
           <div className="flex flex-col gap-1.5">
-            <label
-              htmlFor="scope-reason"
-              className="grid-label"
-            >
+            <label htmlFor="scope-reason" className="grid-label">
               Motivo / justificación *
             </label>
             <textarea

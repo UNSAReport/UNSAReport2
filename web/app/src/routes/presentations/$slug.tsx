@@ -242,7 +242,11 @@ function PresentationViewer() {
           >
             ◀
           </button>
-          <span aria-live="polite" aria-atomic="true" className="text-[#E3E2DE] font-mono px-1">
+          <span
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-[#E3E2DE] font-mono px-1"
+          >
             {currentSlideIndex}
           </span>
           <button
@@ -398,7 +402,11 @@ function PresentationViewer() {
             >
               Siguiente ▶
             </button>
-            <span aria-live="polite" aria-atomic="true" className="text-[#7A7A7A] font-mono ml-2">
+            <span
+              aria-live="polite"
+              aria-atomic="true"
+              className="text-[#7A7A7A] font-mono ml-2"
+            >
               Slide {currentSlideIndex}
             </span>
           </div>
