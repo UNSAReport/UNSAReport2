@@ -75,7 +75,10 @@ function IndexComponent() {
               una sola plataforma.
             </p>
             <div className="flex flex-wrap items-center gap-6">
-              <Link to="/dashboard" className="poster-button poster-button-primary">
+              <Link
+                to="/dashboard"
+                className="poster-button poster-button-primary"
+              >
                 Mi dashboard
               </Link>
               <Link

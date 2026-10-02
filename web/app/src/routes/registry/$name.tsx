@@ -51,8 +51,7 @@ function PackageComponent() {
           <span aria-hidden="true" className="block w-4 h-4 bg-[#141414]" />
           <p className="grid-label">Package</p>
           <p className="md:mt-auto font-mono text-[11px] text-[#7A7A7A]">
-            {versions.length}{' '}
-            {versions.length === 1 ? 'versión' : 'versiones'}
+            {versions.length} {versions.length === 1 ? 'versión' : 'versiones'}
           </p>
         </div>
         <div className="col-span-12 md:col-span-9 p-6 md:p-12 flex flex-col justify-center gap-6">
@@ -149,10 +148,7 @@ function PackageComponent() {
                   </Link>
                 </div>
               ))}
-              <div
-                className="border-b border-[#C7C7C7]"
-                aria-hidden="true"
-              />
+              <div className="border-b border-[#C7C7C7]" aria-hidden="true" />
             </div>
           )}
         </div>

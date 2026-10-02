@@ -23,8 +23,8 @@
   body {
     background-color: var(--paper);
     color: var(--jet);
-    font-family: "General Sans", "Aileron", "Inter", ui-sans-serif, system-ui,
-      sans-serif;
+    font-family:
+      "General Sans", "Aileron", "Inter", ui-sans-serif, system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -68,7 +68,9 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    transition: background-color 0.3s linear, color 0.3s linear;
+    transition:
+      background-color 0.3s linear,
+      color 0.3s linear;
   }
   .poster-button-primary {
     background-color: var(--cobalt);

@@ -17,9 +17,7 @@ function MeComponent() {
   return (
     <div className="max-w-md mx-auto px-4 py-10 font-sans bg-[#E3E2DE] text-[#141414]">
       <Card labelledBy="me-heading">
-        <p className="grid-label">
-          UNSAReport · Cuenta
-        </p>
+        <p className="grid-label">UNSAReport · Cuenta</p>
         <h1
           id="me-heading"
           className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1"
@@ -50,9 +48,7 @@ function MeComponent() {
             </div>
             {user.roles && Object.keys(user.roles).length > 0 ? (
               <div className="mt-4">
-                <p className="grid-label">
-                  Roles
-                </p>
+                <p className="grid-label">Roles</p>
                 <ul className="mt-1 flex flex-wrap gap-2">
                   {Object.entries(user.roles).map(([subApp, role]) => (
                     <li

@@ -71,9 +71,7 @@ function PatComponent() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6 font-sans bg-[#E3E2DE] text-[#141414]">
       <header className="border-b border-[#C7C7C7] pb-6">
-        <p className="grid-label">
-          UNSAReport · Cuenta
-        </p>
+        <p className="grid-label">UNSAReport · Cuenta</p>
         <h1 className="text-3xl font-extrabold tracking-tight text-[#141414] mt-1">
           Tokens de acceso personal
         </h1>
@@ -94,9 +92,7 @@ function PatComponent() {
 
       {newToken && (
         <div className="rounded-none border border-[#C7C7C7] bg-transparent p-4">
-          <p className="font-bold text-green-700">
-            Token creado correctamente
-          </p>
+          <p className="font-bold text-green-700">Token creado correctamente</p>
           <p className="mt-1 text-sm text-emerald-200/80">
             Cópialo ahora — no volverá a mostrarse:
           </p>
@@ -149,15 +145,9 @@ function PatComponent() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-[#C7C7C7]">
-                  <th className="px-4 py-3 grid-label">
-                    ID
-                  </th>
-                  <th className="px-4 py-3 grid-label">
-                    Nombre
-                  </th>
-                  <th className="px-4 py-3 grid-label text-right">
-                    Acciones
-                  </th>
+                  <th className="px-4 py-3 grid-label">ID</th>
+                  <th className="px-4 py-3 grid-label">Nombre</th>
+                  <th className="px-4 py-3 grid-label text-right">Acciones</th>
                 </tr>
               </thead>
               <tbody>

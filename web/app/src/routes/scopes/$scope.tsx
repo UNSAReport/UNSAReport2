@@ -274,15 +274,9 @@ function ScopeDetailComponent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-[#C7C7C7]">
-                    <th className="px-3 py-2 grid-label">
-                      Ruta
-                    </th>
-                    <th className="px-3 py-2 grid-label">
-                      Tamaño
-                    </th>
-                    <th className="px-3 py-2 grid-label">
-                      SHA256
-                    </th>
+                    <th className="px-3 py-2 grid-label">Ruta</th>
+                    <th className="px-3 py-2 grid-label">Tamaño</th>
+                    <th className="px-3 py-2 grid-label">SHA256</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -337,18 +331,10 @@ function ScopeDetailComponent() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left border-b border-[#C7C7C7]">
-                <th className="px-4 py-3 grid-label">
-                  ID de usuario
-                </th>
-                <th className="px-4 py-3 grid-label">
-                  Rol
-                </th>
-                <th className="px-4 py-3 grid-label">
-                  Desde
-                </th>
-                <th className="px-4 py-3 grid-label text-right">
-                  Acciones
-                </th>
+                <th className="px-4 py-3 grid-label">ID de usuario</th>
+                <th className="px-4 py-3 grid-label">Rol</th>
+                <th className="px-4 py-3 grid-label">Desde</th>
+                <th className="px-4 py-3 grid-label text-right">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -453,10 +439,7 @@ function ScopeDetailComponent() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label
-                htmlFor="invite-role"
-                className="grid-label"
-              >
+              <label htmlFor="invite-role" className="grid-label">
                 Rol
               </label>
               <select
@@ -488,18 +471,10 @@ function ScopeDetailComponent() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-[#C7C7C7]">
-                    <th className="px-3 py-2 grid-label">
-                      Correo
-                    </th>
-                    <th className="px-3 py-2 grid-label">
-                      Rol
-                    </th>
-                    <th className="px-3 py-2 grid-label">
-                      Enviada el
-                    </th>
-                    <th className="px-3 py-2 grid-label text-right">
-                      Acción
-                    </th>
+                    <th className="px-3 py-2 grid-label">Correo</th>
+                    <th className="px-3 py-2 grid-label">Rol</th>
+                    <th className="px-3 py-2 grid-label">Enviada el</th>
+                    <th className="px-3 py-2 grid-label text-right">Acción</th>
                   </tr>
                 </thead>
                 <tbody>
