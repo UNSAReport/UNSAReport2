@@ -7,13 +7,38 @@ import {
 } from '@unsa/slides-kit/layouts';
 import { ThemeProvider } from '@unsa/slides-kit/renderer/ThemeProvider';
 import { listThemes, type ThemeDefinition } from '@unsa/slides-kit/themes';
-import { useId, useMemo, useState } from 'react';
+import { Component, type ReactNode, useId, useMemo, useState } from 'react';
 import { Button } from '@/components/Button';
 import { Card } from '@/components/Card';
 import { EmptyState } from '@/components/EmptyState';
 import { TextInput } from '@/components/TextInput';
 import { previewSamples } from '@/lib/catalog-preview-samples';
 
+const THEME_FALLBACK_ID = 'unsa-dark';
+
+class ThemePreviewBoundary extends Component<
+  { children: ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(): { hasError: boolean } {
+    return { hasError: true };
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      return (
+        <ThemeProvider theme={THEME_FALLBACK_ID}>
+          <div className="w-full h-full flex items-center justify-center p-3 text-[9px] leading-tight">
+            Vista previa no disponible para este tema.
+          </div>
+        </ThemeProvider>
+      );
+    }
+    return this.props.children;
+  }
+}
 export const Route = createFileRoute('/presentations/catalog')({
   component: PresentationsCatalog,
 });
@@ -270,6 +295,7 @@ function LayoutInspectorModal({
   onClose: () => void;
 }) {
   const modalTitleId = useId();
+  const themes = useMemo(() => listThemes(), []);
   const Component = def.component;
   const sample = previewSamples[def.id] ?? {};
 
@@ -325,11 +351,19 @@ ${def.slots
             Vista previa con tema
           </h3>
           <div className="relative w-full aspect-video rounded-none overflow-hidden border border-[#C7C7C7] select-none pointer-events-none">
-            <ThemeProvider theme={selectedThemeId}>
-              <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight p-3">
-                <Component {...previewProps} />
-              </div>
-            </ThemeProvider>
+            <ThemePreviewBoundary key={selectedThemeId}>
+              <ThemeProvider
+                theme={
+                  themes.some((t: ThemeDefinition) => t.id === selectedThemeId)
+                    ? selectedThemeId
+                    : THEME_FALLBACK_ID
+                }
+              >
+                <div className="w-full h-full flex flex-col justify-center overflow-hidden text-[9px] leading-tight p-3">
+                  <Component {...previewProps} />
+                </div>
+              </ThemeProvider>
+            </ThemePreviewBoundary>
           </div>
         </div>
 

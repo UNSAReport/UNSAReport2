@@ -67,6 +67,44 @@ async function slidesFetch(
   if (token) headers.set('Authorization', `Bearer ${token}`);
   return fetch(`${slidesBaseUrl()}${path}`, { ...init, headers });
 }
+async function readErrorBody(res: Response): Promise<string> {
+  let text = '';
+  try {
+    text = (await res.text()).trim();
+  } catch {
+    return '';
+  }
+  if (!text) return '';
+  const clipped = text.length > 500 ? `${text.slice(0, 500)}…` : text;
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return clipped;
+  }
+  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+    if (
+      'message' in parsed &&
+      typeof parsed.message === 'string' &&
+      parsed.message.trim()
+    ) {
+      return parsed.message;
+    }
+    if (
+      'error' in parsed &&
+      typeof parsed.error === 'string' &&
+      parsed.error.trim()
+    ) {
+      return parsed.error;
+    }
+  }
+  return clipped;
+}
+
+function slidesError(action: string, res: Response, body: string): Error {
+  const detail = body ? `: ${body}` : '';
+  return new Error(`${action} (status ${res.status})${detail}`);
+}
 
 async function deployPresentationInternal(
   input: SlidesDeployInput,
@@ -76,7 +114,13 @@ async function deployPresentationInternal(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input),
   });
-  if (!res.ok) throw new Error(`Failed to deploy presentation: ${res.status}`);
+  if (!res.ok) {
+    throw slidesError(
+      'Failed to deploy presentation',
+      res,
+      await readErrorBody(res),
+    );
+  }
   return (await res.json()) as SlidesDeployResult;
 }
 
@@ -84,7 +128,11 @@ async function listPresentationsInternal(): Promise<SlidesPresentation[]> {
   const res = await slidesFetch('/presentations');
   if (!res.ok) {
     if (res.status === 404) return [];
-    throw new Error(`Failed to fetch presentations: ${res.status}`);
+    throw slidesError(
+      'Failed to fetch presentations',
+      res,
+      await readErrorBody(res),
+    );
   }
   const data = (await res.json()) as
     | { presentations: SlidesPresentation[] }
@@ -98,7 +146,20 @@ async function getPresentationInternal(id: string): Promise<{
   versions: SlidesPresentationVersion[];
 }> {
   const res = await slidesFetch(`/presentations/${encodeURIComponent(id)}`);
-  if (!res.ok) throw new Error(`Presentation not found: ${id}`);
+  if (!res.ok) {
+    if (res.status === 404) {
+      throw slidesError(
+        `Presentation not found: ${id}`,
+        res,
+        await readErrorBody(res),
+      );
+    }
+    throw slidesError(
+      `Failed to fetch presentation: ${id}`,
+      res,
+      await readErrorBody(res),
+    );
+  }
   return (await res.json()) as {
     presentation: SlidesPresentation;
     versions: SlidesPresentationVersion[];
@@ -109,7 +170,11 @@ async function listOrganizationsInternal(): Promise<SlidesOrganization[]> {
   const res = await slidesFetch('/orgs');
   if (!res.ok) {
     if (res.status === 404) return [];
-    throw new Error(`Failed to fetch organizations: ${res.status}`);
+    throw slidesError(
+      'Failed to fetch organizations',
+      res,
+      await readErrorBody(res),
+    );
   }
   const data = (await res.json()) as
     | { organizations: SlidesOrganization[] }
