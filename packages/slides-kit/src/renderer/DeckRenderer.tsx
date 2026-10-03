@@ -79,7 +79,7 @@ export function DeckRenderer({
     transition = 'slide',
     width = 1280,
     height = 720,
-    margin = 0,
+    margin = 0.04,
     autoSlide = 0,
     loop = false,
     center = false,
@@ -122,7 +122,7 @@ export function DeckRenderer({
         }}
       >
         {slides.map((slide, index) => (
-          <Slide key={`slide-${slide.layout}-${slide.title || index}`}>
+          <Slide key={`slide-${index}-${slide.layout}-${slide.title ?? 'untitled'}`}>
             <SlideRenderer slide={slide} index={index} />
           </Slide>
         ))}

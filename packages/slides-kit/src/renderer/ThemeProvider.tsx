@@ -33,7 +33,13 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const resolvedTheme = useMemo<ThemeDefinition>(() => {
     if (typeof theme === 'string') {
-      return themeRegistry.getTheme(theme);
+      if (themeRegistry.hasTheme(theme)) {
+        return themeRegistry.getTheme(theme);
+      }
+      console.warn(
+        `ThemeProvider: unknown theme '${theme}', falling back to 'unsa-dark'. Register it with registerTheme() or use a registered id.`,
+      );
+      return themeRegistry.getTheme('unsa-dark');
     }
     return theme;
   }, [theme]);
