@@ -2,7 +2,9 @@ package slides
 
 import (
 	_ "embed"
+	"encoding/json"
 	"fmt"
+	"html"
 	"strings"
 )
 
@@ -20,6 +22,15 @@ func StarterTemplate(projectName string) []TemplateFile {
 	if slug == "" {
 		slug = "my-slides"
 	}
+	tsTitle := strings.ReplaceAll(projectName, `\`, `\\`)
+	tsTitle = strings.ReplaceAll(tsTitle, `'`, `\'`)
+	htmlTitle := html.EscapeString(projectName)
+	jsonStr := func(s string) string {
+		b, _ := json.Marshal(s)
+		return string(b[1 : len(b)-1])
+	}
+	pkgName := jsonStr(slug)
+	jsonTitle := jsonStr(projectName)
 	return []TemplateFile{
 		{
 			Path: "slides-kit.tgz",
@@ -28,7 +39,7 @@ func StarterTemplate(projectName string) []TemplateFile {
 		{
 			Path: "package.json",
 			Content: `{
-  "name": "` + projectName + `",
+  "name": "` + pkgName + `",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -58,7 +69,7 @@ func StarterTemplate(projectName string) []TemplateFile {
 			Content: `import { defineConfig } from '@unsa/slides-kit';
 
 export default defineConfig({
-  title: '` + projectName + `',
+  title: '` + tsTitle + `',
   slug: '` + slug + `',
   theme: 'unsa-dark',
   visibility: 'private',
@@ -66,7 +77,7 @@ export default defineConfig({
     {
       layout: 'hero-centered-bold',
       tag: 'Presentación',
-      title: '` + projectName + `',
+      title: '` + tsTitle + `',
       subtitle: 'Creado con unsarep slides y @unsa/slides-kit',
       author: 'Autor',
       date: '2026',
@@ -134,7 +145,7 @@ export default defineConfig({
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>` + projectName + `</title>
+    <title>` + htmlTitle + `</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
       @layer base {
@@ -220,8 +231,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 		{
 			Path: ".slidesrc.json",
 			Content: `{
-  "slug": "` + slug + `",
-  "title": "` + projectName + `",
+  "slug": "` + pkgName + `",
+  "title": "` + jsonTitle + `",
   "visibility": "private"
 }
 `,
@@ -229,9 +240,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 		{
 			Path: "manifest.json",
 			Content: `{
-  "name": "` + projectName + `",
+  "name": "` + pkgName + `",
   "version": "1.0.0",
-  "title": "` + projectName + `",
+  "title": "` + jsonTitle + `",
   "description": "A presentation created with unsarep slides",
   "config": {
     "width": 1280,
@@ -243,7 +254,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     {
       "id": "hero",
       "index": 0,
-      "title": "` + projectName + `"
+      "title": "` + jsonTitle + `"
     },
     {
       "id": "comparison",
@@ -276,6 +287,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 }
 
 func slidesTSX(projectName string) string {
+	safe := html.EscapeString(projectName)
 	return `import React from "react";
 
 export function Presentation() {
@@ -283,7 +295,7 @@ export function Presentation() {
     <div className="reveal">
       <div className="slides">
         <section>
-          <h1 className="text-4xl font-bold mb-4">` + projectName + `</h1>
+          <h1 className="text-4xl font-bold mb-4">` + safe + `</h1>
           <p className="text-xl text-gray-400">Created with unsarep slides</p>
         </section>
         <section>

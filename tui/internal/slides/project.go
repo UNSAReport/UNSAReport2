@@ -86,6 +86,8 @@ func LoadProjectConfig(dir string) (*ProjectConfig, error) {
 	deckPath := filepath.Join(dir, DeckConfigFile)
 	if content, err := os.ReadFile(deckPath); err == nil {
 		cfg := ParseDeckConfig(string(content))
+		deckText := string(content)
+		deckHasVisibility := visibilityRegex.MatchString(deckText)
 		if jsonBytes, err := os.ReadFile(filepath.Join(dir, ProjectConfigFile)); err == nil {
 			var jsonCfg ProjectConfig
 			if json.Unmarshal(jsonBytes, &jsonCfg) == nil {
@@ -98,7 +100,13 @@ func LoadProjectConfig(dir string) (*ProjectConfig, error) {
 				if cfg.OrgSlug == "" {
 					cfg.OrgSlug = jsonCfg.OrgSlug
 				}
-				if jsonCfg.Visibility != "" {
+				if cfg.Description == "" {
+					cfg.Description = jsonCfg.Description
+				}
+				if cfg.Theme == "" {
+					cfg.Theme = jsonCfg.Theme
+				}
+				if !deckHasVisibility && jsonCfg.Visibility != "" {
 					cfg.Visibility = jsonCfg.Visibility
 				}
 			}
@@ -192,6 +200,28 @@ func BundleFile(dir string) (string, error) {
 	return base64.StdEncoding.EncodeToString(b), nil
 }
 
+const maxBundleBytes = 50 << 20
+
+func shouldZipExclude(relPath string) bool {
+	p := filepath.ToSlash(relPath)
+	if p == "" || p == "." {
+		return true
+	}
+	if p == "node_modules" || strings.HasPrefix(p, "node_modules/") {
+		return true
+	}
+	if p == ".git" || strings.HasPrefix(p, ".git/") {
+		return true
+	}
+	if strings.HasSuffix(p, ".tgz") {
+		return true
+	}
+	if strings.HasPrefix(filepath.ToSlash(filepath.Base(p)), ".env") {
+		return true
+	}
+	return false
+}
+
 func ZipDirectory(srcDir string) ([]byte, error) {
 	buf := new(bytes.Buffer)
 	zw := zip.NewWriter(buf)
@@ -207,6 +237,9 @@ func ZipDirectory(srcDir string) ([]byte, error) {
 		relPath, err := filepath.Rel(srcDir, path)
 		if err != nil {
 			return err
+		}
+		if shouldZipExclude(relPath) {
+			return nil
 		}
 
 		cleanPath := filepath.ToSlash(relPath)
@@ -237,13 +270,17 @@ func ZipDirectory(srcDir string) ([]byte, error) {
 		return nil, err
 	}
 
+	if buf.Len() > maxBundleBytes {
+		return nil, fmt.Errorf("bundle exceeds 50 MiB (%d bytes)", buf.Len())
+	}
+
 	return buf.Bytes(), nil
 }
 
 func RunBuild(dir string) error {
 	pkgPath := filepath.Join(dir, "package.json")
 	if _, err := os.Stat(pkgPath); err != nil {
-		return nil
+		return fmt.Errorf("build requires package.json: %w", err)
 	}
 
 	buildCmd := "bun"
@@ -251,7 +288,7 @@ func RunBuild(dir string) error {
 		if _, err := exec.LookPath("npm"); err == nil {
 			buildCmd = "npm"
 		} else {
-			return nil
+			return fmt.Errorf("build requires bun or npm on PATH")
 		}
 	}
 
@@ -269,15 +306,17 @@ func RunBuild(dir string) error {
 }
 
 func BuildAndZip(dir string) ([]byte, string, error) {
-	_ = RunBuild(dir)
-
-	distDir := filepath.Join(dir, "dist")
-	targetDir := dir
-	if st, err := os.Stat(distDir); err == nil && st.IsDir() {
-		targetDir = distDir
+	if err := RunBuild(dir); err != nil {
+		return nil, "", fmt.Errorf("build presentation: %w", err)
 	}
 
-	zipBytes, err := ZipDirectory(targetDir)
+	distDir := filepath.Join(dir, "dist")
+	st, err := os.Stat(distDir)
+	if err != nil || !st.IsDir() {
+		return nil, "", fmt.Errorf("build did not produce dist/: run build to generate dist before deploy")
+	}
+
+	zipBytes, err := ZipDirectory(distDir)
 	if err != nil {
 		return nil, "", fmt.Errorf("compress presentation files: %w", err)
 	}

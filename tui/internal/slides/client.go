@@ -132,20 +132,34 @@ func (c *Client) DeployMultipart(ctx context.Context, token string, req *DeployR
 		return nil, fmt.Errorf("write bundle data: %w", err)
 	}
 
-	_ = writer.WriteField("slug", req.Slug)
-	_ = writer.WriteField("title", req.Title)
+	if err := writer.WriteField("slug", req.Slug); err != nil {
+		return nil, fmt.Errorf("write slug field: %w", err)
+	}
+	if err := writer.WriteField("title", req.Title); err != nil {
+		return nil, fmt.Errorf("write title field: %w", err)
+	}
 	if req.Description != "" {
-		_ = writer.WriteField("description", req.Description)
+		if err := writer.WriteField("description", req.Description); err != nil {
+			return nil, fmt.Errorf("write description field: %w", err)
+		}
 	}
 	if req.OrgSlug != "" {
-		_ = writer.WriteField("orgSlug", req.OrgSlug)
+		if err := writer.WriteField("orgSlug", req.OrgSlug); err != nil {
+			return nil, fmt.Errorf("write orgSlug field: %w", err)
+		}
 	}
 	if req.Visibility != "" {
-		_ = writer.WriteField("visibility", req.Visibility)
+		if err := writer.WriteField("visibility", req.Visibility); err != nil {
+			return nil, fmt.Errorf("write visibility field: %w", err)
+		}
 	}
 	if req.Manifest != nil {
-		if manifestBytes, err := json.Marshal(req.Manifest); err == nil {
-			_ = writer.WriteField("manifest", string(manifestBytes))
+		manifestBytes, err := json.Marshal(req.Manifest)
+		if err != nil {
+			return nil, fmt.Errorf("marshal manifest: %w", err)
+		}
+		if err := writer.WriteField("manifest", string(manifestBytes)); err != nil {
+			return nil, fmt.Errorf("write manifest field: %w", err)
 		}
 	}
 

@@ -2,6 +2,7 @@ package slides
 
 import (
 	"fmt"
+	"html"
 	"net/http"
 	"os"
 	"os/exec"
@@ -10,12 +11,13 @@ import (
 )
 
 func previewHTML(title string) string {
+	esc := html.EscapeString(title)
 	return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>` + title + ` (Dev Preview)</title>
+  <title>` + esc + ` (Dev Preview)</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/theme/black.css">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -24,7 +26,7 @@ func previewHTML(title string) string {
   <div class="reveal">
     <div class="slides">
       <section>
-        <h1 class="text-4xl font-bold mb-4">` + title + `</h1>
+        <h1 class="text-4xl font-bold mb-4">` + esc + `</h1>
         <p class="text-xl text-slate-400">UNSA Slides Local Preview</p>
       </section>
       <section>
@@ -56,6 +58,7 @@ func ServePreview(addr, dir, title string) error {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Header().Set("Content-Security-Policy", "default-src 'self' https://cdn.jsdelivr.net; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'")
 			if _, err := fmt.Fprint(w, page); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 				return
