@@ -18,24 +18,37 @@ const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 async function resolvePresentation(paramId: string) {
-  // Canonical lookup is by presentation UUID. Slugs are scoped per
-  // (ownerType, ownerId), not globally unique, so slug resolution here was
-  // ambiguous across owners. Web clients always address embeds by id
-  // (embedSrc uses presentation.id); slugs stay write-only metadata.
-  if (!UUID_REGEX.test(paramId)) {
-    throw new NotFoundError('Presentation not found');
+  // UUID path stays canonical. Slug path honors the /presentations/<slug>
+  // contract (docs/slides.md section 7): slugs are scoped per
+  // (ownerType, ownerId), so return the row by UUID, or the first slug row
+  // when the id is not a UUID. checkAccess runs after resolution either way,
+  // so slug-addressed embeds pass authz identically to UUID embeds.
+  if (UUID_REGEX.test(paramId)) {
+    const [byId] = await db
+      .select()
+      .from(presentations)
+      .where(eq(presentations.id, paramId))
+      .limit(1);
+
+    if (!byId) {
+      throw new NotFoundError('Presentation not found');
+    }
+
+    return byId;
   }
-  const [presentation] = await db
+
+  const candidates = await db
     .select()
     .from(presentations)
-    .where(eq(presentations.id, paramId))
-    .limit(1);
+    .where(eq(presentations.slug, paramId))
+    .limit(10);
 
-  if (!presentation) {
+  const [first] = candidates;
+  if (!first) {
     throw new NotFoundError('Presentation not found');
   }
 
-  return presentation;
+  return first;
 }
 
 async function checkAccess(
@@ -176,9 +189,16 @@ async function handleEmbed(c: Context<HonoEnv>) {
     const contentType = getMimeType(filePath);
 
     const isHtml = filePath.endsWith('.html') || filePath.endsWith('.htm');
-    const cacheControl = isHtml
-      ? 'public, max-age=0, must-revalidate'
-      : 'public, max-age=31536000, immutable';
+    const isPublic =
+      presentation.visibility === 'public' ||
+      presentation.visibility === 'unlisted';
+    const cacheControl = isPublic
+      ? isHtml
+        ? 'public, max-age=0, must-revalidate'
+        : 'public, max-age=31536000, immutable'
+      : isHtml
+        ? 'private, max-age=0, must-revalidate'
+        : 'private, max-age=3600, must-revalidate';
 
     // Rewrite root-absolute asset refs so the bundle works when served from
     // the versioned embed prefix (/embed/<id>/vN/...) instead of the domain
@@ -228,14 +248,22 @@ async function handleEmbed(c: Context<HonoEnv>) {
       );
     }
 
+    const responseHeaders: Record<string, string> = {
+      'Content-Type': contentType,
+      'Cache-Control': cacheControl,
+      'Content-Length': String(body.length),
+      'X-Content-Type-Options': 'nosniff',
+    };
+    if (
+      presentation.visibility !== 'public' &&
+      presentation.visibility !== 'unlisted'
+    ) {
+      responseHeaders.Vary = 'Authorization';
+    }
+
     return new Response(new Uint8Array(body), {
       status: 200,
-      headers: {
-        'Content-Type': contentType,
-        'Cache-Control': cacheControl,
-        'Content-Length': String(body.length),
-        'X-Content-Type-Options': 'nosniff',
-      },
+      headers: responseHeaders,
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

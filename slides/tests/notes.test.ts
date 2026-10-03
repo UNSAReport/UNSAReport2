@@ -196,7 +196,8 @@ describe('Speaker notes slice', () => {
           title: 'Notes Deck',
           visibility: 'private',
           manifest: manifestWithNotes,
-          bundle: 'ZQ==',
+          bundle:
+            'UEsDBAoAAAAAAHGkQ10neOmFDgAAAA4AAAAKAAAAaW5kZXguaHRtbDxoMT5IZWxsbzwvaDE+UEsBAhQACgAAAAAAcaRDXSd46YUOAAAADgAAAAoAAAAAAAAAAAAAAAAAAAAAAGluZGV4Lmh0bWxQSwUGAAAAAAEAAQA4AAAANgAAAAAA',
         }),
       }),
     );
@@ -207,13 +208,13 @@ describe('Speaker notes slice', () => {
     });
   });
 
-  it('GET /:id rejects non-UUID identifiers with 404', async () => {
+  it('GET /:id resolves the human slug as well as the UUID', async () => {
     const res = await app.fetch(
       new Request(`http://localhost/presentations/${NOTES_SLUG}`, {
         headers: { Authorization: 'Bearer notes-token' },
       }),
     );
-    expect(res.status).toBe(404);
+    expect(res.status).toBe(200);
   });
 
   it('GET /:id returns versions with top-level notes', async () => {

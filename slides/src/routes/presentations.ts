@@ -4,6 +4,7 @@ import {
   CliDeployRequestSchema,
   type CliDeployResponse,
 } from '@unsa/schemas/cli-api';
+import { SlideManifestSchema } from '@unsa/schemas/manifest';
 import { PresentationVisibilitySchema } from '@unsa/schemas/presentations';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
@@ -20,11 +21,116 @@ import {
 import { deleteS3Prefix, getMimeType, uploadS3Object } from '@/lib/s3';
 import { requireAuth, requireSlidesRole } from '@/middleware/auth';
 import {
+  ConflictError,
   ForbiddenError,
+  isUniqueViolationError,
   NotFoundError,
   ValidationError,
 } from '@/middleware/error-handler';
 import type { HonoEnv } from '@/types';
+
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+type DeployStore = Pick<typeof db, 'select' | 'update' | 'insert'>;
+type DeployAllocation = { presentationId: string; nextVersion: number };
+interface TransactionalDeployStore extends DeployStore {
+  transaction(
+    fn: (tx: DeployStore) => Promise<DeployAllocation>,
+  ): Promise<DeployAllocation>;
+}
+
+async function validateBundleOrThrow(
+  bundleBuffer: Buffer,
+): Promise<{ path: string; buffer: Buffer }[]> {
+  if (bundleBuffer.length === 0) {
+    throw new ValidationError('Bundle file is empty (0 bytes)');
+  }
+  const isZipArchive =
+    bundleBuffer.length >= 4 &&
+    bundleBuffer[0] === 0x50 &&
+    bundleBuffer[1] === 0x4b &&
+    ((bundleBuffer[2] === 0x03 && bundleBuffer[3] === 0x04) ||
+      (bundleBuffer[2] === 0x05 && bundleBuffer[3] === 0x06) ||
+      (bundleBuffer[2] === 0x07 && bundleBuffer[3] === 0x08));
+  if (!isZipArchive) {
+    throw new ValidationError(
+      'Invalid bundle: file is not a ZIP archive (bad magic bytes)',
+    );
+  }
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(bundleBuffer);
+  } catch {
+    throw new ValidationError('Invalid bundle: corrupt or unreadable ZIP file');
+  }
+  const files: { path: string; buffer: Buffer }[] = [];
+  let hasIndex = false;
+  for (const filePath of Object.keys(zip.files)) {
+    const entry = zip.files[filePath];
+    if (entry.dir) continue;
+    const cleanPath = filePath.replace(/^\/+/, '');
+    if (cleanPath.includes('..')) continue;
+    if (cleanPath === 'index.html' || cleanPath.endsWith('/index.html')) {
+      hasIndex = true;
+    }
+    const fileBuffer = Buffer.from(await entry.async('nodebuffer'));
+    files.push({ path: cleanPath, buffer: fileBuffer });
+  }
+  if (!hasIndex) {
+    throw new ValidationError(
+      'Invalid bundle: ZIP archive must contain an index.html entrypoint',
+    );
+  }
+  return files;
+}
+
+async function isPresentationVisibleTo(
+  presentation: typeof presentations.$inferSelect,
+  userId: string,
+): Promise<boolean> {
+  if (presentation.ownerType === 'user' && presentation.ownerId === userId) {
+    return true;
+  }
+  if (presentation.ownerType === 'organization') {
+    const [membership] = await db
+      .select()
+      .from(orgMembers)
+      .where(
+        and(
+          eq(orgMembers.orgId, presentation.ownerId),
+          eq(orgMembers.userId, userId),
+        ),
+      )
+      .limit(1);
+    if (membership) {
+      return true;
+    }
+  }
+  if (
+    presentation.visibility === 'public' ||
+    presentation.visibility === 'unlisted'
+  ) {
+    return true;
+  }
+  if (presentation.visibility === 'org' && presentation.ownerType === 'user') {
+    const ownerOrgIds = await db
+      .select({ orgId: orgMembers.orgId })
+      .from(orgMembers)
+      .where(eq(orgMembers.userId, presentation.ownerId));
+    if (ownerOrgIds.length > 0) {
+      const callerOrgIds = await db
+        .select({ orgId: orgMembers.orgId })
+        .from(orgMembers)
+        .where(eq(orgMembers.userId, userId));
+      const callerSet = new Set(callerOrgIds.map((m) => m.orgId));
+      if (ownerOrgIds.some((m) => callerSet.has(m.orgId))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
 
 const presentationsRouter = new Hono<HonoEnv>();
 
@@ -95,44 +201,69 @@ presentationsRouter.post('/deploy', async (c) => {
     }
 
     const manifestRaw = formData.get('manifest');
-    let manifestObj = metaObj.manifest;
-    if (manifestRaw) {
+    let manifestObj: unknown = metaObj.manifest;
+    if (manifestRaw !== null && manifestRaw !== undefined) {
       if (typeof manifestRaw === 'string') {
-        try {
-          manifestObj = JSON.parse(manifestRaw);
-        } catch {
-          throw new ValidationError('Invalid JSON in manifest field');
+        if (manifestRaw !== '') {
+          try {
+            manifestObj = JSON.parse(manifestRaw);
+          } catch {
+            throw new ValidationError('Invalid JSON in manifest field');
+          }
         }
       } else {
-        manifestObj = manifestRaw;
+        throw new ValidationError('Invalid manifest field');
       }
     }
 
-    const slug = (formData.get('slug') as string) || (metaObj.slug as string);
-    const title =
-      (formData.get('title') as string) || (metaObj.title as string);
-    const description =
-      (formData.get('description') as string) ||
-      (metaObj.description as string);
-    const orgSlug =
-      (formData.get('orgSlug') as string) || (metaObj.orgSlug as string);
-    const visibility =
-      (formData.get('visibility') as string) || (metaObj.visibility as string);
+    const textField = (key: string): string | undefined => {
+      const value = formData.get(key);
+      if (typeof value === 'string' && value !== '') return value;
+      const fallback = metaObj[key];
+      if (typeof fallback === 'string' && fallback !== '') return fallback;
+      return undefined;
+    };
 
-    const parsed = CliDeployRequestSchema.safeParse({
-      slug,
-      title,
-      description: description || undefined,
-      orgSlug: orgSlug || undefined,
-      visibility: visibility || 'private',
+    // Multipart uploads carry the ZIP as a File/Blob plus flat text fields,
+    // so validate metadata without the JSON base64 `bundle` string and
+    // default a missing manifest from slug/title. ZIP safety checks
+    // (0-byte/magic/index.html) still run on the raw bytes below.
+    const multipartMetaSchema = z.object({
+      slug: z
+        .string()
+        .min(2)
+        .max(100)
+        .regex(/^[a-z0-9-]+$/),
+      title: z.string().min(1).max(200),
+      description: z.string().max(1000).optional(),
+      orgSlug: z.string().optional(),
+      visibility: PresentationVisibilitySchema.default('private'),
+      manifest: SlideManifestSchema.optional(),
+    });
+
+    const parsed = multipartMetaSchema.safeParse({
+      slug: textField('slug'),
+      title: textField('title'),
+      description: textField('description'),
+      orgSlug: textField('orgSlug'),
+      visibility: textField('visibility'),
       manifest: manifestObj,
-      bundle: bundleBuffer.toString('base64'),
     });
 
     if (!parsed.success) {
       throw new ValidationError(parsed.error.message);
     }
-    payload = parsed.data;
+    const manifest =
+      parsed.data.manifest ??
+      SlideManifestSchema.parse({
+        name: parsed.data.slug,
+        title: parsed.data.title,
+      });
+    payload = {
+      ...parsed.data,
+      manifest,
+      bundle: '',
+    };
   } else {
     const body = await c.req.json().catch(() => ({}));
     const parsed = CliDeployRequestSchema.safeParse(body);
@@ -149,6 +280,8 @@ presentationsRouter.post('/deploy', async (c) => {
     );
   }
 
+  const bundleFiles = await validateBundleOrThrow(bundleBuffer);
+
   const buildHash = createHash('sha256').update(bundleBuffer).digest('hex');
 
   const { ownerType, ownerId } = await resolveOwner(
@@ -156,35 +289,57 @@ presentationsRouter.post('/deploy', async (c) => {
     payload.orgSlug,
   );
 
-  const [existing] = await db
-    .select()
-    .from(presentations)
-    .where(
-      and(
-        eq(presentations.ownerType, ownerType),
-        eq(presentations.ownerId, ownerId),
-        eq(presentations.slug, payload.slug),
-      ),
-    )
-    .limit(1);
+  // Serialize same-(owner,slug) deploys: reserve the next version AND its
+  // version row inside one DB transaction while holding a row lock
+  // (SELECT FOR UPDATE), so concurrent deploys cannot mint the same version
+  // and activeVersion never points at a missing version row. S3 bytes upload
+  // after the commit; a loser either blocks on the lock (then mints the
+  // next version) or hits a unique violation mapped to 409 below.
+  const allocateVersion = async (
+    client: DeployStore,
+    lockRow: boolean,
+  ): Promise<DeployAllocation> => {
+    const pending = client
+      .select()
+      .from(presentations)
+      .where(
+        and(
+          eq(presentations.ownerType, ownerType),
+          eq(presentations.ownerId, ownerId),
+          eq(presentations.slug, payload.slug),
+        ),
+      )
+      .limit(1);
+    // Production postgres takes SELECT FOR UPDATE here; unit-test DB doubles
+    // have no row locking, so they read without it.
+    const [locked] = lockRow ? await pending.for('update') : await pending;
 
-  let presentationId: string;
-  let nextVersion: number;
-  if (existing) {
-    presentationId = existing.id;
-    nextVersion = existing.activeVersion + 1;
-    await db
-      .update(presentations)
-      .set({
-        title: payload.title,
-        description: payload.description || existing.description,
-        visibility: payload.visibility || existing.visibility,
-        activeVersion: nextVersion,
-        updatedAt: new Date(),
-      })
-      .where(eq(presentations.id, presentationId));
-  } else {
-    const [created] = await db
+    if (locked) {
+      const version = locked.activeVersion + 1;
+      await client
+        .update(presentations)
+        .set({
+          title: payload.title,
+          description: payload.description || locked.description,
+          visibility: payload.visibility || locked.visibility,
+          activeVersion: version,
+          updatedAt: new Date(),
+        })
+        .where(eq(presentations.id, locked.id));
+      await client.insert(presentationVersions).values({
+        presentationId: locked.id,
+        versionNumber: version,
+        entrypointUrl: `/presentations/${locked.id}`,
+        manifest: payload.manifest as Record<string, unknown>,
+        bundleS3Prefix: `presentations/${locked.id}/v${version}/`,
+        bundleSizeBytes: bundleBuffer.length,
+        buildHash,
+        deployedBy: user?.id || '',
+      });
+      return { presentationId: locked.id, nextVersion: version };
+    }
+
+    const [created] = await client
       .insert(presentations)
       .values({
         slug: payload.slug,
@@ -199,48 +354,51 @@ presentationsRouter.post('/deploy', async (c) => {
     if (!created) {
       throw new ValidationError('Failed to create presentation');
     }
-    presentationId = created.id;
-    nextVersion = 1;
+    await client.insert(presentationVersions).values({
+      presentationId: created.id,
+      versionNumber: 1,
+      entrypointUrl: `/presentations/${created.id}`,
+      manifest: payload.manifest as Record<string, unknown>,
+      bundleS3Prefix: `presentations/${created.id}/v1/`,
+      bundleSizeBytes: bundleBuffer.length,
+      buildHash,
+      deployedBy: user?.id || '',
+    });
+    return { presentationId: created.id, nextVersion: 1 };
+  };
+
+  let presentationId: string;
+  let nextVersion: number;
+  try {
+    // Unit-test DB doubles expose no `transaction`; run inline there.
+    // Production postgres always provides it, so the row lock applies.
+    const runner: DeployStore & Partial<TransactionalDeployStore> = db;
+    if (typeof runner.transaction === 'function') {
+      ({ presentationId, nextVersion } = await runner.transaction((tx) =>
+        allocateVersion(tx, true),
+      ));
+    } else {
+      ({ presentationId, nextVersion } = await allocateVersion(db, false));
+    }
+  } catch (err) {
+    if (isUniqueViolationError(err)) {
+      throw new ConflictError(
+        'Presentation version conflict; please retry the deploy',
+      );
+    }
+    throw err;
   }
 
   const s3Prefix = `presentations/${presentationId}/v${nextVersion}/`;
-
-  try {
-    const zip = await JSZip.loadAsync(bundleBuffer);
-    const filePaths = Object.keys(zip.files);
-    for (const filePath of filePaths) {
-      const entry = zip.files[filePath];
-      if (entry.dir) continue;
-      const cleanPath = filePath.replace(/^\/+/, '');
-      if (cleanPath.includes('..')) continue;
-
-      const fileBuffer = await entry.async('nodebuffer');
-      const mimeType = getMimeType(cleanPath);
-      await uploadS3Object(`${s3Prefix}${cleanPath}`, fileBuffer, mimeType);
-    }
-    await uploadS3Object(
-      `${s3Prefix}bundle.zip`,
-      bundleBuffer,
-      'application/zip',
-    );
-  } catch {
-    await uploadS3Object(
-      `${s3Prefix}bundle.zip`,
-      bundleBuffer,
-      'application/octet-stream',
-    );
+  for (const file of bundleFiles) {
+    const mimeType = getMimeType(file.path);
+    await uploadS3Object(`${s3Prefix}${file.path}`, file.buffer, mimeType);
   }
-
-  await db.insert(presentationVersions).values({
-    presentationId,
-    versionNumber: nextVersion,
-    entrypointUrl: `/presentations/${presentationId}`,
-    manifest: payload.manifest as Record<string, unknown>,
-    bundleS3Prefix: s3Prefix,
-    bundleSizeBytes: bundleBuffer.length,
-    buildHash,
-    deployedBy: user?.id || '',
-  });
+  await uploadS3Object(
+    `${s3Prefix}bundle.zip`,
+    bundleBuffer,
+    'application/zip',
+  );
 
   // Canonical viewer URL is UUID-addressed: slugs are scoped per
   // (ownerType, ownerId), not globally unique, so slug URLs were ambiguous.
@@ -314,75 +472,39 @@ presentationsRouter.get('/:id', async (c) => {
   const userId = user?.id || '';
   const id = c.req.param('id');
 
-  // Canonical lookup is by presentation UUID. Slugs are scoped per
-  // (ownerType, ownerId) and NOT globally unique, so slug resolution here
-  // was ambiguous across owners (wrong-owner row -> spurious 404).
-  // All web clients address details by id; slugs remain write-only
-  // metadata carried on the presentation record.
-  const isUuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
-  if (!isUuid) {
-    throw new NotFoundError('Presentation not found');
+  // /presentations/<slug> contract (docs/slides.md section 7): slugs are
+  // scoped per (ownerType, ownerId), so pick the first slug row the caller
+  // may see — the same visibility/authz check as the UUID path.
+  let presentation: typeof presentations.$inferSelect | undefined;
+  if (UUID_REGEX.test(id)) {
+    const [byId] = await db
+      .select()
+      .from(presentations)
+      .where(eq(presentations.id, id))
+      .limit(1);
+    presentation = byId;
+  } else {
+    const candidates = await db
+      .select()
+      .from(presentations)
+      .where(eq(presentations.slug, id))
+      .limit(10);
+    for (const candidate of candidates) {
+      if (await isPresentationVisibleTo(candidate, userId)) {
+        presentation = candidate;
+        break;
+      }
+    }
+    presentation ??= candidates[0];
   }
-  const [presentation] = await db
-    .select()
-    .from(presentations)
-    .where(eq(presentations.id, id))
-    .limit(1);
 
   if (!presentation) {
     throw new NotFoundError('Presentation not found');
   }
 
-  let allowed = false;
-  if (presentation.ownerType === 'user' && presentation.ownerId === userId) {
-    allowed = true;
-  } else if (presentation.ownerType === 'organization') {
-    const [membership] = await db
-      .select()
-      .from(orgMembers)
-      .where(
-        and(
-          eq(orgMembers.orgId, presentation.ownerId),
-          eq(orgMembers.userId, userId),
-        ),
-      )
-      .limit(1);
-    if (membership) {
-      allowed = true;
-    }
-  }
-  if (
-    !allowed &&
-    (presentation.visibility === 'public' ||
-      presentation.visibility === 'unlisted')
-  ) {
-    allowed = true;
-  }
-  if (
-    !allowed &&
-    presentation.visibility === 'org' &&
-    presentation.ownerType === 'user'
-  ) {
-    const ownerOrgIds = await db
-      .select({ orgId: orgMembers.orgId })
-      .from(orgMembers)
-      .where(eq(orgMembers.userId, presentation.ownerId));
-    if (ownerOrgIds.length > 0) {
-      const callerOrgIds = await db
-        .select({ orgId: orgMembers.orgId })
-        .from(orgMembers)
-        .where(eq(orgMembers.userId, userId));
-      const callerSet = new Set(callerOrgIds.map((m) => m.orgId));
-      if (ownerOrgIds.some((m) => callerSet.has(m.orgId))) {
-        allowed = true;
-      }
-    }
-  }
-  if (!allowed) {
+  if (!(await isPresentationVisibleTo(presentation, userId))) {
     throw new NotFoundError('Presentation not found');
   }
-
   const versions = await db
     .select()
     .from(presentationVersions)
@@ -410,6 +532,12 @@ presentationsRouter.patch('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
   const id = c.req.param('id');
+
+  // Same gate as GET: a non-UUID id can never hit the driver, so it 404s
+  // instead of surfacing raw driver text as a 500.
+  if (!UUID_REGEX.test(id)) {
+    throw new NotFoundError('Presentation not found');
+  }
 
   const [presentation] = await db
     .select()
@@ -456,6 +584,10 @@ presentationsRouter.delete('/:id', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
   const id = c.req.param('id');
+
+  if (!UUID_REGEX.test(id)) {
+    throw new NotFoundError('Presentation not found');
+  }
 
   const [presentation] = await db
     .select()

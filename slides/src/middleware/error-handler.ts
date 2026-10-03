@@ -56,6 +56,34 @@ export class RateLimitError extends AppError {
   }
 }
 
+function postgresCodeOf(err: unknown): string | undefined {
+  if (typeof err !== 'object' || err === null || !('code' in err)) {
+    return undefined;
+  }
+  return typeof err.code === 'string' ? err.code : undefined;
+}
+
+export function isUniqueViolationError(err: unknown): boolean {
+  if (postgresCodeOf(err) === '23505') return true;
+  if (
+    typeof err === 'object' &&
+    err !== null &&
+    'cause' in err &&
+    postgresCodeOf(err.cause) === '23505'
+  ) {
+    return true;
+  }
+  if (!(err instanceof Error)) return false;
+  return /duplicate key|unique constraint|unique violation|23505|owner_slug_uniq|presentation_version_uniq/i.test(
+    err.message,
+  );
+}
+
+export function isInvalidUuidError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  return /invalid input syntax for (type )?uuid/i.test(err.message);
+}
+
 export const globalErrorHandler: ErrorHandler = (err, c) => {
   if (err instanceof AppError) {
     logger.warn(err.message, {
@@ -74,6 +102,34 @@ export const globalErrorHandler: ErrorHandler = (err, c) => {
     );
   }
 
+  if (isUniqueViolationError(err)) {
+    logger.warn('Unique constraint violation', {
+      error: err instanceof Error ? err.name : 'Error',
+      path: c.req.path,
+    });
+    return c.json(
+      {
+        error: 'ConflictError',
+        message: 'Resource conflict; please retry',
+      },
+      409,
+    );
+  }
+
+  if (isInvalidUuidError(err)) {
+    logger.warn('Invalid UUID in request', {
+      error: err instanceof Error ? err.name : 'Error',
+      path: c.req.path,
+    });
+    return c.json(
+      {
+        error: 'NotFoundError',
+        message: 'Presentation not found',
+      },
+      404,
+    );
+  }
+
   logger.error(err.message || 'An unexpected internal server error occurred', {
     err,
     path: c.req.path,
@@ -81,7 +137,7 @@ export const globalErrorHandler: ErrorHandler = (err, c) => {
   return c.json(
     {
       error: 'InternalServerError',
-      message: err.message || 'An unexpected internal server error occurred',
+      message: 'An unexpected internal server error occurred',
     },
     500,
   );

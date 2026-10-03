@@ -95,7 +95,8 @@ describe('POST /presentations/deploy', () => {
       title: 'Demo Deck',
       visibility: 'private',
       manifest: validManifest,
-      bundle: 'ZQ==',
+      bundle:
+        'UEsDBAoAAAAAAHGkQ10neOmFDgAAAA4AAAAKAAAAaW5kZXguaHRtbDxoMT5IZWxsbzwvaDE+UEsBAhQACgAAAAAAcaRDXSd46YUOAAAADgAAAAoAAAAAAAAAAAAAAAAAAAAAAGluZGV4Lmh0bWxQSwUGAAAAAAEAAQA4AAAANgAAAAAA',
     });
     expect(res.status).toBe(200);
     const data = (await res.json()) as {
@@ -155,14 +156,16 @@ describe('POST /presentations/deploy', () => {
     formData.append('slug', 'multipart-deck');
     formData.append('title', 'Multipart Deck');
     formData.append('visibility', 'public');
-    formData.append('manifest', JSON.stringify(validManifest));
     formData.append(
       'bundle',
       new Blob(
         [
-          new Uint8Array([
-            80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          ]),
+          new Uint8Array(
+            Buffer.from(
+              'UEsDBAoAAAAAAHGkQ10neOmFDgAAAA4AAAAKAAAAaW5kZXguaHRtbDxoMT5IZWxsbzwvaDE+UEsBAhQACgAAAAAAcaRDXSd46YUOAAAADgAAAAoAAAAAAAAAAAAAAAAAAAAAAGluZGV4Lmh0bWxQSwUGAAAAAAEAAQA4AAAANgAAAAAA',
+              'base64',
+            ),
+          ),
         ],
         {
           type: 'application/zip',
