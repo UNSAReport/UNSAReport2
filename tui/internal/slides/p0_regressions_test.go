@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -202,5 +203,218 @@ func TestP0DeployMultipartSurfacesManifestMarshalError(t *testing.T) {
 	}
 	if hit {
 		t.Errorf("request must not reach the server when manifest marshal fails")
+	}
+}
+
+func TestP1P2StartDevRejectsBadPort(t *testing.T) {
+	dir := t.TempDir()
+	for _, port := range []int{0, 99999} {
+		if err := StartDev(dir, port); err == nil {
+			t.Errorf("port %d: expected error, got nil", port)
+		} else if !strings.Contains(err.Error(), "invalid port") {
+			t.Errorf("port %d: expected invalid port error, got %v", port, err)
+		}
+	}
+}
+
+func TestP1P2StartDevViteFailureReturnsError(t *testing.T) {
+	if _, err := exec.LookPath("bun"); err != nil {
+		t.Skip("requires bun on PATH so the failing dev script runs deterministically")
+	}
+	dir := t.TempDir()
+	writeFile(t, dir, "package.json", `{"name":"p1-dev-fail","scripts":{"dev":"exit 1"}}`)
+	if err := StartDev(dir, 19191); err == nil {
+		t.Fatal("expected dev server failure, got nil")
+	} else if !strings.Contains(err.Error(), "dev server failed") {
+		t.Fatalf("expected dev server failed error, got %v", err)
+	}
+}
+
+func TestP1P2ParseDeckConfigIgnoresCommentTheme(t *testing.T) {
+	cfg, warnings := ParseDeckConfigWithWarnings("// theme: 'should-be-ignored'\ntitle: 'Real'\nslug: 'real-slug'\n")
+	if cfg.Theme != "unsa-dark" {
+		t.Errorf("comment theme leaked: got %q want default unsa-dark", cfg.Theme)
+	}
+	if cfg.Title != "Real" || cfg.Slug != "real-slug" {
+		t.Errorf("real fields lost: %+v", cfg)
+	}
+	found := false
+	for _, w := range warnings {
+		if strings.Contains(w, `"theme"`) && strings.Contains(w, "unsa-dark") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected theme default fallback warning, got %v", warnings)
+	}
+}
+
+func TestP1P2LoadManifestMissingFileErrors(t *testing.T) {
+	if _, _, err := LoadManifest(t.TempDir()); err == nil {
+		t.Fatal("expected missing manifest error, got nil")
+	} else if !strings.Contains(err.Error(), "read manifest.json") {
+		t.Fatalf("expected read manifest.json error, got %v", err)
+	}
+}
+
+func TestP1P2DeployStructuralGate(t *testing.T) {
+	hit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"success": true, "presentationId": "11111111-1111-1111-1111-111111111111",
+			"slug": "d", "version": 1, "url": "http://x/p/d", "message": "ok",
+		})
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, HTTPClient: srv.Client()}
+	for _, bad := range []string{"", "UPPER"} {
+		hit = false
+		if _, err := c.Deploy(context.Background(), "tok", &DeployRequest{Slug: bad, Title: "T", Manifest: map[string]any{}}); err == nil {
+			t.Errorf("slug %q: expected invalid slug error, got nil", bad)
+		} else if !strings.Contains(err.Error(), "invalid slug") {
+			t.Errorf("slug %q: expected invalid slug error, got %v", bad, err)
+		}
+		if hit {
+			t.Errorf("slug %q: request must not reach the server on structural reject", bad)
+		}
+	}
+	resp, err := c.Deploy(context.Background(), "tok", &DeployRequest{Slug: "d", Title: "T", Manifest: map[string]any{}})
+	if err != nil {
+		t.Fatalf("slug d: expected success, got %v", err)
+	}
+	if resp.Slug != "d" {
+		t.Errorf("slug d: got %q", resp.Slug)
+	}
+}
+
+func writePptxWithThemes(t *testing.T, themes map[string]string) string {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "multi.pptx")
+	f, err := os.Create(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	w := zip.NewWriter(f)
+	for name, content := range themes {
+		fw, err := w.Create(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := fw.Write([]byte(content)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	fw, err := w.Create("ppt/slideMasters/slideMaster1.xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write([]byte(fixtureMasterXML)); err != nil {
+		t.Fatal(err)
+	}
+	fw, err = w.Create("[Content_Types].xml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fw.Write([]byte(fixtureContentTypes)); err != nil {
+		t.Fatal(err)
+	}
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestP1P2PptxMultiThemePrefersTheme1(t *testing.T) {
+	alt := strings.Replace(fixtureThemeXML, `<a:accent1><a:srgbClr val="4472C4"/></a:accent1>`, `<a:accent1><a:srgbClr val="FF0000"/></a:accent1>`, 1)
+	path := writePptxWithThemes(t, map[string]string{
+		"ppt/theme/theme2.xml": alt,
+		"ppt/theme/theme1.xml": fixtureThemeXML,
+	})
+	theme, err := ParsePptxTheme(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if theme.Colors["accent1"] != "#4472c4" {
+		t.Errorf("expected theme1 to win (accent1 #4472c4), got %q", theme.Colors["accent1"])
+	}
+}
+
+func TestP1P2PptxSkippedSlotsOnPhClr(t *testing.T) {
+	phClr := strings.Replace(fixtureThemeXML, `<a:accent1><a:srgbClr val="4472C4"/></a:accent1>`, `<a:accent1><a:schemeClr val="phClr"/></a:accent1>`, 1)
+	path := writePptxWithThemes(t, map[string]string{"ppt/theme/theme1.xml": phClr})
+	theme, err := ParsePptxTheme(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(theme.SkippedSlots) == 0 {
+		t.Fatal("expected non-empty SkippedSlots on phClr fixture")
+	}
+	found := false
+	for _, s := range theme.SkippedSlots {
+		if s == "accent1" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected accent1 in SkippedSlots, got %v", theme.SkippedSlots)
+	}
+}
+
+func TestP1P2ToThemePatchContainsMajorFont(t *testing.T) {
+	theme, err := ParsePptxTheme(writeFixturePptx(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	patch := theme.ToThemePatch("office-import")
+	if !strings.Contains(patch, theme.MajorFont) {
+		t.Errorf("patch missing major font %q:\n%s", theme.MajorFont, patch)
+	}
+	if !strings.Contains(patch, "--slide-heading-font-family") {
+		t.Errorf("patch missing heading font variable:\n%s", patch)
+	}
+}
+
+func TestP1P2SlugifyAccents(t *testing.T) {
+	if got := Slugify("Café"); got != "cafe" {
+		t.Errorf("got %q want cafe", got)
+	}
+}
+
+func TestP1P2BundleFileMissingPathErrors(t *testing.T) {
+	if _, err := BundleFile(t.TempDir()); err == nil {
+		t.Fatal("expected bundle file error, got nil")
+	} else if !strings.Contains(err.Error(), "read bundle file") {
+		t.Fatalf("expected read bundle file error, got %v", err)
+	}
+}
+
+func TestP1P2DriftReport(t *testing.T) {
+	layouts := ListLayouts("", "")
+	var layoutIDs []string
+	for _, l := range layouts {
+		layoutIDs = append(layoutIDs, l.ID)
+	}
+	var themeIDs []string
+	for _, th := range ListThemes() {
+		themeIDs = append(themeIDs, th.ID)
+	}
+	if got := DriftReport(layoutIDs, themeIDs); got != "" {
+		t.Errorf("expected empty report when in sync, got %q", got)
+	}
+	if len(layoutIDs) == 0 {
+		t.Fatal("need at least one layout for the removed-layout case")
+	}
+	removed := layoutIDs[1:]
+	got := DriftReport(removed, themeIDs)
+	if !strings.Contains(got, "missing from kit") {
+		t.Errorf("expected missing-from-kit line, got %q", got)
+	}
+	if !strings.Contains(got, layoutIDs[0]) {
+		t.Errorf("expected removed layout %q flagged, got %q", layoutIDs[0], got)
 	}
 }

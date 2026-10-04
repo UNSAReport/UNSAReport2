@@ -54,7 +54,11 @@ export function ThemeProvider({
       facultyName,
     } = resolvedTheme;
 
-    return {
+    // Namespacing rule: theme-owned `--slide-*` tokens are authoritative.
+    // Custom keys under the same `--slide-` prefix that collide with a core
+    // token are ignored (dev-only warn); non-colliding custom keys still
+    // spread last so user extensions win over nothing they shouldn't.
+    const coreVariables = {
       '--slide-bg': colors.background,
       '--slide-surface': colors.surface,
       '--slide-surface-muted': colors.surfaceMuted,
@@ -80,7 +84,32 @@ export function ThemeProvider({
         ? 'linear-gradient(90deg, var(--slide-accent), var(--slide-accent-secondary), var(--slide-accent))'
         : 'none',
       '--slide-watermark-opacity': String(effects.watermarkOpacity ?? 0),
-      ...customVariables,
+    } as CSSProperties;
+
+    const safeCustom: Record<string, string> = {};
+    if (customVariables) {
+      for (const key of Object.keys(customVariables)) {
+        if (
+          key.startsWith('--slide-') &&
+          key in coreVariables
+        ) {
+          if (
+            typeof process === 'undefined' ||
+            process.env?.NODE_ENV !== 'production'
+          ) {
+            console.warn(
+              `ThemeProvider: ignoring customVariable '${key}' because it collides with a core --slide-* token. Use a non-reserved key (e.g. '--slide-custom-*') instead.`,
+            );
+          }
+          continue;
+        }
+        safeCustom[key] = customVariables[key] as string;
+      }
+    }
+
+    return {
+      ...coreVariables,
+      ...safeCustom,
     } as CSSProperties;
   }, [resolvedTheme]);
 

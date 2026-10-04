@@ -6,8 +6,10 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 func previewHTML(title string) string {
@@ -52,6 +54,12 @@ func previewHTML(title string) string {
 </html>`
 }
 
+// ServePreview serves dir over HTTP on addr for local deck development.
+// Local-only scope: callers bind the loopback interface (StartDev passes
+// 127.0.0.1:<port>), so the preview server never listens on an external
+// address. Request paths are cleaned and rejected when they escape dir;
+// note the file server follows symlinks inside dir (a link pointing outside
+// dir is served), so symlink confinement is out of scope.
 func ServePreview(addr, dir, title string) error {
 	page := previewHTML(title)
 	mux := http.NewServeMux()
@@ -65,8 +73,10 @@ func ServePreview(addr, dir, title string) error {
 			}
 			return
 		}
-		rel := strings.TrimPrefix(r.URL.Path, "/")
-		if strings.Contains(rel, "..") {
+		// Clean the request path and reject it when the cleaned path escapes
+		// dir (e.g. "/../../etc/passwd" cleans to a path outside dir).
+		rel := path.Clean(strings.TrimPrefix(r.URL.Path, "/"))
+		if rel == ".." || strings.HasPrefix(rel, "../") {
 			http.Error(w, "Not Found", http.StatusNotFound)
 			return
 		}
@@ -77,7 +87,14 @@ func ServePreview(addr, dir, title string) error {
 		}
 		http.ServeFile(w, r, full)
 	})
-	return http.ListenAndServe(addr, mux)
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+	}
+	return srv.ListenAndServe()
 }
 
 func StartDev(dir string, port int) error {

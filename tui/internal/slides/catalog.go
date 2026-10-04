@@ -1,6 +1,8 @@
 package slides
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -221,4 +223,53 @@ func ListLayouts(category, search string) []LayoutInfo {
 		results = append(results, l)
 	}
 	return results
+}
+
+// Manual sync checklist — run after any slides-kit layout/theme addition
+// (packages/slides-kit/src): mirror the change here by adding/removing the
+// entry in officialLayouts or officialThemes (plus officialCategories for a
+// new category), update the TestCatalog counts and
+// TestCatalog_ThemeAgreementWithKit in tui/internal/slides/slides_test.go,
+// and refresh any docs pinning the inventory size (e.g. "110 layouts").
+//
+// DriftReport diffs these hardcoded official lists against a kit inventory
+// (layout/theme IDs) and reports every mismatch, or "" when both agree.
+func DriftReport(kitLayouts []string, kitThemes []string) string {
+	officialLayoutIDs := make(map[string]bool, len(officialLayouts))
+	for _, l := range officialLayouts {
+		officialLayoutIDs[l.ID] = true
+	}
+	officialThemeIDs := make(map[string]bool, len(officialThemes))
+	for _, t := range officialThemes {
+		officialThemeIDs[t.ID] = true
+	}
+	var lines []string
+	diff := func(kind string, official map[string]bool, kit []string) {
+		inKit := make(map[string]bool, len(kit))
+		for _, id := range kit {
+			inKit[id] = true
+		}
+		var missing, extra []string
+		for id := range official {
+			if !inKit[id] {
+				missing = append(missing, id)
+			}
+		}
+		for id := range inKit {
+			if !official[id] {
+				extra = append(extra, id)
+			}
+		}
+		sort.Strings(missing)
+		sort.Strings(extra)
+		if len(missing) > 0 {
+			lines = append(lines, fmt.Sprintf("%s missing from kit (%d): %s", kind, len(missing), strings.Join(missing, ", ")))
+		}
+		if len(extra) > 0 {
+			lines = append(lines, fmt.Sprintf("%s in kit but not in catalog (%d): %s", kind, len(extra), strings.Join(extra, ", ")))
+		}
+	}
+	diff("layouts", officialLayoutIDs, kitLayouts)
+	diff("themes", officialThemeIDs, kitThemes)
+	return strings.Join(lines, "\n")
 }

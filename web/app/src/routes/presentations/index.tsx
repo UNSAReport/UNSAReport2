@@ -227,7 +227,9 @@ function PresentationsDashboard() {
             </h2>
             <p className="text-sm text-[#444343] mt-1">
               Presentaciones públicas de propietarios fuera de tus
-              organizaciones.
+              organizaciones. Solo las <strong>public (listada)</strong>{' '}
+              aparecen aquí: las <strong>unlisted (solo con enlace)</strong>{' '}
+              nunca se listan.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

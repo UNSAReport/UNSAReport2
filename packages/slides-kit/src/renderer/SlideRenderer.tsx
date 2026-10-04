@@ -36,9 +36,67 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
       );
     }
 
+    if (children) {
+      return (
+        <>
+          <div className="w-full h-full relative">{children}</div>
+          {notes && <aside className="notes">{notes}</aside>}
+        </>
+      );
+    }
+
+    if (
+      typeof process === 'undefined' ||
+      process.env?.NODE_ENV !== 'production'
+    ) {
+      const label = index !== undefined ? ` #${index + 1}` : '';
+      console.warn(
+        `SlideRenderer: slide${label} with layout 'custom' has no component and no children; rendering unknown-layout fallback.`,
+      );
+    }
     return (
       <>
-        <div className="w-full h-full relative">{children}</div>
+        <div
+          className="w-full h-full flex items-center justify-center p-12"
+          style={{
+            backgroundColor: 'var(--slide-bg, #4c0519)',
+            color: 'var(--slide-text, #fecdd3)',
+          }}
+        >
+          <SlideCard
+            variant="outlined"
+            className="max-w-xl p-8"
+            style={{
+              borderColor: 'var(--slide-error, #fb7185)',
+              backgroundColor: 'var(--slide-surface, rgba(136, 19, 55, 0.3))',
+            }}
+          >
+            <h3
+              className="text-2xl font-bold mb-2"
+              style={{ color: 'var(--slide-error, #fb7185)' }}
+            >
+              ⚠️ Layout no encontrado: &apos;{layout}&apos;
+            </h3>
+            <p
+              className="text-sm mb-4"
+              style={{ color: 'var(--slide-text-muted, #fda4af)' }}
+            >
+              La diapositiva #{index !== undefined ? index + 1 : ''} especifica
+              un layout no registrado en LayoutRegistry.
+            </p>
+            <div
+              className="text-xs font-mono p-3 rounded"
+              style={{
+                backgroundColor:
+                  'var(--slide-surface-muted, rgba(0, 0, 0, 0.4))',
+                color: 'var(--slide-text-muted, #fda4af)',
+              }}
+            >
+              Verifica el archivo deck.config.ts o ejecuta &apos;unsarep slides
+              layouts&apos; para ver los nombres disponibles.
+            </div>
+          </SlideCard>
+        </div>
         {notes && <aside className="notes">{notes}</aside>}
       </>
     );

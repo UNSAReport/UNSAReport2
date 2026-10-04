@@ -17,7 +17,7 @@ func TestSlugify(t *testing.T) {
 	cases := map[string]string{
 		"My Deck":        "my-deck",
 		"  Spaced  Out ": "spaced-out",
-		"Áccénts!!":      "cc-nts",
+		"Áccénts!!":      "accents",
 		"a":              "a",
 		"---":            "",
 	}

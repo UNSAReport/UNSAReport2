@@ -64,13 +64,13 @@ function PresentationErrorComponent({ error }: ErrorComponentProps) {
         ? {
             title: 'Sin acceso a esta presentación',
             message:
-              'Tu cuenta no tiene acceso: la presentación es privada o pertenece a una organización de la que no eres miembro. Solicita acceso al propietario u organización.',
+              'Esta presentación es privada: las personales solo las ve su autor y las de organización solo los miembros de esa organización. Si crees que deberías verla, pide acceso al propietario del deck y vuelve al listado para seguir explorando.',
           }
         : status === 404
           ? {
               title: 'Presentación no encontrada',
               message:
-                'No existe una presentación con ese identificador. Revisa el enlace o vuelve al listado.',
+                'No existe una presentación con ese identificador. Revisa que el enlace esté completo o pide al autor el slug actual, y vuelve al listado para seguir explorando.',
             }
           : {
               title: 'Error al Cargar Presentación',
@@ -231,6 +231,9 @@ function PresentationViewer() {
     (v) => v.versionNumber === selectedVersion,
   );
 
+  // Única forma soportada: registro de notas con valores string
+  // (`notes: Record<string, string>` de slideId -> nota). Cualquier entrada
+  // con valor no string se omite del listado y se cuenta abajo.
   // S1 notes contract: versions carry optional `notes: Record<string,string>`
   // (slideId -> notes). Read-only display; schema owned by S1.
   const notesRaw =
@@ -239,13 +242,15 @@ function PresentationViewer() {
     'notes' in currentVersionRecord
       ? currentVersionRecord.notes
       : null;
-  const notesEntries =
+  const notesAllEntries =
     notesRaw && typeof notesRaw === 'object' && !Array.isArray(notesRaw)
-      ? Object.entries(notesRaw).filter(
-          (entry): entry is [string, string] =>
-            typeof entry[0] === 'string' && typeof entry[1] === 'string',
-        )
+      ? Object.entries(notesRaw)
       : [];
+  const notesEntries = notesAllEntries.filter(
+    (entry): entry is [string, string] =>
+      typeof entry[0] === 'string' && typeof entry[1] === 'string',
+  );
+  const skippedNotesCount = notesAllEntries.length - notesEntries.length;
   const hasVersionNotes = notesEntries.length > 0;
   const notesText = hasVersionNotes
     ? notesEntries
@@ -656,6 +661,11 @@ function PresentationViewer() {
                 className="p-3 bg-[#141414] text-[#E3E2DE] font-mono rounded-none border border-[#C7C7C7] max-h-60 overflow-y-auto"
               >
                 <pre className="whitespace-pre-wrap">{notesText}</pre>
+                {skippedNotesCount > 0 ? (
+                  <p className="mt-2 text-[#C7C7C7]">
+                    {skippedNotesCount} notas omitidas por formato
+                  </p>
+                ) : null}
               </section>
             </div>
           </div>

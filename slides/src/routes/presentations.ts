@@ -40,6 +40,9 @@ import type { HonoEnv } from '@/types';
 const MAX_UNCOMPRESSED_TOTAL_BYTES = 200 * 1024 * 1024; // 200 MiB total
 const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024; // 25 MiB per entry
 const MAX_ZIP_ENTRY_COUNT = 2000;
+// Cheap Content-Length pre-check for deploys (60 MiB): rejects obviously
+// oversized bodies before buffering. Precise caps still run on real bytes.
+const MAX_DEPLOY_CONTENT_LENGTH_BYTES = 60 * 1024 * 1024;
 
 // In-memory per-user sliding window for deploy rate limiting (20/min).
 // NOTE: single-instance scope only — counters live in this process, so a
@@ -118,9 +121,23 @@ async function validateBundleOrThrow(
         413,
       );
     }
-    if (entry.dir) continue;
     const cleanPath = filePath.replace(/^\/+/, '');
-    if (cleanPath.includes('..')) continue;
+    // Zip-slip guard: reject the whole bundle (400, naming the entry)
+    // instead of silently skipping — a skipped index.html otherwise
+    // surfaces later as a mystery 404. Percent-encoded ".." (%2e%2e,
+    // any casing) is decoded before the check so it cannot slip through.
+    let decodedPath = cleanPath;
+    try {
+      decodedPath = decodeURIComponent(cleanPath);
+    } catch {
+      // Undecodable bytes: fall through to the raw-path check below.
+    }
+    if (cleanPath.includes('..') || decodedPath.includes('..')) {
+      throw new ValidationError(
+        `Invalid bundle: entry "${filePath}" contains forbidden ".." path segment`,
+      );
+    }
+    if (entry.dir) continue;
     if (cleanPath === 'index.html' || cleanPath.endsWith('/index.html')) {
       hasIndex = true;
     }
@@ -207,6 +224,15 @@ async function resolveOwner(
     return { ownerType: 'user', ownerId: userId };
   }
 
+  // Malformed org slugs are a client error (400), not a lookup miss: only
+  // well-formed slugs reach the DB, so a well-formed-but-unknown slug
+  // keeps the 404 path below.
+  if (!/^[a-z0-9-]{2,100}$/.test(orgSlug)) {
+    throw new ValidationError(
+      `Invalid orgSlug "${orgSlug}": must match /^[a-z0-9-]{2,100}$/`,
+    );
+  }
+
   const [org] = await db
     .select()
     .from(organizations)
@@ -235,6 +261,23 @@ async function resolveOwner(
 presentationsRouter.post('/deploy', requireSlidesEditor, async (c) => {
   const user = c.get('user');
   checkDeployRateLimitOrThrow(user?.id || '');
+  // Cheap pre-check before buffering: when the client declares a body
+  // larger than 60 MiB, fail fast with 413. The precise caps
+  // (config.maxArchiveBytes, per-entry/total uncompressed limits) still run
+  // on the real bytes below.
+  const declaredLength = c.req.header('content-length');
+  if (declaredLength !== undefined && declaredLength !== '') {
+    const parsedLength = Number.parseInt(declaredLength, 10);
+    if (
+      Number.isInteger(parsedLength) &&
+      parsedLength > MAX_DEPLOY_CONTENT_LENGTH_BYTES
+    ) {
+      throw new AppError(
+        `Deploy payload (${parsedLength} bytes declared) exceeds the limit of ${MAX_DEPLOY_CONTENT_LENGTH_BYTES} bytes`,
+        413,
+      );
+    }
+  }
   const contentType = c.req.header('content-type') || '';
 
   let payload: CliDeployRequest;
@@ -405,7 +448,7 @@ presentationsRouter.post('/deploy', requireSlidesEditor, async (c) => {
       await client.insert(presentationVersions).values({
         presentationId: locked.id,
         versionNumber: version,
-        entrypointUrl: `/presentations/${locked.id}`,
+        entrypointUrl: `/embed/${locked.id}/v${version}`,
         manifest: payload.manifest as Record<string, unknown>,
         bundleS3Prefix: `presentations/${locked.id}/v${version}/`,
         bundleSizeBytes: bundleBuffer.length,
@@ -433,7 +476,7 @@ presentationsRouter.post('/deploy', requireSlidesEditor, async (c) => {
     await client.insert(presentationVersions).values({
       presentationId: created.id,
       versionNumber: 1,
-      entrypointUrl: `/presentations/${created.id}`,
+      entrypointUrl: `/embed/${created.id}/v1`,
       manifest: payload.manifest as Record<string, unknown>,
       bundleS3Prefix: `presentations/${created.id}/v1/`,
       bundleSizeBytes: bundleBuffer.length,
@@ -466,15 +509,40 @@ presentationsRouter.post('/deploy', requireSlidesEditor, async (c) => {
   }
 
   const s3Prefix = `presentations/${presentationId}/v${nextVersion}/`;
-  for (const file of bundleFiles) {
-    const mimeType = getMimeType(file.path);
-    await uploadS3Object(`${s3Prefix}${file.path}`, file.buffer, mimeType);
+  try {
+    for (const file of bundleFiles) {
+      const mimeType = getMimeType(file.path);
+      await uploadS3Object(`${s3Prefix}${file.path}`, file.buffer, mimeType);
+    }
+    await uploadS3Object(
+      `${s3Prefix}bundle.zip`,
+      bundleBuffer,
+      'application/zip',
+    );
+  } catch (err) {
+    // Crash window: the version row was committed before S3 uploads, so a
+    // failure here would leave a half-written prefix behind — best-effort
+    // delete, then rethrow. The cleanup itself never masks the original
+    // error.
+    try {
+      await deleteS3Prefix(s3Prefix);
+    } catch {
+      // Ignore cleanup failures: the original deploy error propagates.
+    }
+    throw err;
   }
-  await uploadS3Object(
-    `${s3Prefix}bundle.zip`,
-    bundleBuffer,
-    'application/zip',
-  );
+
+  // Reconcile the versioned embed URL per deploy so entrypointUrl never
+  // goes stale: the canonical embed path is /embed/<id>/v<version>.
+  await db
+    .update(presentationVersions)
+    .set({ entrypointUrl: `/embed/${presentationId}/v${nextVersion}` })
+    .where(
+      and(
+        eq(presentationVersions.presentationId, presentationId),
+        eq(presentationVersions.versionNumber, nextVersion),
+      ),
+    );
 
   // Canonical viewer URL is UUID-addressed: slugs are scoped per
   // (ownerType, ownerId), not globally unique, so slug URLs were ambiguous.
@@ -628,10 +696,15 @@ presentationsRouter.get('/:id', async (c) => {
   // `version.notes` directly; always an object, never null/undefined.
   // Sorted ascending by version so redeploys append at the end; in memory
   // (not ORDER BY) so unit-test DB doubles behave identically.
+  // `buildHash` (sha256 of the bundle bytes, stored per version) rides
+  // along via the spread below so clients can detect idempotent redeploys.
+  // NOTE: same-hash redeploys currently still mint a new version row;
+  // no content-addressed dedup happens here.
   const versionsWithNotes = [...versions]
     .sort((a, b) => a.versionNumber - b.versionNumber)
     .map((v) => ({
       ...v,
+      buildHash: v.buildHash ?? null,
       notes: extractVersionNotes(v.manifest),
     }));
 
@@ -746,12 +819,12 @@ async function assertCanManage(
     .where(and(eq(orgMembers.orgId, ownerId), eq(orgMembers.userId, userId)))
     .limit(1);
 
-  if (
-    !membership ||
-    (membership.role !== 'owner' && membership.role !== 'admin')
-  ) {
+  // Same membership check as the deploy org rule (resolveOwner): any org
+  // member except viewers (owner/admin/member) may manage
+  // organization-owned decks. Personal-deck rules above are unchanged.
+  if (!membership || membership.role === 'viewer') {
     throw new ForbiddenError(
-      'Only organization owners or admins can manage this presentation',
+      'Only organization members can manage this presentation',
     );
   }
 }

@@ -96,23 +96,39 @@ export class LayoutRegistry {
 
     if (filter?.search) {
       const term = filter.search.toLowerCase();
-      list = list.filter(
-        (l) =>
-          l.id.toLowerCase().includes(term) ||
-          l.name.toLowerCase().includes(term) ||
-          l.description.toLowerCase().includes(term) ||
-          l.tags.some((t: string) => t.toLowerCase().includes(term)),
-      );
+      list = list.filter((l) => {
+        if (l.id.toLowerCase().includes(term)) return true;
+        if (l.name.toLowerCase().includes(term)) return true;
+        // Hot-registered defs may omit description/tags at runtime; skip
+        // those fields instead of throwing on `.toLowerCase()` of undefined.
+        if (
+          typeof l.description === 'string' &&
+          l.description.toLowerCase().includes(term)
+        )
+          return true;
+        if (Array.isArray(l.tags)) {
+          for (const t of l.tags) {
+            if (typeof t === 'string' && t.toLowerCase().includes(term))
+              return true;
+          }
+        }
+        return false;
+      });
     }
 
     return list;
   }
 
   /**
-   * Devuelve la lista ordenada de todas las familias/categorías funcionales de layout disponibles.
+   * Devuelve las categorías con al menos un layout registrado (no el enum
+   * estático completo), en el orden de primera aparición en el mapa.
    */
   listCategories(): LayoutCategory[] {
-    return Object.values(LayoutCategory);
+    const seen = new Set<LayoutCategory>();
+    for (const layout of this.layouts.values()) {
+      if (!seen.has(layout.category)) seen.add(layout.category);
+    }
+    return Array.from(seen);
   }
 
   /**

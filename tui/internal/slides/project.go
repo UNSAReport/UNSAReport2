@@ -197,13 +197,16 @@ func LoadManifest(dir string) (*Manifest, map[string]any, error) {
 	return &m, raw, nil
 }
 
+// BundleFile reads src/slides.tsx and returns it base64-encoded.
+//
+// Bundle paths: the canonical deploy path is BuildAndZip, which zips dist/
+// into ZipBytes sent as multipart form data (DeployMultipart). The base64
+// Bundle field carrying this file is the legacy path, kept for the JSON
+// deploy contract.
 func BundleFile(dir string) (string, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "src", "slides.tsx"))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", err
+		return "", fmt.Errorf("read bundle file: %w", err)
 	}
 	return base64.StdEncoding.EncodeToString(b), nil
 }
@@ -335,10 +338,38 @@ func BuildAndZip(dir string) ([]byte, string, error) {
 	return zipBytes, hashHex, nil
 }
 
+// latinFold transliterates common Latin diacritics to ASCII so slugs stay
+// readable (Café -> cafe). Runes without an entry (e.g. CJK ideographs) are
+// dropped by Slugify; when nothing mappable remains Slugify returns "" and
+// callers fall back to a default such as "my-slides" (see StarterTemplate).
+var latinFold = map[rune]string{
+	'à': "a", 'á': "a", 'â': "a", 'ã': "a", 'ä': "a", 'å': "a",
+	'À': "a", 'Á': "a", 'Â': "a", 'Ã': "a", 'Ä': "a", 'Å': "a",
+	'è': "e", 'é': "e", 'ê': "e", 'ë': "e",
+	'È': "e", 'É': "e", 'Ê': "e", 'Ë': "e",
+	'ì': "i", 'í': "i", 'î': "i", 'ï': "i",
+	'Ì': "i", 'Í': "i", 'Î': "i", 'Ï': "i",
+	'ò': "o", 'ó': "o", 'ô': "o", 'õ': "o", 'ö': "o", 'ø': "o",
+	'Ò': "o", 'Ó': "o", 'Ô': "o", 'Õ': "o", 'Ö': "o", 'Ø': "o",
+	'ù': "u", 'ú': "u", 'û': "u", 'ü': "u",
+	'Ù': "u", 'Ú': "u", 'Û': "u", 'Ü': "u",
+	'ñ': "n", 'Ñ': "n",
+	'ç': "c", 'Ç': "c",
+	'ý': "y", 'ÿ': "y", 'Ý': "y",
+	'æ': "ae", 'Æ': "ae",
+	'œ': "oe", 'Œ': "oe",
+	'ß': "ss", 'ẞ': "ss",
+	'ð': "d", 'Ð': "d",
+}
+
 func Slugify(name string) string {
 	s := strings.ToLower(strings.TrimSpace(name))
 	var out strings.Builder
 	for _, r := range s {
+		if rep, ok := latinFold[r]; ok {
+			out.WriteString(rep)
+			continue
+		}
 		switch {
 		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
 			out.WriteRune(r)

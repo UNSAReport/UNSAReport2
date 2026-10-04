@@ -8,6 +8,7 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/charmbracelet/log"
 
@@ -69,6 +70,50 @@ func (c *Client) setAuth(req *http.Request, token string) {
 	}
 }
 
+// truncateSnippet collapses s to a single line and truncates it to n
+// runes, appending "..." when truncated. It keeps service errors readable
+// when the server returns a non-JSON body (e.g. an HTML error page).
+func truncateSnippet(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "..."
+	}
+	return s
+}
+
+// authHint annotates 401/403 slides errors: 401 means not logged in (bad,
+// expired or missing token) while 403 means the token is valid but lacks
+// the slides role. It names the TokenSource (flag/env/auth-store/config-file)
+// so the operator knows which credential to refresh.
+func authHint(statusCode int, token string) string {
+	_, src := TokenSource(token)
+	if src == "" {
+		src = "none"
+	}
+	switch statusCode {
+	case http.StatusUnauthorized:
+		return fmt.Sprintf(" (not logged in? token source: %s)", src)
+	case http.StatusForbidden:
+		return fmt.Sprintf(" (missing slides role? token source: %s)", src)
+	default:
+		return ""
+	}
+}
+
+// serviceError maps a non-2xx slides response to an error. JSON API errors
+// keep their message; non-JSON bodies surface as a truncated 200-char raw
+// snippet instead of being dropped.
+func serviceError(statusCode int, status string, raw []byte, token string) error {
+	var apiErr ErrorResponse
+	if json.Unmarshal(raw, &apiErr) == nil && apiErr.Message != "" {
+		return fmt.Errorf("slides service error (%d %s): %s%s", statusCode, apiErr.Error, apiErr.Message, authHint(statusCode, token))
+	}
+	if s := truncateSnippet(string(raw), 200); s != "" {
+		return fmt.Errorf("slides service error: %s — body: %s%s", status, s, authHint(statusCode, token))
+	}
+	return fmt.Errorf("slides service error: %s%s", status, authHint(statusCode, token))
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path, token string, payload any, out any) error {
 	var body *bytes.Reader
 	if payload != nil {
@@ -95,11 +140,8 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Warn("slides request failed", "status", resp.StatusCode, "path", path)
-		var apiErr ErrorResponse
-		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {
-			return fmt.Errorf("slides service error (%d %s): %s", resp.StatusCode, apiErr.Error, apiErr.Message)
-		}
-		return fmt.Errorf("slides service error: %s", resp.Status)
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return serviceError(resp.StatusCode, resp.Status, raw, token)
 	}
 	if out != nil {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
@@ -188,11 +230,8 @@ func (c *Client) DeployMultipart(ctx context.Context, token string, req *DeployR
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Warn("slides deploy failed", "status", resp.StatusCode)
-		var apiErr ErrorResponse
-		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {
-			return nil, fmt.Errorf("slides service error (%d %s): %s", resp.StatusCode, apiErr.Error, apiErr.Message)
-		}
-		return nil, fmt.Errorf("slides service error: %s", resp.Status)
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return nil, serviceError(resp.StatusCode, resp.Status, raw, token)
 	}
 
 	var out DeployResponse
