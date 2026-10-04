@@ -5,6 +5,7 @@ import { orgMembers, presentations, presentationVersions } from '@/db/schema';
 import { stripBearer, verifyCredential } from '@/lib/auth';
 import { getMimeType, getS3Object } from '@/lib/s3';
 import {
+  AppError,
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
@@ -51,6 +52,10 @@ async function resolvePresentation(paramId: string) {
   return first;
 }
 
+// Embed access is intentionally visibility-based, not role-based: public and
+// unlisted presentations serve without credentials, while private/org decks
+// require ownership or org membership below. No slides role check happens
+// here, so viewer tokens can read any deck they are entitled to see.
 async function checkAccess(
   c: Context<HonoEnv>,
   presentation: typeof presentations.$inferSelect,
@@ -77,6 +82,12 @@ async function checkAccess(
   try {
     user = await verifyCredential(token);
   } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'AuthUpstreamError') {
+      throw new AppError(
+        err.message || 'Authentication service unavailable',
+        503,
+      );
+    }
     const message = err instanceof Error ? err.message : String(err);
     throw new UnauthorizedError(message || 'Invalid authentication token');
   }
@@ -141,7 +152,10 @@ async function handleEmbed(c: Context<HonoEnv>) {
     throw new ValidationError('Presentation ID or slug is required');
   }
   const rawVersion = c.req.param('version') || '1';
-  const versionNumber = Number.parseInt(rawVersion.replace(/^[vV]/, ''), 10);
+  if (!/^v?\d+$/.test(rawVersion)) {
+    throw new ValidationError(`Invalid version number "${rawVersion}"`);
+  }
+  const versionNumber = Number.parseInt(rawVersion.replace(/^v/, ''), 10);
 
   if (Number.isNaN(versionNumber) || versionNumber < 1) {
     throw new ValidationError(`Invalid version number "${rawVersion}"`);
@@ -208,7 +222,8 @@ async function handleEmbed(c: Context<HonoEnv>) {
     // sub-assets travels via the session cookie through the web proxy).
     let body: Buffer = Buffer.from(s3Object.body);
     const isJs = filePath.endsWith('.js') || filePath.endsWith('.mjs');
-    if (isHtml || isJs) {
+    const isCss = filePath.endsWith('.css');
+    if (isHtml || isJs || isCss) {
       const text = body.toString('utf-8');
       // 1. Static markup: src/href="/assets/..." and public files "/img.png".
       // 2. JS string literals: imageUrl:'/img.png' in the app bundle (deck
@@ -217,23 +232,40 @@ async function handleEmbed(c: Context<HonoEnv>) {
       // the versioned embed prefix (/embed/<id>/vN/...), so "/x" escapes to
       // the host origin and 404s. "./" keeps refs relative to the version
       // directory (auth travels via session cookie through the web proxy).
-      body = Buffer.from(
-        text
-          .replaceAll(
-            /((?:src|href)=["'])\/(assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp4|webm|pdf|json|txt|xml))/gi,
-            '$1./$2',
-          )
-          .replaceAll(
-            /((?:imageUrl|image|src|poster)\s*:\s*["'])\/((?:assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(["'])/gi,
-            '$1./$2$3',
-          )
-          // Minified bundles escape quotes (imageUrl:\"/x.png\"); escaped
-          // pass so those refs resolve under the embed prefix too.
-          .replaceAll(
-            /((?:imageUrl|image|src|poster)\s*:\s*\\["'])\/((?:assets\/[^\\"']+|[^\\"'/][^\\"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(\\["'])/gi,
-            '$1./$2$3',
-          ),
-      );
+      let rewritten = text
+        .replaceAll(
+          /((?:src|href)=["'])\/(assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|otf|mp4|webm|pdf|js|mjs|css|map|json|txt|xml|wasm))/gi,
+          '$1./$2',
+        )
+        .replaceAll(
+          /((?:imageUrl|image|src|poster)\s*:\s*["'])\/((?:assets\/[^"']+|[^"'/][^"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(["'])/gi,
+          '$1./$2$3',
+        )
+        // Minified bundles escape quotes (imageUrl:\"/x.png\"); escaped
+        // pass so those refs resolve under the embed prefix too.
+        .replaceAll(
+          /((?:imageUrl|image|src|poster)\s*:\s*\\["'])\/((?:assets\/[^\\"']+|[^\\"'/][^\\"']*\.(?:png|jpe?g|gif|svg|webp|avif|ico|mp4|webm)))(\\["'])/gi,
+          '$1./$2$3',
+        );
+      // HTML srcset: rewrite the leading "/img-480.png ..." candidate so
+      // responsive images resolve under the embed prefix.
+      if (isHtml) {
+        rewritten = rewritten.replaceAll(
+          /((?:srcset)=["']\s*)\/(?!\/)/gi,
+          '$1./',
+        );
+      }
+      // Stylesheets (and inline <style> blocks in HTML): rewrite
+      // url(/bg.png) / url("/fonts/x.woff2") so CSS assets resolve under
+      // the embed prefix. Protocol-relative ("//"), data:, and absolute
+      // http(s) URLs are left untouched.
+      if (isCss || isHtml) {
+        rewritten = rewritten.replaceAll(
+          /(url\(\s*)(["']?)\/(?!\/)/gi,
+          '$1$2./',
+        );
+      }
+      body = Buffer.from(rewritten);
     }
     // Anchor every relative URL (including query strings and future dynamic
     // refs) to the versioned embed directory, so nothing escapes to the host

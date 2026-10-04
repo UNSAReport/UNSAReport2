@@ -16,6 +16,7 @@ export const config = {
     process.env.DATABASE_URL ||
     'postgresql://slides:slidespassword@localhost:5434/slides_db',
   idpIssuer,
+  audience: process.env.IDP_AUDIENCE || idpIssuer,
   idpJwksUrl: process.env.IDP_JWKS_URL || `${idpIssuer}/.well-known/jwks.json`,
   idpMeUrl: `${idpIssuer}/v1/me`,
   idpTimeoutMs: parseIntOrThrow(

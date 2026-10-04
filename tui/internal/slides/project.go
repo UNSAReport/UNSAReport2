@@ -54,31 +54,55 @@ var (
 	descRegex       = regexp.MustCompile(`(?m)^\s*description:\s*['"` + "`" + `]([^'"` + "`" + `]+)['"` + "`" + `]`)
 )
 
-func ParseDeckConfig(content string) *ProjectConfig {
+func ParseDeckConfigWithWarnings(content string) (*ProjectConfig, []string) {
+	var kept []string
+	for _, line := range strings.Split(content, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "//") {
+			continue
+		}
+		kept = append(kept, line)
+	}
+	filtered := strings.Join(kept, "\n")
 	cfg := &ProjectConfig{
 		Visibility: "private",
 		Theme:      "unsa-dark",
 	}
-
-	if m := titleRegex.FindStringSubmatch(content); len(m) > 1 {
+	var warnings []string
+	if m := titleRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.Title = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "title" fell back to default ""`)
 	}
-	if m := slugRegex.FindStringSubmatch(content); len(m) > 1 {
+	if m := slugRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.Slug = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "slug" fell back to default ""`)
 	}
-	if m := themeRegex.FindStringSubmatch(content); len(m) > 1 {
+	if m := themeRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.Theme = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "theme" fell back to default "unsa-dark"`)
 	}
-	if m := orgSlugRegex.FindStringSubmatch(content); len(m) > 1 {
+	if m := orgSlugRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.OrgSlug = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "orgSlug" fell back to default ""`)
 	}
-	if m := visibilityRegex.FindStringSubmatch(content); len(m) > 1 {
+	if m := visibilityRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.Visibility = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "visibility" fell back to default "private"`)
 	}
-	if m := descRegex.FindStringSubmatch(content); len(m) > 1 {
+	if m := descRegex.FindStringSubmatch(filtered); len(m) > 1 {
 		cfg.Description = strings.TrimSpace(m[1])
+	} else {
+		warnings = append(warnings, `field "description" fell back to default ""`)
 	}
+	return cfg, warnings
+}
 
+func ParseDeckConfig(content string) *ProjectConfig {
+	cfg, _ := ParseDeckConfigWithWarnings(content)
 	return cfg
 }
 
@@ -128,6 +152,9 @@ func LoadProjectConfig(dir string) (*ProjectConfig, error) {
 }
 
 func SaveProjectConfig(dir string, cfg *ProjectConfig) error {
+	if !ValidateSlug(cfg.Slug) {
+		return fmt.Errorf("invalid slug %q", cfg.Slug)
+	}
 	b, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -143,25 +170,6 @@ func ValidateSlug(s string) bool {
 func LoadManifest(dir string) (*Manifest, map[string]any, error) {
 	b, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
 	if err != nil {
-		if cfg, cfgErr := LoadProjectConfig(dir); cfgErr == nil {
-			m := &Manifest{
-				Name:        cfg.Slug,
-				Title:       cfg.Title,
-				Description: cfg.Description,
-				Slides: []Slide{
-					{ID: "slide-1", Index: 0, Title: cfg.Title},
-				},
-			}
-			raw := map[string]any{
-				"name":        cfg.Slug,
-				"title":       cfg.Title,
-				"description": cfg.Description,
-				"slides": []any{
-					map[string]any{"id": "slide-1", "index": 0, "title": cfg.Title},
-				},
-			}
-			return m, raw, nil
-		}
 		return nil, nil, fmt.Errorf("read manifest.json: %w", err)
 	}
 	var raw map[string]any

@@ -45,21 +45,39 @@ export function defineConfig(config: DeckConfig): DeckConfig {
   if (!Array.isArray(merged.slides)) {
     throw new Error('defineConfig: slides must be an array.');
   }
+  for (const slide of merged.slides) {
+    if (
+      typeof slide !== 'object' ||
+      slide === null ||
+      typeof slide.layout !== 'string' ||
+      slide.layout.trim().length === 0
+    ) {
+      throw new Error(
+        'defineConfig: every slide must define a non-empty layout string.',
+      );
+    }
+  }
   if (
     merged.slides.length === 0 &&
     (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production')
   ) {
     console.warn('defineConfig: slides is empty; rendering an empty deck.');
   }
-  for (let i = 0; i < merged.slides.length; i++) {
-    const slide = merged.slides[i];
-    if (
-      !slide ||
-      typeof slide.layout !== 'string' ||
-      slide.layout.trim().length === 0
-    ) {
-      throw new Error(
-        `defineConfig: slides[${i}].layout must be a non-empty string.`,
+  if (
+    typeof process === 'undefined' ||
+    process.env?.NODE_ENV !== 'production'
+  ) {
+    const chromeKnobs = [
+      'controls',
+      'progress',
+      'slideNumber',
+      'center',
+      'hash',
+    ] as const;
+    const touched = chromeKnobs.filter((key) => key in config);
+    if (touched.length > 0) {
+      console.warn(
+        `defineConfig: chrome option${touched.length > 1 ? 's' : ''} (${touched.join(', ')}) set by author but the renderer intentionally disables chrome; values pass through untouched.`,
       );
     }
   }

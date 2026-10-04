@@ -19,15 +19,56 @@ import {
   presentationVersions,
 } from '@/db/schema';
 import { deleteS3Prefix, getMimeType, uploadS3Object } from '@/lib/s3';
-import { requireAuth, requireSlidesRole } from '@/middleware/auth';
 import {
+  requireAuth,
+  requireSlidesEditor,
+  requireSlidesRole,
+} from '@/middleware/auth';
+import {
+  AppError,
   ConflictError,
   ForbiddenError,
   isUniqueViolationError,
   NotFoundError,
+  RateLimitError,
   ValidationError,
 } from '@/middleware/error-handler';
 import type { HonoEnv } from '@/types';
+
+// Zip-bomb guardrails for deployed bundles (checked while walking the ZIP
+// entries in validateBundleOrThrow, before any S3 upload).
+const MAX_UNCOMPRESSED_TOTAL_BYTES = 200 * 1024 * 1024; // 200 MiB total
+const MAX_SINGLE_FILE_BYTES = 25 * 1024 * 1024; // 25 MiB per entry
+const MAX_ZIP_ENTRY_COUNT = 2000;
+
+// In-memory per-user sliding window for deploy rate limiting (20/min).
+// NOTE: single-instance scope only — counters live in this process, so a
+// multi-instance deployment would enforce the limit per instance. A shared
+// store (e.g. Redis) would be needed for a global limit.
+const DEPLOY_WINDOW_MS = 60_000;
+const DEPLOY_MAX_PER_WINDOW = 20;
+const deployAttemptsByUser = new Map<string, number[]>();
+
+function checkDeployRateLimitOrThrow(userId: string): void {
+  const now = Date.now();
+  const attempts = deployAttemptsByUser.get(userId) ?? [];
+  const recent = attempts.filter((t) => now - t < DEPLOY_WINDOW_MS);
+  if (recent.length >= DEPLOY_MAX_PER_WINDOW) {
+    deployAttemptsByUser.set(userId, recent);
+    throw new RateLimitError(
+      `Deploy rate limit exceeded: max ${DEPLOY_MAX_PER_WINDOW} deploys per minute`,
+    );
+  }
+  recent.push(now);
+  deployAttemptsByUser.set(userId, recent);
+}
+
+function isValidBase64(value: string): boolean {
+  const compact = value.replace(/\s+/g, '');
+  if (compact.length === 0) return true;
+  if (compact.length % 4 !== 0) return false;
+  return /^[A-Za-z0-9+/_-]*={0,2}$/.test(compact);
+}
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -66,8 +107,17 @@ async function validateBundleOrThrow(
   }
   const files: { path: string; buffer: Buffer }[] = [];
   let hasIndex = false;
+  let entryCount = 0;
+  let totalUncompressedBytes = 0;
   for (const filePath of Object.keys(zip.files)) {
     const entry = zip.files[filePath];
+    entryCount += 1;
+    if (entryCount > MAX_ZIP_ENTRY_COUNT) {
+      throw new AppError(
+        `Invalid bundle: ZIP archive contains more than ${MAX_ZIP_ENTRY_COUNT} files`,
+        413,
+      );
+    }
     if (entry.dir) continue;
     const cleanPath = filePath.replace(/^\/+/, '');
     if (cleanPath.includes('..')) continue;
@@ -75,6 +125,19 @@ async function validateBundleOrThrow(
       hasIndex = true;
     }
     const fileBuffer = Buffer.from(await entry.async('nodebuffer'));
+    if (fileBuffer.length > MAX_SINGLE_FILE_BYTES) {
+      throw new AppError(
+        `Invalid bundle: entry "${cleanPath}" (${fileBuffer.length} bytes) exceeds the per-file limit of ${MAX_SINGLE_FILE_BYTES} bytes`,
+        413,
+      );
+    }
+    totalUncompressedBytes += fileBuffer.length;
+    if (totalUncompressedBytes > MAX_UNCOMPRESSED_TOTAL_BYTES) {
+      throw new AppError(
+        `Invalid bundle: total uncompressed size exceeds the limit of ${MAX_UNCOMPRESSED_TOTAL_BYTES} bytes`,
+        413,
+      );
+    }
     files.push({ path: cleanPath, buffer: fileBuffer });
   }
   if (!hasIndex) {
@@ -169,8 +232,9 @@ async function resolveOwner(
   return { ownerType: 'organization', ownerId: org.id };
 }
 
-presentationsRouter.post('/deploy', async (c) => {
+presentationsRouter.post('/deploy', requireSlidesEditor, async (c) => {
   const user = c.get('user');
+  checkDeployRateLimitOrThrow(user?.id || '');
   const contentType = c.req.header('content-type') || '';
 
   let payload: CliDeployRequest;
@@ -207,6 +271,15 @@ presentationsRouter.post('/deploy', async (c) => {
         if (manifestRaw !== '') {
           try {
             manifestObj = JSON.parse(manifestRaw);
+          } catch {
+            throw new ValidationError('Invalid JSON in manifest field');
+          }
+        }
+      } else if (typeof (manifestRaw as Blob).text === 'function') {
+        const manifestText = await (manifestRaw as Blob).text();
+        if (manifestText !== '') {
+          try {
+            manifestObj = JSON.parse(manifestText);
           } catch {
             throw new ValidationError('Invalid JSON in manifest field');
           }
@@ -271,6 +344,9 @@ presentationsRouter.post('/deploy', async (c) => {
       throw new ValidationError(parsed.error.message);
     }
     payload = parsed.data;
+    if (!isValidBase64(payload.bundle)) {
+      throw new ValidationError('Invalid base64 in bundle field');
+    }
     bundleBuffer = Buffer.from(payload.bundle, 'base64');
   }
 
@@ -417,6 +493,26 @@ presentationsRouter.get('/', async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
 
+  const rawLimit = c.req.query('limit');
+  const rawOffset = c.req.query('offset');
+  let limit = 50;
+  let offset = 0;
+  if (rawLimit !== undefined) {
+    limit = Number.parseInt(rawLimit, 10);
+    if (!Number.isInteger(limit) || limit < 0) {
+      throw new ValidationError(`Invalid limit query parameter "${rawLimit}"`);
+    }
+    if (limit > 200) limit = 200;
+  }
+  if (rawOffset !== undefined) {
+    offset = Number.parseInt(rawOffset, 10);
+    if (!Number.isInteger(offset) || offset < 0) {
+      throw new ValidationError(
+        `Invalid offset query parameter "${rawOffset}"`,
+      );
+    }
+  }
+
   const own = await db
     .select()
     .from(presentations)
@@ -446,7 +542,24 @@ presentationsRouter.get('/', async (c) => {
       );
   }
 
-  return c.json({ presentations: [...own, ...orgSlots] });
+  // Public decks are listable by everyone ("public (listada)"), not just
+  // their owners: include visibility=public rows beyond own/org-member rows.
+  const publicDecks = await db
+    .select()
+    .from(presentations)
+    .where(eq(presentations.visibility, 'public'));
+
+  // Dedupe by id (own/org/public sets may overlap), then paginate in memory
+  // so unit-test DB doubles — which ignore WHERE/LIMIT chaining — behave.
+  const seen = new Set<string>();
+  const merged: typeof own = [];
+  for (const deck of [...own, ...orgSlots, ...publicDecks]) {
+    if (seen.has(deck.id)) continue;
+    seen.add(deck.id);
+    merged.push(deck);
+  }
+
+  return c.json({ presentations: merged.slice(offset, offset + limit) });
 });
 
 // Speaker notes travel inside the version manifest (`manifest.notes`,
@@ -513,10 +626,14 @@ presentationsRouter.get('/:id', async (c) => {
   // Contract (S1-2): { versions: [{ versionNumber, manifest, notes? }] }.
   // `notes` mirrors `manifest.notes` at the top level so viewers can read
   // `version.notes` directly; always an object, never null/undefined.
-  const versionsWithNotes = versions.map((v) => ({
-    ...v,
-    notes: extractVersionNotes(v.manifest),
-  }));
+  // Sorted ascending by version so redeploys append at the end; in memory
+  // (not ORDER BY) so unit-test DB doubles behave identically.
+  const versionsWithNotes = [...versions]
+    .sort((a, b) => a.versionNumber - b.versionNumber)
+    .map((v) => ({
+      ...v,
+      notes: extractVersionNotes(v.manifest),
+    }));
 
   return c.json({ presentation, versions: versionsWithNotes });
 });
@@ -528,7 +645,7 @@ const updateSchema = z.object({
   thumbnailUrl: z.url().nullable().optional(),
 });
 
-presentationsRouter.patch('/:id', async (c) => {
+presentationsRouter.patch('/:id', requireSlidesEditor, async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
   const id = c.req.param('id');
@@ -566,7 +683,9 @@ presentationsRouter.patch('/:id', async (c) => {
         ? { description: data.description }
         : {}),
       ...(data.visibility !== undefined ? { visibility: data.visibility } : {}),
-      ...(data.thumbnailUrl ? { thumbnailUrl: data.thumbnailUrl } : {}),
+      ...(data.thumbnailUrl !== undefined
+        ? { thumbnailUrl: data.thumbnailUrl }
+        : {}),
       updatedAt: new Date(),
     })
     .where(eq(presentations.id, id));
@@ -580,7 +699,7 @@ presentationsRouter.patch('/:id', async (c) => {
   return c.json({ presentation: updated });
 });
 
-presentationsRouter.delete('/:id', async (c) => {
+presentationsRouter.delete('/:id', requireSlidesEditor, async (c) => {
   const user = c.get('user');
   const userId = user?.id || '';
   const id = c.req.param('id');

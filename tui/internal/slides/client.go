@@ -110,6 +110,9 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 }
 
 func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (*DeployResponse, error) {
+	if len(req.Slug) == 0 || len(req.Slug) > 100 || !slugRe.MatchString(req.Slug) {
+		return nil, fmt.Errorf("invalid slug %q", req.Slug)
+	}
 	if len(req.ZipBytes) > 0 {
 		return c.DeployMultipart(ctx, token, req, req.ZipBytes)
 	}

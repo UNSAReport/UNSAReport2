@@ -81,6 +81,9 @@ func ServePreview(addr, dir, title string) error {
 }
 
 func StartDev(dir string, port int) error {
+	if port < 1 || port > 65535 {
+		return fmt.Errorf("invalid port %d: must be between 1 and 65535", port)
+	}
 	pkgPath := filepath.Join(dir, "package.json")
 	if _, err := os.Stat(pkgPath); err == nil {
 		runner := ""
@@ -93,17 +96,18 @@ func StartDev(dir string, port int) error {
 		if runner != "" {
 			var cmd *exec.Cmd
 			if runner == "bun" {
-				cmd = exec.Command("bun", "run", "dev", "--port", fmt.Sprintf("%d", port))
+				cmd = exec.Command("bun", "run", "dev", "--port", fmt.Sprintf("%d", port), "--strictPort")
 			} else {
-				cmd = exec.Command("npx", "vite", "--port", fmt.Sprintf("%d", port))
+				cmd = exec.Command("npx", "vite", "--port", fmt.Sprintf("%d", port), "--strictPort")
 			}
 			cmd.Dir = dir
 			cmd.Stdout = os.Stdout
 			cmd.Stderr = os.Stderr
 			cmd.Stdin = os.Stdin
-			if err := cmd.Run(); err == nil {
-				return nil
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("dev server failed: %w", err)
 			}
+			return nil
 		}
 	}
 

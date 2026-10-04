@@ -65,6 +65,14 @@ function PresentationsDashboard() {
     });
   }, [presentations, filter, search]);
 
+  const publicDecks = useMemo(() => {
+    return presentations.filter(
+      (p) =>
+        p.visibility === 'public' &&
+        (p.ownerType !== 'organization' || !orgMap.has(p.ownerId)),
+    );
+  }, [presentations, orgMap]);
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8 space-y-8 font-sans bg-[#E3E2DE] text-[#141414]">
       <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#C7C7C7] pb-6">
@@ -210,6 +218,29 @@ function PresentationsDashboard() {
           ))}
         </div>
       )}
+
+      {publicDecks.length > 0 ? (
+        <section aria-label="Decks públicos de terceros" className="space-y-4">
+          <div>
+            <h2 className="text-xl font-extrabold tracking-tight text-[#141414]">
+              Decks públicos de terceros
+            </h2>
+            <p className="text-sm text-[#444343] mt-1">
+              Presentaciones públicas de propietarios fuera de tus
+              organizaciones.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {publicDecks.map((item) => (
+              <PresentationCard
+                key={item.id}
+                item={item}
+                orgName={orgMap.get(item.ownerId)?.name}
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

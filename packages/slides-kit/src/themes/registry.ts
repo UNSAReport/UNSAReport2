@@ -5,6 +5,29 @@ import { ThemeId } from '@/themes/types';
 export type { ThemeDefinition };
 export { ThemeId };
 
+const THEME_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+function assertValidTheme(theme: ThemeDefinition): void {
+  if (typeof theme !== 'object' || theme === null) {
+    throw new TypeError(
+      'Invalid theme "theme": expected a ThemeDefinition object.',
+    );
+  }
+  if (typeof theme.id !== 'string' || !THEME_ID_PATTERN.test(theme.id)) {
+    throw new TypeError(
+      `Invalid theme "id": expected a non-empty kebab-case string, got ${JSON.stringify((theme as ThemeDefinition | undefined)?.id)}.`,
+    );
+  }
+  for (const field of ['colors', 'typography', 'effects'] as const) {
+    const value = theme[field];
+    if (typeof value !== 'object' || value === null) {
+      throw new TypeError(
+        `Invalid theme "${field}" for id '${theme.id}': expected an object.`,
+      );
+    }
+  }
+}
+
 /**
  * Registro dinámico de temas visuales para la plataforma de diapositivas.
  */
@@ -19,8 +42,18 @@ export class ThemeRegistry {
 
   /**
    * Registra un tema nuevo o sobrescribe uno existente.
+   * Last-wins (HMR-safe): el re-registro sobrescribe y avisa solo en dev.
    */
   registerTheme(theme: ThemeDefinition): void {
+    assertValidTheme(theme);
+    if (
+      this.themes.has(theme.id) &&
+      (typeof process === 'undefined' || process.env?.NODE_ENV !== 'production')
+    ) {
+      console.warn(
+        `ThemeRegistry: overwriting existing theme '${theme.id}'. Last registration wins.`,
+      );
+    }
     this.themes.set(theme.id, theme);
   }
   /**
@@ -57,6 +90,23 @@ export class ThemeRegistry {
   count(): number {
     return this.themes.size;
   }
+
+  /**
+   * Elimina un tema del registro. Devuelve true si existía.
+   */
+  unregisterTheme(id: string): boolean {
+    return this.themes.delete(id);
+  }
+
+  /**
+   * Limpia el registro y lo re-siembras desde el catálogo por defecto.
+   */
+  resetThemes(): void {
+    this.themes.clear();
+    for (const theme of defaultThemes) {
+      this.registerTheme(theme);
+    }
+  }
 }
 
 /** Instancia única global del registro de temas */
@@ -72,3 +122,10 @@ export const listThemes = (): ThemeDefinition[] => themeRegistry.listThemes();
 /** Función helper para registrar un tema personalizado */
 export const registerTheme = (theme: ThemeDefinition): void =>
   themeRegistry.registerTheme(theme);
+
+/** Elimina un tema del registro */
+export const unregisterTheme = (id: string): boolean =>
+  themeRegistry.unregisterTheme(id);
+
+/** Restablece el registro al catálogo por defecto */
+export const resetThemes = (): void => themeRegistry.resetThemes();

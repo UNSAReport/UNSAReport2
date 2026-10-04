@@ -176,6 +176,11 @@ const MIME_TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.xml': 'application/xml',
   '.wasm': 'application/wasm',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.pdf': 'application/pdf',
+  '.avif': 'image/avif',
+  '.mp3': 'audio/mpeg',
 };
 
 export function getMimeType(filePath: string): string {

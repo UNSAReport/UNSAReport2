@@ -87,6 +87,13 @@ export function DeckRenderer({
     slides = [],
   } = activeConfig || {};
 
+  const themeKey: string =
+    typeof theme === 'string'
+      ? theme
+      : String(
+          (theme as unknown as { id?: unknown } | undefined)?.id ?? 'custom',
+        );
+
   return (
     <ThemeProvider
       theme={theme}
@@ -94,6 +101,7 @@ export function DeckRenderer({
     >
       <style dangerouslySetInnerHTML={{ __html: REVEAL_OVERRIDE_STYLES }} />
       <Deck
+        key={`deck-${slides.length}-${themeKey}-${width}x${height}-${transition}`}
         config={{
           width,
           height,
@@ -122,7 +130,9 @@ export function DeckRenderer({
         }}
       >
         {slides.map((slide, index) => (
-          <Slide key={`slide-${index}-${slide.layout}-${slide.title ?? 'untitled'}`}>
+          <Slide
+            key={`slide-${index}-${slide.layout}-${slide.title ?? 'untitled'}`}
+          >
             <SlideRenderer slide={slide} index={index} />
           </Slide>
         ))}

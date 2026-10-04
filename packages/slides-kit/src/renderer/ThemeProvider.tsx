@@ -45,7 +45,14 @@ export function ThemeProvider({
   }, [theme]);
 
   const cssVariables = useMemo<CSSProperties>(() => {
-    const { colors, typography, effects, customVariables } = resolvedTheme;
+    const {
+      colors,
+      typography,
+      effects,
+      customVariables,
+      logoUrl,
+      facultyName,
+    } = resolvedTheme;
 
     return {
       '--slide-bg': colors.background,
@@ -62,6 +69,8 @@ export function ThemeProvider({
       '--slide-error': colors.error,
       '--slide-font-family': typography.fontFamily,
       '--slide-mono-family': typography.monoFamily,
+      '--slide-logo-url': logoUrl ? `url("${logoUrl}")` : 'none',
+      '--slide-faculty-name': facultyName ? `"${facultyName}"` : '""',
       '--slide-heading-weight': String(typography.headingWeight),
       '--slide-heading-spacing': typography.headingLetterSpacing ?? 'normal',
       '--slide-radius': effects.cardBorderRadius,
@@ -84,6 +93,11 @@ export function ThemeProvider({
           ...cssVariables,
         }}
       >
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `pre, code { font-family: var(--slide-mono-family); }\nh1, h2, h3, h4, h5, h6 { font-weight: var(--slide-heading-weight); }`,
+          }}
+        />
         {children}
       </div>
     </ThemeContext.Provider>

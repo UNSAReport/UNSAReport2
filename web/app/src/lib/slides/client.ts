@@ -101,14 +101,71 @@ async function readErrorBody(res: Response): Promise<string> {
   return clipped;
 }
 
-function slidesError(action: string, res: Response, body: string): Error {
-  const detail = body ? `: ${body}` : '';
-  return new Error(`${action} (status ${res.status})${detail}`);
+export class SlidesApiError extends Error {
+  readonly status: number;
+  constructor(action: string, status: number, body: string) {
+    super(`${action} (status ${status})${body ? `: ${body}` : ''}`);
+    this.name = 'SlidesApiError';
+    this.status = status;
+  }
+}
+
+export function slidesErrorStatus(err: unknown): number | null {
+  if (err instanceof SlidesApiError) return err.status;
+  if (err !== null && typeof err === 'object' && 'status' in err) {
+    const status = err.status;
+    if (typeof status === 'number' && Number.isInteger(status)) return status;
+  }
+  if (err instanceof Error) {
+    const match = /\(status (\d{3})\)/.exec(err.message);
+    if (match) return Number(match[1]);
+  }
+  return null;
+}
+
+function slidesError(
+  action: string,
+  res: Response,
+  body: string,
+): SlidesApiError {
+  return new SlidesApiError(action, res.status, body);
+}
+
+const MAX_DEPLOY_BUNDLE_BYTES = 50 * 1024 * 1024;
+const DEPLOY_SLUG_PATTERN = /^[a-z0-9-]+$/;
+
+// Mirror of TUI ValidateSlug (tui/internal/slides/project.go): [a-z0-9-]{2,100}.
+// Inlined in assertDeployInput to keep the contract in one place.
+
+function deployBundleBytes(bundle: string): number {
+  const base64 = bundle.includes(',')
+    ? bundle.slice(bundle.indexOf(',') + 1)
+    : bundle;
+  const compact = base64.replace(/\s/g, '');
+  if (!compact) return 0;
+  const padding = compact.endsWith('==') ? 2 : compact.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((compact.length * 3) / 4) - padding);
+}
+
+function assertDeployInput(input: SlidesDeployInput): void {
+  const slug = input.slug;
+  if (slug.length < 2 || slug.length > 100 || !DEPLOY_SLUG_PATTERN.test(slug)) {
+    throw new Error(
+      `Invalid slug "${slug}": use lowercase letters, numbers, and hyphens (2-100 characters)`,
+    );
+  }
+  const bytes = deployBundleBytes(input.bundle);
+  if (bytes > MAX_DEPLOY_BUNDLE_BYTES) {
+    throw new Error(
+      `Bundle exceeds 50 MiB limit (${bytes} bytes): rebuild a smaller bundle before deploying`,
+    );
+  }
 }
 
 async function deployPresentationInternal(
   input: SlidesDeployInput,
 ): Promise<SlidesDeployResult> {
+  assertDeployInput(input);
   const res = await slidesFetch('/presentations/deploy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

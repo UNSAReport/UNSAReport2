@@ -21,75 +21,81 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
     ...props
   } = slide;
 
+  const normalizedLayout = layout.trim().toLowerCase();
+
   // 1. Manejo de slides completamente personalizadas en React
-  if (layout === 'custom') {
+  if (normalizedLayout === 'custom') {
     if (CustomComponent) {
       return (
-        <div className="w-full h-full relative">
-          <CustomComponent {...props}>{children}</CustomComponent>
+        <>
+          <div className="w-full h-full relative">
+            <CustomComponent {...props}>{children}</CustomComponent>
+          </div>
           {notes && <aside className="notes">{notes}</aside>}
-        </div>
+        </>
       );
     }
 
     return (
-      <div className="w-full h-full relative">
-        {children}
+      <>
+        <div className="w-full h-full relative">{children}</div>
         {notes && <aside className="notes">{notes}</aside>}
-      </div>
+      </>
     );
   }
 
-  // 2. Búsqueda en el LayoutRegistry
-  const layoutDef = layoutRegistry.getLayout(layout);
+  // 2. Búsqueda en el LayoutRegistry (ids normalizados: trim + lowercase)
+  const layoutDef = layoutRegistry.getLayout(normalizedLayout);
 
   if (!layoutDef) {
     return (
-      <div
-        className="w-full h-full flex items-center justify-center p-12"
-        style={{
-          backgroundColor: 'var(--slide-bg, #4c0519)',
-          color: 'var(--slide-text, #fecdd3)',
-        }}
-      >
-        <SlideCard
-          variant="outlined"
-          className="max-w-xl p-8"
+      <>
+        <div
+          className="w-full h-full flex items-center justify-center p-12"
           style={{
-            borderColor: 'var(--slide-error, #fb7185)',
-            backgroundColor: 'var(--slide-surface, rgba(136, 19, 55, 0.3))',
+            backgroundColor: 'var(--slide-bg, #4c0519)',
+            color: 'var(--slide-text, #fecdd3)',
           }}
         >
-          <h3
-            className="text-2xl font-bold mb-2"
-            style={{ color: 'var(--slide-error, #fb7185)' }}
-          >
-            ⚠️ Layout no encontrado: &apos;{layout}&apos;
-          </h3>
-          <p
-            className="text-sm mb-4"
-            style={{ color: 'var(--slide-text-muted, #fda4af)' }}
-          >
-            La diapositiva #{index !== undefined ? index + 1 : ''} especifica un
-            layout no registrado en LayoutRegistry.
-          </p>
-          <div
-            className="text-xs font-mono p-3 rounded"
+          <SlideCard
+            variant="outlined"
+            className="max-w-xl p-8"
             style={{
-              backgroundColor: 'var(--slide-surface-muted, rgba(0, 0, 0, 0.4))',
-              color: 'var(--slide-text-muted, #fda4af)',
+              borderColor: 'var(--slide-error, #fb7185)',
+              backgroundColor: 'var(--slide-surface, rgba(136, 19, 55, 0.3))',
             }}
           >
-            Verifica el archivo deck.config.ts o ejecuta &apos;unsarep slides
-            layouts&apos; para ver los nombres disponibles.
-          </div>
-        </SlideCard>
+            <h3
+              className="text-2xl font-bold mb-2"
+              style={{ color: 'var(--slide-error, #fb7185)' }}
+            >
+              ⚠️ Layout no encontrado: &apos;{layout}&apos;
+            </h3>
+            <p
+              className="text-sm mb-4"
+              style={{ color: 'var(--slide-text-muted, #fda4af)' }}
+            >
+              La diapositiva #{index !== undefined ? index + 1 : ''} especifica
+              un layout no registrado en LayoutRegistry.
+            </p>
+            <div
+              className="text-xs font-mono p-3 rounded"
+              style={{
+                backgroundColor:
+                  'var(--slide-surface-muted, rgba(0, 0, 0, 0.4))',
+                color: 'var(--slide-text-muted, #fda4af)',
+              }}
+            >
+              Verifica el archivo deck.config.ts o ejecuta &apos;unsarep slides
+              layouts&apos; para ver los nombres disponibles.
+            </div>
+          </SlideCard>
+        </div>
         {notes && <aside className="notes">{notes}</aside>}
-      </div>
+      </>
     );
   }
   const LayoutComponent = layoutDef.component;
-
 
   if (
     typeof process === 'undefined' ||
@@ -119,7 +125,8 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
       if (!slot.required) continue;
       const value = values[slot.name];
       let empty = value === undefined || value === null;
-      if (!empty && typeof value === 'string') empty = value.trim().length === 0;
+      if (!empty && typeof value === 'string')
+        empty = value.trim().length === 0;
       if (!empty && Array.isArray(value)) empty = value.length === 0;
       if (empty) missingNames.push(`'${slot.name}'`);
     }
@@ -144,10 +151,12 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
   }
 
   return (
-    <div className="w-full h-full relative">
-      <LayoutComponent {...props}>{children}</LayoutComponent>
+    <>
+      <div className="w-full h-full relative">
+        <LayoutComponent {...props}>{children}</LayoutComponent>
+      </div>
       {/* Contenedor oficial de notas de orador de Reveal.js */}
       {notes && <aside className="notes">{notes}</aside>}
-    </div>
+    </>
   );
 }

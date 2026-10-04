@@ -28,6 +28,7 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
       { title: 'Módulo 1', content: 'Descripción del módulo 1.' },
       { title: 'Módulo 2', content: 'Descripción del módulo 2.' },
       { title: 'Módulo 3', content: 'Descripción del módulo 3.' },
+      { title: 'Módulo 4', content: 'Descripción del módulo 4.' },
     ],
   },
   'bento-3-horizontal': {
@@ -184,14 +185,19 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
   'closing-next-steps': {
     steps: [{ phase: 'Fase 1', action: 'Publicar resultados' }],
   },
-  'closing-qa-centered': {},
+  'closing-qa-centered': {
+    contactSpeaker: 'Dra. María Torres',
+    contactEmail: 'mtorres@unsa.edu.pe',
+  },
   'closing-summary-3-points': {
     points: [
       { title: 'Hallazgo 1', description: 'Mejora de latencia.' },
       { title: 'Hallazgo 2', description: 'Reducción de costos.' },
     ],
   },
-  'closing-thank-you': {},
+  'closing-thank-you': {
+    speaker: 'J. Pérez — EPIS',
+  },
   'code-annotated': {
     code: 'const deck = defineConfig({ theme: "unsa-dark" });',
     annotations: [
@@ -246,28 +252,73 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
     code: 'console.log("hola")',
     output: 'hola',
   },
-  'hero-centered-bold': {},
+  'hero-centered-bold': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
+  },
   'hero-centered-subtitle': {
+    pretitle: 'Seminario de investigación EPIS',
+    title: 'Sistemas Distribuidos en la UNSA',
     subtitle: 'Subtítulo explicativo amplio de la portada.',
-  },
-  'hero-event-card': {
-    eventDate: '12 de octubre, 2026',
-    speaker: 'Dra. María Torres',
-  },
-  'hero-full-image': {},
-  'hero-gradient-accent': {},
-  'hero-institutional': {
     author: 'J. Pérez — EPIS',
   },
+  'hero-event-card': {
+    title: 'Seminario de Sistemas Distribuidos',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    eventDate: '12 de octubre, 2026',
+    eventTime: '10:00 a. m.',
+    eventLocation: 'Auditorio EPIS',
+    speaker: 'Dra. María Torres',
+    speakerRole: 'Docente investigadora',
+  },
+  'hero-full-image': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
+  },
+  'hero-gradient-accent': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
+  },
+  'hero-institutional': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    course: 'Seminario de investigación',
+    author: 'J. Pérez — EPIS',
+    advisor: 'Dra. María Torres',
+    date: 'Octubre 2026',
+  },
   'hero-kpi-banner': {
+    title: 'Resultados del semestre 2026',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
     kpiNumber: '99.9%',
     kpiLabel: 'Disponibilidad',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
   },
-  'hero-minimal': {},
-  'hero-split-image': {},
+  'hero-minimal': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    category: 'Investigación EPIS',
+    date: 'Octubre 2026',
+  },
+  'hero-split-image': {
+    title: 'Sistemas Distribuidos en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
+  },
   'hero-two-line': {
     line1: 'Sistemas Distribuidos',
     line2: 'en la UNSA',
+    subtitle: 'Avances de investigación en arquitecturas escalables.',
+    author: 'J. Pérez — EPIS',
+    date: 'Octubre 2026',
   },
   'list-agenda-badges': {
     items: [
@@ -358,13 +409,28 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
     ],
   },
   'process-horizontal-3': {
-    steps: [{ step: 1, title: 'Plan', description: 'Diseñar.' }],
+    steps: [
+      { step: 1, title: 'Plan', description: 'Diseñar el estudio.' },
+      { step: 2, title: 'Ejecución', description: 'Recolectar mediciones.' },
+      { step: 3, title: 'Evaluación', description: 'Analizar resultados.' },
+    ],
   },
   'process-horizontal-4': {
-    steps: [{ step: 1, title: 'Plan', description: 'Diseñar.' }],
+    steps: [
+      { step: 1, title: 'Plan', description: 'Diseñar el estudio.' },
+      { step: 2, title: 'Ejecución', description: 'Recolectar mediciones.' },
+      { step: 3, title: 'Evaluación', description: 'Analizar resultados.' },
+      { step: 4, title: 'Despliegue', description: 'Publicar la solución.' },
+    ],
   },
   'process-horizontal-5': {
-    steps: [{ step: 1, title: 'Plan', description: 'Diseñar.' }],
+    steps: [
+      { step: 1, title: 'Plan', description: 'Diseñar el estudio.' },
+      { step: 2, title: 'Ejecución', description: 'Recolectar mediciones.' },
+      { step: 3, title: 'Evaluación', description: 'Analizar resultados.' },
+      { step: 4, title: 'Despliegue', description: 'Publicar la solución.' },
+      { step: 5, title: 'Monitoreo', description: 'Observar en producción.' },
+    ],
   },
   'process-milestone-bar': {
     milestones: [
@@ -439,7 +505,14 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
     sidebarTitle: 'Resumen',
     mainContent: 'Contenido principal de la diapositiva.',
   },
-  'split-50-50-text': {},
+  'split-50-50-text': {
+    leftTitle: 'Enfoque A',
+    leftContent:
+      'Arquitectura centralizada con estado único y despliegue simple.',
+    rightTitle: 'Enfoque B',
+    rightContent:
+      'Arquitectura distribuida con escalado horizontal y tolerancia a fallos.',
+  },
   'split-70-30': {
     mainContent: 'Contenido principal de la diapositiva.',
     sidebarTitle: 'Datos clave',
@@ -512,6 +585,7 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
     stats: [
       { number: '42ms', label: 'Latencia' },
       { number: '99.9%', label: 'Uptime' },
+      { number: '3x', label: 'Rendimiento' },
     ],
   },
   'stats-4-grid': {

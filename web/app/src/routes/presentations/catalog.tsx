@@ -206,6 +206,30 @@ function PresentationsCatalog() {
   );
 }
 
+function slotSampleValue(type: string): string {
+  if (type === 'string') return `'Texto de ejemplo'`;
+  if (type === 'string[]') return `['Item 1', 'Item 2']`;
+  if (type === 'number') return `0`;
+  if (type === 'boolean') return `false`;
+  if (type === 'array' || type.endsWith('[]')) return `[{ title: 'Ejemplo' }]`;
+  if (type === 'object') return `{ title: 'Ejemplo' }`;
+  return `{ title: 'Ejemplo' }`;
+}
+
+function slotBlockVariant(type: string): 'array' | 'scalar' | 'block' {
+  if (type.includes('[]') || type === 'array') return 'array';
+  if (
+    type === 'string' ||
+    type === 'string[]' ||
+    type === 'number' ||
+    type === 'boolean' ||
+    type === 'object' ||
+    type === 'code'
+  )
+    return 'scalar';
+  return 'block';
+}
+
 function LayoutSchematic({ def }: { def: LayoutDefinition }) {
   const slots = def.slots.slice(0, 6);
   const overflow = def.slots.length - slots.length;
@@ -217,7 +241,7 @@ function LayoutSchematic({ def }: { def: LayoutDefinition }) {
       {/* Bloques por slot */}
       <div className="grid grid-cols-2 gap-1.5 flex-1 min-h-0">
         {slots.map((slot, i) =>
-          slot.type.includes('[]') ? (
+          slotBlockVariant(slot.type) === 'array' ? (
             <div
               key={slot.name}
               className={`rounded-none p-1.5 space-y-1 border ${i === 0 ? 'bg-[#1351AA]/10 border-[#1351AA]' : 'bg-transparent border-[#C7C7C7]'}`}
@@ -226,13 +250,20 @@ function LayoutSchematic({ def }: { def: LayoutDefinition }) {
               <div className="h-1 w-1/2 rounded-none bg-[#C7C7C7]" />
               <div className="h-1 w-3/5 rounded-none bg-[#C7C7C7]" />
             </div>
-          ) : (
+          ) : slotBlockVariant(slot.type) === 'scalar' ? (
             <div
               key={slot.name}
               className={`rounded-none p-1.5 flex flex-col gap-1 border ${i === 0 ? 'bg-[#1351AA]/10 border-[#1351AA]' : 'bg-transparent border-[#C7C7C7]'}`}
             >
               <div className="h-1 w-1/2 rounded-none bg-[#C7C7C7]" />
               <div className="h-1 w-3/4 rounded-none bg-[#C7C7C7]" />
+            </div>
+          ) : (
+            <div
+              key={slot.name}
+              className={`rounded-none p-1.5 flex items-center justify-center border border-dashed ${i === 0 ? 'bg-[#1351AA]/10 border-[#1351AA]' : 'bg-transparent border-[#C7C7C7]'}`}
+            >
+              <div className="h-4 w-4 rounded-none border border-[#C7C7C7]" />
             </div>
           ),
         )}
@@ -313,7 +344,7 @@ function LayoutInspectorModal({
 ${def.slots
   .map(
     (s: LayoutDefinition['slots'][number]) =>
-      `  ${s.name}: ${s.type === 'string' ? `'Texto de ejemplo'` : s.type === 'string[]' ? `['Item 1', 'Item 2']` : `{ /* ... */ }`}, // ${s.description}`,
+      `  ${s.name}: ${slotSampleValue(s.type)}, // ${s.description}`,
   )
   .join('\n')}
 }`;
