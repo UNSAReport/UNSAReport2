@@ -105,32 +105,16 @@ También puedes iniciar servicios de manera aislada según tu tarea actual:
 - Entrada principal del Gateway (Traefik): `http://localhost:9876` (rutas `/api/auth` → `:3000`, `/api/registry` → `:3001`, `/api/slides` → `:3002`, `/` → web `:3100`)
 - Aplicación Web: `http://localhost:3100` (o enrutada mediante Traefik)
 
-#### 4. Firewall en Linux y enrutamiento del bridge de Docker 
-Traefik opera en modo red bridge de Docker y reenvía tráfico a los servicios locales mediante `host.docker.internal`. En distribuciones Linux con firewalls estrictos (UFW o Firewalld), permite la comunicación desde la subred del contenedor hacia los puertos del host:
+#### 4. Gateway Traefik y red en desarrollo
 
-| Puerto Host | Servicio | Acceso |
-|-------------|----------|--------|
-| `3000` | IdP de Autenticación (`auth/`, público vía `/api/auth`) | Permitir TCP desde subred bridge de Docker |
-| `3001` | Registro de Paquetes (`registry/`, público vía `/api/registry`) | Permitir TCP desde subred bridge de Docker |
-| `3002` | Servicio de Diapositivas (`slides/`, público vía `/api/slides`) | Permitir TCP desde subred bridge de Docker |
-| `3100` | Aplicación Web (`web/app`, público vía `/` del gateway) | Permitir TCP desde subred bridge de Docker |
+Traefik opera en `network_mode: host` en `compose.dev.yml`, por lo que se enlaza directamente a la interfaz del host en el puerto `:9876` y reenvía el tráfico a los servicios locales a través de `127.0.0.1`:
 
-Obtén la subred de la red Docker y configura las reglas del firewall:
-
-```bash
-# Consultar subred del bridge de Docker
-SUBNET=$(docker network inspect unsareport-dev --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
-
-# En UFW:
-sudo ufw allow from "$SUBNET" to any port 3000,3001,3002,3100 proto tcp
-
-# En Firewalld:
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3000 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3001 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3002 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3100 protocol=tcp accept"
-sudo firewall-cmd --reload
-```
+| Puerto Host | Servicio | Enrutamiento en Gateway |
+|-------------|----------|-------------------------|
+| `3000` | IdP de Autenticación (`auth/`) | `http://localhost:9876/api/auth` |
+| `3001` | Registro de Paquetes (`registry/`) | `http://localhost:9876/api/registry` |
+| `3002` | Servicio de Diapositivas (`slides/`) | `http://localhost:9876/api/slides` |
+| `3100` | Aplicación Web (`web/app`) | `http://localhost:9876/` |
 
 #### 5. Desarrollo del módulo de diapositivas (Slides)
 
