@@ -179,23 +179,8 @@ El monorepo utiliza un sistema determinista de resolución de variables en casca
 ### Error: `docker network create unsareport-dev` o puertos ocupados
 - Si los puertos `5432` (PostgreSQL), `8333`/`8888` (SeaweedFS) o `9876` (Traefik) están en conflicto con otros servicios locales, detén los contenedores existentes o personaliza los mapeos en `compose.dev.yml`.
 
-### Firewall en Linux (UFW / Firewalld) bloqueando Traefik
-Traefik en contenedor Docker se comunica con los microservicios host a través de `host.docker.internal`. En distribuciones con firewall activo, permite el tráfico desde la subred bridge de Docker hacia los puertos de servicio (el gateway público es `:9876` con rutas `/api/auth`, `/api/registry`, `/api/slides` y `/` → web):
-
-```bash
-# Obtener subred de unsareport-dev:
-SUBNET=$(docker network inspect unsareport-dev --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')
-
-# En UFW (servicios host detrás del gateway):
-sudo ufw allow from "$SUBNET" to any port 3000,3001,3002,3100 proto tcp
-
-# En Firewalld:
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3000 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3001 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3002 protocol=tcp accept"
-sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=$SUBNET port port=3100 protocol=tcp accept"
-sudo firewall-cmd --reload
-```
+### Gateway Traefik y comunicación local
+Traefik opera en `network_mode: host` en `compose.dev.yml`, por lo que se enlaza directamente al puerto `:9876` y reenvía tráfico a los servicios locales a través de `127.0.0.1` (rutas `/api/auth` → `:3000`, `/api/registry` → `:3001`, `/api/slides` → `:3002` y `/` → web `:3100`). Al operar en la interfaz de loopback del host, no requiere configuración de reglas de firewall para subredes bridge de Docker.
 
 ### Biome o TypeScript reportan errores en archivos nuevos
 - Recuerda que en archivos TypeScript de la web y librerías compartidas están prohibidas las importaciones relativas (`../` o `./`). Usa siempre alias absolutos (`@/...`).

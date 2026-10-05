@@ -8,11 +8,7 @@ services:
   traefik:
     image: traefik:v3.3
     container_name: unsareport-traefik
-    networks: [unsareport-dev]
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    ports:
-      - "9876:9876"
+    network_mode: host
     command:
       - --providers.file.filename=/etc/traefik/dynamic.yml
       - --providers.file.watch=true
