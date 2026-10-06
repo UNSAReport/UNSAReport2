@@ -89,19 +89,19 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
       expect(categories).toContain(LayoutCategory.CLOSING);
     });
 
-    it('registra los 110 layouts oficiales distribuidos en las 9 familias', () => {
+    it('registra los 120 layouts oficiales distribuidos en las 9 familias', () => {
       const layouts = listLayouts();
-      expect(layouts.length).toBe(110);
+      expect(layouts.length).toBe(120);
 
-      expect(listLayouts({ category: LayoutCategory.HERO }).length).toBe(10);
-      expect(listLayouts({ category: LayoutCategory.SPLIT }).length).toBe(15);
+      expect(listLayouts({ category: LayoutCategory.HERO }).length).toBe(12);
+      expect(listLayouts({ category: LayoutCategory.SPLIT }).length).toBe(16);
       expect(listLayouts({ category: LayoutCategory.BENTO }).length).toBe(20);
-      expect(listLayouts({ category: LayoutCategory.STATS }).length).toBe(15);
-      expect(listLayouts({ category: LayoutCategory.PROCESS }).length).toBe(15);
+      expect(listLayouts({ category: LayoutCategory.STATS }).length).toBe(16);
+      expect(listLayouts({ category: LayoutCategory.PROCESS }).length).toBe(16);
       expect(listLayouts({ category: LayoutCategory.CODE }).length).toBe(10);
-      expect(listLayouts({ category: LayoutCategory.LIST }).length).toBe(10);
-      expect(listLayouts({ category: LayoutCategory.QUOTE }).length).toBe(8);
-      expect(listLayouts({ category: LayoutCategory.CLOSING }).length).toBe(7);
+      expect(listLayouts({ category: LayoutCategory.LIST }).length).toBe(13);
+      expect(listLayouts({ category: LayoutCategory.QUOTE }).length).toBe(9);
+      expect(listLayouts({ category: LayoutCategory.CLOSING }).length).toBe(8);
 
       const hero = getLayout('hero-centered-bold');
       expect(hero).toBeDefined();

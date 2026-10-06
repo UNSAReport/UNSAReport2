@@ -11,8 +11,9 @@ export interface Split5050TextProps {
   leftContent?: string | ReactNode;
   rightTitle?: string;
   rightContent?: string | ReactNode;
+  /** Lavado claro/oscuro (cloudlet: secciones dark #424242 con texto blanco) */
+  tone?: 'light' | 'dark';
 }
-
 /**
  * Layout de dos columnas 50/50 balanceadas para comparaciones estructurales de conceptos.
  */
@@ -24,9 +25,10 @@ export function Split5050Text({
   leftContent,
   rightTitle = 'Enfoque B',
   rightContent,
+  tone = 'light',
 }: Split5050TextProps) {
   return (
-    <SlideSection tag={tag} title={title} subtitle={subtitle}>
+    <SlideSection tag={tag} title={title} subtitle={subtitle} tone={tone}>
       <SlideSplit
         ratio="50-50"
         gap="1.5rem"

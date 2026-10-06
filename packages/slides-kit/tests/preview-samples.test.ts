@@ -36,7 +36,7 @@ function walkStrings(
 const URL_LIKE_KEY = /(url|src|image|img|thumb|logo|background|href)$/i;
 
 describe('preview-samples: contrato con el catálogo del kit', () => {
-  it('cubre los 110 layouts del catálogo, sin muestras huérfanas', () => {
+  it('cubre los 120 layouts del catálogo, sin muestras huérfanas', () => {
     const layoutById: Record<string, true> = {};
     for (const def of defaultLayouts) layoutById[def.id] = true;
     const sampleById: Record<string, true> = {};
@@ -50,7 +50,7 @@ describe('preview-samples: contrato con el catálogo del kit', () => {
     const orphan = Object.keys(previewSamples).filter((id) => !layoutById[id]);
     expect(orphan).toEqual([]);
 
-    expect(defaultLayouts.length).toBe(110);
+    expect(defaultLayouts.length).toBe(120);
   });
 
   it('ninguna muestra de imagen usa rutas locales (DT-3 /img.png 404)', () => {

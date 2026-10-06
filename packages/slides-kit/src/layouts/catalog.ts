@@ -19,6 +19,7 @@ import { BentoPyramid } from '@/layouts/bento/bento-pyramid';
 import { BentoSidebarMain } from '@/layouts/bento/bento-sidebar-main';
 import { BentoTShape } from '@/layouts/bento/bento-t-shape';
 import { ClosingContactCard } from '@/layouts/closing/closing-contact-card';
+import { ClosingCoverMirror } from '@/layouts/closing/closing-cover-mirror';
 import { ClosingCreditsScroll } from '@/layouts/closing/closing-credits-scroll';
 import { ClosingCTACentered } from '@/layouts/closing/closing-cta-centered';
 import { ClosingNextSteps } from '@/layouts/closing/closing-next-steps';
@@ -37,6 +38,7 @@ import { CodeTabs } from '@/layouts/code/code-tabs';
 import { CodeWithOutput } from '@/layouts/code/code-with-output';
 import { HeroCenteredBold } from '@/layouts/hero/hero-centered-bold';
 import { HeroCenteredSubtitle } from '@/layouts/hero/hero-centered-subtitle';
+import { HeroCoverPhotoBlob } from '@/layouts/hero/hero-cover-photo-blob';
 import { HeroEventCard } from '@/layouts/hero/hero-event-card';
 import { HeroFullImage } from '@/layouts/hero/hero-full-image';
 import { HeroGradientAccent } from '@/layouts/hero/hero-gradient-accent';
@@ -44,6 +46,7 @@ import { HeroInstitutional } from '@/layouts/hero/hero-institutional';
 import { HeroKPIBanner } from '@/layouts/hero/hero-kpi-banner';
 import { HeroMinimal } from '@/layouts/hero/hero-minimal';
 import { HeroSplitImage } from '@/layouts/hero/hero-split-image';
+import { HeroStackedDuoFooter } from '@/layouts/hero/hero-stacked-duo-footer';
 import { HeroTwoLine } from '@/layouts/hero/hero-two-line';
 import { ListAgendaBadges } from '@/layouts/list/list-agenda-badges';
 import { ListBulletCards } from '@/layouts/list/list-bullet-cards';
@@ -51,10 +54,13 @@ import { ListChecklist } from '@/layouts/list/list-checklist';
 import { ListDefinitionTerms } from '@/layouts/list/list-definition-terms';
 import { ListHierarchyTree } from '@/layouts/list/list-hierarchy-tree';
 import { ListIconItems } from '@/layouts/list/list-icon-items';
+import { ListNumberedGrid4 } from '@/layouts/list/list-numbered-grid-4';
 import { ListNumberedVertical } from '@/layouts/list/list-numbered-vertical';
+import { ListPillStack } from '@/layouts/list/list-pill-stack';
 import { ListProsConsColumns } from '@/layouts/list/list-pros-cons-columns';
 import { ListPyramid } from '@/layouts/list/list-pyramid';
 import { ListTimelineVertical } from '@/layouts/list/list-timeline-vertical';
+import { ListTocNumbered } from '@/layouts/list/list-toc-numbered';
 import { ProcessAccordion } from '@/layouts/process/process-accordion';
 import { ProcessBranching } from '@/layouts/process/process-branching';
 import { ProcessConvergent } from '@/layouts/process/process-convergent';
@@ -67,6 +73,7 @@ import { ProcessHorizontal5 } from '@/layouts/process/process-horizontal-5';
 import { ProcessMilestoneBar } from '@/layouts/process/process-milestone-bar';
 import { ProcessNumberedCards } from '@/layouts/process/process-numbered-cards';
 import { ProcessPipeline } from '@/layouts/process/process-pipeline';
+import { ProcessQuarterRoadmap } from '@/layouts/process/process-quarter-roadmap';
 import { ProcessSwimlane } from '@/layouts/process/process-swimlane';
 import { ProcessVerticalSteps } from '@/layouts/process/process-vertical-steps';
 import { ProcessZigzag } from '@/layouts/process/process-zigzag';
@@ -74,6 +81,7 @@ import { QuoteBackgroundImage } from '@/layouts/quote/quote-background-image';
 import { QuoteCallout } from '@/layouts/quote/quote-callout';
 import { QuoteCenteredLarge } from '@/layouts/quote/quote-centered-large';
 import { QuoteDialogue } from '@/layouts/quote/quote-dialogue';
+import { QuoteGhostNumeral } from '@/layouts/quote/quote-ghost-numeral';
 import { QuoteMultiSource } from '@/layouts/quote/quote-multi-source';
 import { QuoteSidebarHighlight } from '@/layouts/quote/quote-sidebar-highlight';
 import { QuoteSplitAuthor } from '@/layouts/quote/quote-split-author';
@@ -88,6 +96,7 @@ import { SplitComparisonCards } from '@/layouts/split/split-comparison-cards';
 import { SplitDefinitionExample } from '@/layouts/split/split-definition-example';
 import { SplitDiagramText } from '@/layouts/split/split-diagram-text';
 import { SplitImageText } from '@/layouts/split/split-image-text';
+import { SplitLeadPlusSteps } from '@/layouts/split/split-lead-plus-steps';
 import { SplitNumberedSteps } from '@/layouts/split/split-numbered-steps';
 import { SplitProsCons } from '@/layouts/split/split-pros-cons';
 import { SplitQuoteContext } from '@/layouts/split/split-quote-context';
@@ -106,6 +115,7 @@ import { StatsRankedList } from '@/layouts/stats/stats-ranked-list';
 import { StatsSingleHero } from '@/layouts/stats/stats-single-hero';
 import { StatsSparklineCards } from '@/layouts/stats/stats-sparkline-cards';
 import { StatsSummaryFooter } from '@/layouts/stats/stats-summary-footer';
+import { StatsTeamGrid } from '@/layouts/stats/stats-team-grid';
 import { StatsTimelineMetric } from '@/layouts/stats/stats-timeline-metric';
 import { StatsWithChange } from '@/layouts/stats/stats-with-change';
 import { LayoutCategory, type LayoutDefinition } from '@/layouts/types';
@@ -3300,5 +3310,334 @@ export const defaultLayouts: LayoutDefinition[] = [
       },
     ],
     component: ClosingThankYou,
+  },
+  {
+    id: 'hero-stacked-duo-footer',
+    name: 'Hero Stacked Duo Footer',
+    category: LayoutCategory.HERO,
+    description:
+      'Portada de propuesta con dos líneas apiladas en mayúsculas y barra de pie dual.',
+    tags: ['hero', 'cover', 'stacked', 'footer'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'line1',
+        type: 'string',
+        required: true,
+        description: 'Primera línea del título apilado',
+      },
+      {
+        name: 'line2',
+        type: 'string',
+        required: false,
+        description: 'Segunda línea del título apilado',
+      },
+      {
+        name: 'footerLeft',
+        type: 'string',
+        required: false,
+        description: 'Texto inferior izquierdo del pie',
+      },
+      {
+        name: 'footerRight',
+        type: 'string',
+        required: false,
+        description: 'Texto inferior derecho del pie',
+      },
+      {
+        name: 'badgeUrl',
+        type: 'string',
+        required: false,
+        description: 'Legado: URL del sello (sin uso, insignia SVG integrada)',
+      },
+      {
+        name: 'wash',
+        type: 'string',
+        required: false,
+        description: 'Variante del fondo: cover o corner',
+      },
+    ],
+    component: HeroStackedDuoFooter,
+  },
+  {
+    id: 'split-lead-plus-steps',
+    name: 'Split Lead Plus Steps',
+    category: LayoutCategory.SPLIT,
+    description:
+      'Bloque introductorio superior con fila de pasos numerados debajo.',
+    tags: ['split', 'lead', 'steps', 'numbered'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'lead',
+        type: 'array',
+        required: false,
+        description: 'Párrafos introductorios',
+      },
+      {
+        name: 'steps',
+        type: 'array',
+        required: true,
+        description: 'Pasos numerados (máximo 4)',
+      },
+    ],
+    component: SplitLeadPlusSteps,
+  },
+  {
+    id: 'list-numbered-grid-4',
+    name: 'List Numbered Grid 4',
+    category: LayoutCategory.LIST,
+    description:
+      'Cuadrícula 2x2 de cuatro elementos con numerales grandes como ancla visual.',
+    tags: ['list', 'numbered', 'grid'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'items',
+        type: 'array',
+        required: true,
+        description: 'Cuatro elementos numerados',
+      },
+    ],
+    component: ListNumberedGrid4,
+  },
+  {
+    id: 'quote-ghost-numeral',
+    name: 'Quote Ghost Numeral',
+    category: LayoutCategory.QUOTE,
+    description:
+      'Cita con numeral fantasma oversized de fondo y barra de acento.',
+    tags: ['quote', 'ghost', 'numeral', 'kicker'],
+    slots: [
+      {
+        name: 'numeral',
+        type: 'string',
+        required: true,
+        description: 'Numeral gigante de fondo',
+      },
+      {
+        name: 'kicker',
+        type: 'string',
+        required: false,
+        description: 'Kicker superior con letterspacing',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o cita principal',
+      },
+      {
+        name: 'body',
+        type: 'string',
+        required: false,
+        description: 'Cuerpo secundario o atribución',
+      },
+    ],
+    component: QuoteGhostNumeral,
+  },
+  {
+    id: 'list-pill-stack',
+    name: 'List Pill Stack',
+    category: LayoutCategory.LIST,
+    description: 'Pila vertical de píldoras uppercase de ancho completo.',
+    tags: ['list', 'pill', 'stack', 'pills'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'items',
+        type: 'array',
+        required: true,
+        description: 'Píldoras de texto (máximo 5)',
+      },
+    ],
+    component: ListPillStack,
+  },
+  {
+    id: 'process-quarter-roadmap',
+    name: 'Process Quarter Roadmap',
+    category: LayoutCategory.PROCESS,
+    description: 'Roadmap trimestral con chips Q sobre 4 tarjetas de hitos.',
+    tags: ['process', 'roadmap', 'quarter', 'quarters'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'quarters',
+        type: 'array',
+        required: true,
+        description: 'Trimestres del roadmap (máximo 4)',
+      },
+    ],
+    component: ProcessQuarterRoadmap,
+  },
+  {
+    id: 'stats-team-grid',
+    name: 'Stats Team Grid',
+    category: LayoutCategory.STATS,
+    description:
+      'Grilla de equipo 4-up con marco de foto y nombre en mayúsculas.',
+    tags: ['stats', 'team', 'grid', 'members'],
+    slots: [
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'members',
+        type: 'array',
+        required: true,
+        description: 'Miembros del equipo (máximo 4)',
+      },
+    ],
+    component: StatsTeamGrid,
+  },
+  {
+    id: 'hero-cover-photo-blob',
+    name: 'Hero Cover Photo Blob',
+    category: LayoutCategory.HERO,
+    description:
+      'Portada estilo pitch con gran título, metadatos y panel decorativo rotado.',
+    tags: ['hero', 'cover', 'pitch', 'panel'],
+    slots: [
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'subtitle',
+        type: 'string',
+        required: false,
+        description: 'Subtítulo descriptivo',
+      },
+    ],
+    component: HeroCoverPhotoBlob,
+  },
+  {
+    id: 'list-toc-numbered',
+    name: 'List TOC Numbered',
+    category: LayoutCategory.LIST,
+    description: 'Índice numerado con líderes punteados y números de página.',
+    tags: ['list', 'toc', 'numbered', 'agenda'],
+    slots: [
+      {
+        name: 'title',
+        type: 'string',
+        required: true,
+        description: 'Título o identificador principal',
+      },
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'items',
+        type: 'array',
+        required: true,
+        description: 'Entradas del índice con número, título y página',
+      },
+    ],
+    component: ListTocNumbered,
+  },
+  {
+    id: 'closing-cover-mirror',
+    name: 'Closing Cover Mirror',
+    category: LayoutCategory.CLOSING,
+    description:
+      'Cierre que refleja la portada con doble línea gigante y pie dual.',
+    tags: ['closing', 'cover', 'mirror', 'thanks'],
+    slots: [
+      {
+        name: 'line1',
+        type: 'string',
+        required: true,
+        description: 'Primera línea gigante del agradecimiento',
+      },
+      {
+        name: 'line2',
+        type: 'string',
+        required: false,
+        description: 'Segunda línea del agradecimiento',
+      },
+      {
+        name: 'tag',
+        type: 'string',
+        required: false,
+        description: 'Insignia o etiqueta superior',
+      },
+      {
+        name: 'badgeUrl',
+        type: 'string',
+        required: false,
+        description: 'Legado: URL del sello (sin uso, insignia SVG integrada)',
+      },
+    ],
+    component: ClosingCoverMirror,
   },
 ];

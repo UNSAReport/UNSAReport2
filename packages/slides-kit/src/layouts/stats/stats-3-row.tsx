@@ -16,6 +16,8 @@ export interface Stats3RowProps {
   title: string;
   subtitle?: string;
   stats: StatItem[];
+  /** Lavado claro/oscuro */
+  tone?: 'light' | 'dark';
 }
 
 /**
@@ -26,9 +28,10 @@ export function Stats3Row({
   title,
   subtitle,
   stats = [],
+  tone = 'light',
 }: Stats3RowProps) {
   return (
-    <SlideSection tag={tag} title={title} subtitle={subtitle}>
+    <SlideSection tag={tag} title={title} subtitle={subtitle} tone={tone}>
       <SlideGrid columns={3} gap="1.5rem" className="flex-1 min-h-0">
         {stats.slice(0, 3).map((item, index) => (
           <SlideCard

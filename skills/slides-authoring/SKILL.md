@@ -29,7 +29,7 @@ Related ecosystem skills (reference by name; install on demand, never vendored):
 
 - Layout picking: every layout declares `slots: SlotSchema[]`
   (`name`, `type`, `required`, `description`). Fill required slots first;
-  see `references/layouts.md` for the family map (110 layouts, 9 families).
+  see `references/layouts.md` for the family map (120 layouts, 9 families).
 - Chroma-neutrality: layouts are structural only. Colors ONLY via
   `var(--slide-*)` theme tokens — never hardcode palettes in slide components.
 - 1280×720 QA bounds: slides must survive a 1280×720 viewport without

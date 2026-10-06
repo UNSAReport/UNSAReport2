@@ -145,6 +145,9 @@ export function DeckRenderer({
             hash,
             // UNSA viewer owns all chrome (custom footer/Header controls).
             // Reveal chrome disabled so only one control set ever renders.
+            // NOTE: touch/keyboard stay ON — the web viewer drives navigation
+            // itself (see $slug.tsx onKeyDown) and ignores Reveal key events
+            // inside the sandboxed iframe; local `slides dev` needs them.
             controls: false,
             controlsTutorial: false,
             progress: false,
@@ -154,9 +157,9 @@ export function DeckRenderer({
             overview: false,
             help: false,
             pause: false,
-            touch: false,
+            touch: true,
             jumpToSlide: false,
-            keyboard: false,
+            keyboard: true,
             embedded: true,
           }}
         >
@@ -210,6 +213,9 @@ export function DeckRenderer({
           hash,
           // UNSA viewer owns all chrome (custom footer/Header controls).
           // Reveal chrome disabled so only one control set ever renders.
+          // NOTE: touch/keyboard stay ON — the web viewer drives navigation
+          // itself (see $slug.tsx onKeyDown) and ignores Reveal key events
+          // inside the sandboxed iframe; local `slides dev` needs them.
           controls: false,
           controlsTutorial: false,
           progress: false,
@@ -219,9 +225,9 @@ export function DeckRenderer({
           overview: false,
           help: false,
           pause: false,
-          touch: false,
+          touch: true,
           jumpToSlide: false,
-          keyboard: false,
+          keyboard: true,
           embedded: true,
         }}
       >

@@ -666,4 +666,81 @@ export const previewSamples: Record<string, Record<string, unknown>> = {
       { metric: 'Latencia', label: 'p95', change: '-12%', isPositive: true },
     ],
   },
+  'hero-cover-photo-blob': {
+    title: 'Informe de avance del proyecto',
+    subtitle: 'Resultados del segundo trimestre del estudio.',
+  },
+  'hero-stacked-duo-footer': {
+    line1: 'Avance del',
+    line2: 'proyecto 2026',
+    footerLeft: 'UNSA · EPIS',
+    footerRight: 'Octubre 2026',
+  },
+  'split-lead-plus-steps': {
+    lead: [
+      'Contexto del análisis realizado en el trimestre.',
+      'Evidencia recolectada en producción.',
+    ],
+    steps: [
+      { title: 'Recolectar', text: 'Reunir datos de las fuentes.' },
+      { title: 'Analizar', text: 'Identificar patrones clave.' },
+      { title: 'Presentar', text: 'Comunicar los hallazgos.' },
+    ],
+  },
+  'list-toc-numbered': {
+    items: [
+      { n: 1, title: 'Introducción', page: 3 },
+      { n: 2, title: 'Metodología', page: 7 },
+      { n: 3, title: 'Resultados', page: 12 },
+    ],
+  },
+  'list-numbered-grid-4': {
+    items: [
+      { n: 1, text: 'Planificar el alcance del estudio.' },
+      { n: 2, text: 'Recolectar evidencia en campo.' },
+      { n: 3, text: 'Analizar los datos obtenidos.' },
+      { n: 4, text: 'Presentar conclusiones.' },
+    ],
+  },
+  'list-pill-stack': {
+    items: ['Escalable', 'Mantenible', 'Observable'],
+  },
+  'quote-ghost-numeral': {
+    numeral: '5',
+    kicker: 'Lección clave',
+    title: 'La simplicidad sostiene la fiabilidad.',
+    body: 'Evidencia del estudio de campo, 2026.',
+  },
+  'process-quarter-roadmap': {
+    quarters: [
+      { label: 'Q1', title: 'Planificación', text: 'Definir alcance y metas.' },
+      { label: 'Q2', title: 'Ejecución', text: 'Implementar los módulos.' },
+      { label: 'Q3', title: 'Cierre', text: 'Validar y publicar resultados.' },
+    ],
+  },
+  'stats-team-grid': {
+    members: [
+      {
+        name: 'Ana Torres',
+        role: 'Líder técnica',
+        imageUrl: 'https://picsum.photos/seed/team-ana/400/300',
+      },
+      {
+        name: 'Bruno Díaz',
+        role: 'Analista de datos',
+        imageUrl: 'https://picsum.photos/seed/team-bruno/400/300',
+      },
+      {
+        name: 'Carla Ruiz',
+        role: 'Diseñadora UX',
+        imageUrl: 'https://picsum.photos/seed/team-carla/400/300',
+      },
+    ],
+  },
+  'closing-cover-mirror': {
+    line1: 'Gracias por',
+    line2: 'su atención',
+    footerLeft: 'UNSA · EPIS',
+    footerRight: 'Octubre 2026',
+  },
 };

@@ -51,6 +51,24 @@ var officialThemes = []ThemeInfo{
 		Description: "Tema nocturno azul profundo de EPIS con acentos cian y violeta. Ideal para demos en vivo, live coding y charlas técnicas nocturnas.",
 		Default:     false,
 	},
+	{
+		ID:          "cloudlet-pitch",
+		Name:        "Cloudlet Pitch",
+		Description: "Pitch claro de startup Cloudlet Tech con lavados grises y oscuros alternados y paneles degradados celestes. Ideal para presentaciones de emprendimiento, rondas de inversión y demos de producto.",
+		Default:     false,
+	},
+	{
+		ID:          "azul-proposal",
+		Name:        "Azul Proposal",
+		Description: "Propuesta de negocio sobre azul corporativo profundo con títulos apilados en dos líneas y doble franja de pie. Ideal para propuestas comerciales y presentaciones corporativas.",
+		Default:     false,
+	},
+	{
+		ID:          "harper-minimal",
+		Name:        "Harper Minimal",
+		Description: "Pitch minimalista en negro y rojo coral con numerales fantasma y reglas finas. Ideal para presentaciones de empresa y portfolios sobrios.",
+		Default:     false,
+	},
 }
 
 var officialCategories = []string{
@@ -66,7 +84,7 @@ var officialCategories = []string{
 }
 
 var officialLayouts = []LayoutInfo{
-	// Hero (10)
+	// Hero (12)
 	{"hero-centered-bold", "hero", "Hero Centered Bold", "Título central de alto impacto con subtítulo y autor"},
 	{"hero-split-image", "hero", "Hero Split Image", "Título y contexto a la izquierda, imagen/gráfico destacado a la derecha"},
 	{"hero-minimal", "hero", "Hero Minimal", "Tipografía limpia y minimalista para aperturas sobrias"},
@@ -77,8 +95,10 @@ var officialLayouts = []LayoutInfo{
 	{"hero-gradient-accent", "hero", "Hero Gradient Accent", "Título con gradiente y acento cromático dinámico según tema"},
 	{"hero-two-line", "hero", "Hero Two Line", "Título en dos líneas contrastadas para tesis y proyectos de grado"},
 	{"hero-event-card", "hero", "Hero Event Card", "Portada tipo tarjeta de evento académico, simposio o conferencia"},
+	{"hero-cover-photo-blob", "hero", "Hero Cover Photo Blob", "Portada estilo pitch con gran título, metadatos y panel decorativo rotado"},
+	{"hero-stacked-duo-footer", "hero", "Hero Stacked Duo Footer", "Portada de propuesta con dos líneas apiladas en mayúsculas y barra de pie dual"},
 
-	// Split (15)
+	// Split (16)
 	{"split-50-50-text", "split", "Split 50/50 Text", "Dos columnas equilibradas para contrastar ideas o conceptos"},
 	{"split-comparison-cards", "split", "Split Comparison Cards", "Dos tarjetas comparativas para pros/contras o tecnologías"},
 	{"split-code-preview", "split", "Split Code Preview", "Código fuente a la izquierda y resultado/explicación a la derecha"},
@@ -94,6 +114,7 @@ var officialLayouts = []LayoutInfo{
 	{"split-definition-example", "split", "Split Definition Example", "Definición formal a la izquierda y ejemplo práctico a la derecha"},
 	{"split-stacked-left", "split", "Split Stacked Left", "Dos tarjetas apiladas a la izquierda y bloque principal a la derecha"},
 	{"split-asymmetric-cards", "split", "Split Asymmetric Cards", "Dos tarjetas con proporciones asimétricas para destacar prioridad"},
+	{"split-lead-plus-steps", "split", "Split Lead Plus Steps", "Bloque introductorio superior con fila de pasos numerados debajo"},
 
 	// Bento (20)
 	{"bento-2x2-equal", "bento", "Bento 2x2 Equal", "Cuatro tarjetas iguales en matriz 2x2"},
@@ -117,7 +138,7 @@ var officialLayouts = []LayoutInfo{
 	{"bento-footer-grid", "bento", "Bento Footer Grid", "Cuadrícula de 4 elementos con pie de resumen o conclusión"},
 	{"bento-magazine", "bento", "Bento Magazine", "Composición tipo revista para presentaciones editoriales y de divulgación"},
 
-	// Stats (15)
+	// Stats (16)
 	{"stats-single-hero", "stats", "Stats Single Hero", "Un número gigante para métrica reina"},
 	{"stats-3-row", "stats", "Stats 3 Row", "Tres KPIs clave horizontales con etiquetas y contexto"},
 	{"stats-4-grid", "stats", "Stats 4 Grid", "Matriz 2x2 de métricas con indicadores de tendencia"},
@@ -133,8 +154,9 @@ var officialLayouts = []LayoutInfo{
 	{"stats-before-after-metric", "stats", "Stats Before/After Metric", "Comparación de métricas antes y después de una intervención"},
 	{"stats-sparkline-cards", "stats", "Stats Sparkline Cards", "Tarjetas de KPIs con visualización de tendencia histórica"},
 	{"stats-summary-footer", "stats", "Stats Summary Footer", "Tres estadísticas compactas con pie de página analítico"},
+	{"stats-team-grid", "stats", "Stats Team Grid", "Grilla de equipo 4-up con marco de foto y nombre en mayúsculas"},
 
-	// Process (15)
+	// Process (16)
 	{"process-horizontal-3", "process", "Process Horizontal 3", "Flujo secuencial de 3 fases con conectores"},
 	{"process-horizontal-4", "process", "Process Horizontal 4", "Flujo secuencial de 4 fases con conectores"},
 	{"process-horizontal-5", "process", "Process Horizontal 5", "Flujo secuencial de 5 fases para metodologías completas"},
@@ -150,6 +172,7 @@ var officialLayouts = []LayoutInfo{
 	{"process-convergent", "process", "Process Convergent", "Múltiples fuentes convergiendo en un resultado final"},
 	{"process-swimlane", "process", "Process Swimlane", "Carriles de responsabilidades para flujos multi-rol"},
 	{"process-decision-tree", "process", "Process Decision Tree", "Árbol de decisiones binarias paso a paso"},
+	{"process-quarter-roadmap", "process", "Process Quarter Roadmap", "Roadmap trimestral con chips Q sobre 4 tarjetas de hitos"},
 
 	// Code (10)
 	{"code-fullscreen", "code", "Code Fullscreen", "Bloque de código a pantalla completa con sintaxis resaltada"},
@@ -162,8 +185,8 @@ var officialLayouts = []LayoutInfo{
 	{"code-snippet-gallery", "code", "Code Snippet Gallery", "Galería de fragmentos cortos de código en cuadrícula"},
 	{"code-step-by-step", "code", "Code Step By Step", "Explicación incremental de una función o bloque de código"},
 	{"code-api-endpoint", "code", "Code API Endpoint", "Definición de endpoint REST/GraphQL con request y response"},
+	// List (13)
 
-	// List (10)
 	{"list-bullet-cards", "list", "List Bullet Cards", "Tarjetas individuales con viñetas estilizadas"},
 	{"list-icon-items", "list", "List Icon Items", "Lista vertical con iconos semánticos en cada elemento"},
 	{"list-numbered-vertical", "list", "List Numbered Vertical", "Lista numerada grande con títulos y descripciones"},
@@ -174,8 +197,11 @@ var officialLayouts = []LayoutInfo{
 	{"list-definition-terms", "list", "List Definition Terms", "Glosario de términos técnicos con definiciones claras"},
 	{"list-pros-cons-columns", "list", "List Pros & Cons Columns", "Columnas de ventajas y consideraciones clave"},
 	{"list-timeline-vertical", "list", "List Timeline Vertical", "Línea de tiempo vertical con eventos y fechas"},
+	{"list-toc-numbered", "list", "List TOC Numbered", "Índice numerado con líderes punteados y números de página"},
+	{"list-numbered-grid-4", "list", "List Numbered Grid 4", "Cuadrícula 2x2 de cuatro elementos con numerales grandes como ancla visual"},
+	{"list-pill-stack", "list", "List Pill Stack", "Pila vertical de píldoras uppercase de ancho completo"},
 
-	// Quote (8)
+	// Quote (9)
 	{"quote-centered-large", "quote", "Quote Centered Large", "Cita monumental centrada para frases inspiradoras"},
 	{"quote-split-author", "quote", "Quote Split Author", "Cita a la izquierda y foto/biografía del autor a la derecha"},
 	{"quote-callout", "quote", "Quote Callout", "Cuadro destacado de advertencia, nota o regla fundamental"},
@@ -184,8 +210,9 @@ var officialLayouts = []LayoutInfo{
 	{"quote-multi-source", "quote", "Quote Multi Source", "Comparación de dos o tres citas sobre el mismo tema"},
 	{"quote-sidebar-highlight", "quote", "Quote Sidebar Highlight", "Cita condensada en barra lateral junto al texto principal"},
 	{"quote-dialogue", "quote", "Quote Dialogue", "Conversación o debate entre dos autores o perspectivas"},
+	{"quote-ghost-numeral", "quote", "Quote Ghost Numeral", "Cita con numeral fantasma oversized de fondo y barra de acento"},
 
-	// Closing (7)
+	// Closing (8)
 	{"closing-qa-centered", "closing", "Closing Q&A Centered", "Diapositiva de preguntas y respuestas con tipografía destacada"},
 	{"closing-summary-3-points", "closing", "Closing Summary 3 Points", "Resumen de los 3 aprendizajes o conclusiones fundamentales"},
 	{"closing-contact-card", "closing", "Closing Contact Card", "Tarjeta de contacto con redes, email institucional y QR"},
@@ -193,6 +220,7 @@ var officialLayouts = []LayoutInfo{
 	{"closing-cta-centered", "closing", "Closing CTA Centered", "Llamado a la acción central para demos o siguientes pasos"},
 	{"closing-next-steps", "closing", "Closing Next Steps", "Hoja de ruta inmediata con próximos pasos del proyecto"},
 	{"closing-thank-you", "closing", "Closing Thank You", "Agradecimiento institucional formal de clausura"},
+	{"closing-cover-mirror", "closing", "Closing Cover Mirror", "Cierre que refleja la portada con doble línea gigante y pie dual"},
 }
 
 func ListCategories() []string {

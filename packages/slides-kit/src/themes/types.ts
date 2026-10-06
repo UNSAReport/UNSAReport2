@@ -46,6 +46,9 @@ export const ThemeId = {
   EPIS_TECH: 'epis-tech',
   FIPS_LIGHT: 'fips-light',
   EPIS_NIGHT: 'epis-night',
+  CLOUDLET_PITCH: 'cloudlet-pitch',
+  AZUL_PROPOSAL: 'azul-proposal',
+  HARPER_MINIMAL: 'harper-minimal',
 } as const;
 
 export type ThemeId = (typeof ThemeId)[keyof typeof ThemeId];

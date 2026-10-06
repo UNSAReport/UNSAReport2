@@ -46,6 +46,43 @@ export function SlideBadge({
   );
 }
 
+export interface SlideCheckBadgeProps {
+  /** Clases CSS adicionales */
+  className?: string;
+  /** Estilos inline adicionales */
+  style?: CSSProperties;
+  /** Color de los trazos (por defecto, azul de marca Blue #3885AB) */
+  color?: string;
+}
+
+/**
+ * Insignia de verificación de la portada Blue (Freeform 8, image3).
+ *
+ * El PNG extraído es un icono de 47x27 que sale borroso al ampliarse y puede
+ * mostrar una caja negra en el navegador por su chunk bKGD, así que se dibuja
+ * como SVG vectorial trazado del alfa original en `#3885AB`.
+ */
+export function SlideCheckBadge({
+  className = '',
+  style = {},
+  color = '#3885AB',
+}: SlideCheckBadgeProps) {
+  return (
+    <svg
+      viewBox="0 0 47 27"
+      fill={color}
+      aria-hidden="true"
+      focusable="false"
+      className={className}
+      style={style}
+    >
+      <path d="M31.7,0.0L33.6,1.0L34.1,3.0L23.2,14.0L21.2,14.0L20.0,12.0L31.0,0.5Z" />
+      <path d="M43.0,0.0L44.0,-0.0L45.1,1.0L45.9,2.0L45.6,3.0L22.4,26.0L21.0,25.3L12.0,16.2L11.6,15.0L12.2,14.0L14.0,13.0L21.0,19.6L22.0,20.2L23.0,19.9L42.0,1.0Z" />
+      <path d="M0.8,14.0L2.0,13.1L4.0,14.0L12.8,23.0L12.3,25.0L11.0,26.1L10.0,25.7L0.3,16.0L0.0,14.9Z" />
+    </svg>
+  );
+}
+
 export interface SlideGradientBarProps {
   /** Altura de la barra (ej: '4px', '6px') */
   height?: string;
