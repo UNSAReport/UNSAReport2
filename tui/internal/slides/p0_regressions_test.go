@@ -153,7 +153,7 @@ func TestP0StarterTemplateValidNpmName(t *testing.T) {
 			t.Errorf("%q: name = %q, want %q", input, pkg.Name, want)
 		}
 		for _, r := range pkg.Name {
-			if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '-' || r == '.' || r == '_') {
+			if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' && r != '.' && r != '_' {
 				t.Errorf("%q: invalid npm name char %q in %q", input, r, pkg.Name)
 			}
 		}
