@@ -14,8 +14,10 @@ import {
 import {
   getEmbedTokenServerFn,
   getPresentationServerFn,
+  SlidesApiError,
   type SlidesPresentation,
   type SlidesPresentationVersion,
+  slidesErrorStatus,
 } from '@/lib/slides/client';
 
 export const Route = createFileRoute('/presentations/$slug')({
@@ -33,7 +35,15 @@ export const Route = createFileRoute('/presentations/$slug')({
         versions: data.versions,
       };
     } catch (err: unknown) {
+      const status = slidesErrorStatus(err);
       const msg = err instanceof Error ? err.message : String(err);
+      if (status !== null) {
+        throw new SlidesApiError(
+          'No se pudo cargar la presentación',
+          status,
+          msg,
+        );
+      }
       throw new Error(`No se pudo cargar la presentación: ${msg}`);
     }
   },
@@ -42,6 +52,30 @@ export const Route = createFileRoute('/presentations/$slug')({
 });
 
 function PresentationErrorComponent({ error }: ErrorComponentProps) {
+  const status = slidesErrorStatus(error);
+  const copy =
+    status === 401
+      ? {
+          title: 'Inicia sesión para ver esta presentación',
+          message:
+            'No has iniciado sesión. Inicia sesión y vuelve a intentarlo.',
+        }
+      : status === 403
+        ? {
+            title: 'Sin acceso a esta presentación',
+            message:
+              'Esta presentación es privada: las personales solo las ve su autor y las de organización solo los miembros de esa organización. Si crees que deberías verla, pide acceso al propietario del deck y vuelve al listado para seguir explorando.',
+          }
+        : status === 404
+          ? {
+              title: 'Presentación no encontrada',
+              message:
+                'No existe una presentación con ese identificador. Revisa que el enlace esté completo o pide al autor el slug actual, y vuelve al listado para seguir explorando.',
+            }
+          : {
+              title: 'Error al Cargar Presentación',
+              message: error instanceof Error ? error.message : String(error),
+            };
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] p-8 text-center bg-[#E3E2DE] text-[#141414]">
       <div className="p-3 rounded-none bg-transparent border border-[#C7C7C7] text-[#444343] mb-4">
@@ -61,18 +95,24 @@ function PresentationErrorComponent({ error }: ErrorComponentProps) {
           />
         </svg>
       </div>
-      <h2 className="text-xl font-bold text-[#141414] mb-2">
-        Error al Cargar Presentación
-      </h2>
-      <p className="text-sm text-[#444343] max-w-md mb-6">
-        {error instanceof Error ? error.message : String(error)}
-      </p>
-      <Link
-        to="/presentations"
-        className="px-4 py-2 rounded-none bg-[#141414] text-[#E3E2DE] text-sm font-semibold transition-colors duration-300 hover:bg-[#1351AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
-      >
-        ← Volver al Listado
-      </Link>
+      <h2 className="text-xl font-bold text-[#141414] mb-2">{copy.title}</h2>
+      <p className="text-sm text-[#444343] max-w-md mb-6">{copy.message}</p>
+      <div className="flex flex-wrap items-center justify-center gap-3">
+        {status === 401 ? (
+          <Link
+            to="/auth/login"
+            className="px-4 py-2 rounded-none bg-[#1351AA] text-[#E3E2DE] text-sm font-semibold transition-colors duration-300 hover:bg-[#141414] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
+          >
+            Iniciar sesión
+          </Link>
+        ) : null}
+        <Link
+          to="/presentations"
+          className="px-4 py-2 rounded-none bg-[#141414] text-[#E3E2DE] text-sm font-semibold transition-colors duration-300 hover:bg-[#1351AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
+        >
+          ← Volver al Listado
+        </Link>
+      </div>
     </div>
   );
 }
@@ -91,6 +131,10 @@ function PresentationViewer() {
   const modalRef = useRef<HTMLDivElement>(null);
   const notesCloseRef = useRef<HTMLButtonElement>(null);
   const notesToggleRef = useRef<HTMLButtonElement>(null);
+  const printIframeRef = useRef<HTMLIFrameElement>(null);
+  const printModalRef = useRef<HTMLDivElement>(null);
+  const printCloseRef = useRef<HTMLButtonElement>(null);
+  const pdfButtonRef = useRef<HTMLButtonElement>(null);
   const handlePrevSlideRef = useRef(() => {});
   const handleNextSlideRef = useRef(() => {});
   const [selectedVersion, setSelectedVersion] = useState<number>(() => {
@@ -101,26 +145,43 @@ function PresentationViewer() {
   });
 
   const [showNotes, setShowNotes] = useState(false);
+  const [showPrint, setShowPrint] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(1);
-  // Token is read client-side after hydration so SSR and first client render
-  // agree on the iframe src (avoids a hydration mismatch); the effect below
-  // fills it in, triggering one iframe load with ?token= when logged in.
-  // The auth cookie is HttpOnly (invisible to document.cookie), so ask the
-  // server for a short-lived embed token instead of reading cookies here.
-  const [tokenQuery, setTokenQuery] = useState('');
+  const [iframeFailed, setIframeFailed] = useState(false);
+  const presentation = data.presentation as SlidesPresentation;
+  const versions = data.versions as SlidesPresentationVersion[];
+  // Public/unlisted decks need no token: checkAccess() in
+  // slides/src/routes/embed.ts returns early for them. Private/org decks
+  // need ?token= on the first (and only) iframe load — sub-asset requests
+  // inside the bundle carry no query string, so they authenticate via the
+  // session cookie through the web proxy (see sandbox comment on the
+  // iframes below). The iframe renders only after this resolves, so there
+  // is exactly one load and never a token-less 401 flash.
+  const needsToken =
+    presentation.visibility !== 'public' &&
+    presentation.visibility !== 'unlisted';
+  const [tokenQuery, setTokenQuery] = useState<string | null>(() =>
+    needsToken ? null : '',
+  );
 
   useEffect(() => {
+    if (!needsToken) {
+      setTokenQuery('');
+      return;
+    }
     let cancelled = false;
     getEmbedTokenServerFn()
       .then(({ token }) => {
-        if (!cancelled && token)
-          setTokenQuery(`?token=${encodeURIComponent(token)}`);
+        if (!cancelled)
+          setTokenQuery(token ? `?token=${encodeURIComponent(token)}` : '');
       })
-      .catch(() => {});
+      .catch(() => {
+        if (!cancelled) setTokenQuery('');
+      });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [needsToken]);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -142,6 +203,9 @@ function PresentationViewer() {
         handleNextSlideRef.current();
       } else if (e.key === 'Escape' && isPresent) {
         navigate({ to: '/presentations/$slug', params: { slug } });
+      } else if (e.key === 'Escape' && showPrint) {
+        setShowPrint(false);
+        pdfButtonRef.current?.focus();
       } else if (e.key === 'Escape' && showNotes) {
         setShowNotes(false);
         notesToggleRef.current?.focus();
@@ -149,19 +213,27 @@ function PresentationViewer() {
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [isPresent, navigate, showNotes, slug]);
+  }, [isPresent, navigate, showNotes, showPrint, slug]);
 
   useEffect(() => {
     if (showNotes) notesCloseRef.current?.focus();
   }, [showNotes]);
 
-  const presentation = data.presentation as SlidesPresentation;
-  const versions = data.versions as SlidesPresentationVersion[];
+  useEffect(() => {
+    if (showPrint) printCloseRef.current?.focus();
+  }, [showPrint]);
+
+  const versionExists = versions.some(
+    (v) => v.versionNumber === selectedVersion,
+  );
 
   const currentVersionRecord = versions.find(
     (v) => v.versionNumber === selectedVersion,
   );
 
+  // Única forma soportada: registro de notas con valores string
+  // (`notes: Record<string, string>` de slideId -> nota). Cualquier entrada
+  // con valor no string se omite del listado y se cuenta abajo.
   // S1 notes contract: versions carry optional `notes: Record<string,string>`
   // (slideId -> notes). Read-only display; schema owned by S1.
   const notesRaw =
@@ -170,13 +242,15 @@ function PresentationViewer() {
     'notes' in currentVersionRecord
       ? currentVersionRecord.notes
       : null;
-  const notesEntries =
+  const notesAllEntries =
     notesRaw && typeof notesRaw === 'object' && !Array.isArray(notesRaw)
-      ? Object.entries(notesRaw).filter(
-          (entry): entry is [string, string] =>
-            typeof entry[0] === 'string' && typeof entry[1] === 'string',
-        )
+      ? Object.entries(notesRaw)
       : [];
+  const notesEntries = notesAllEntries.filter(
+    (entry): entry is [string, string] =>
+      typeof entry[0] === 'string' && typeof entry[1] === 'string',
+  );
+  const skippedNotesCount = notesAllEntries.length - notesEntries.length;
   const hasVersionNotes = notesEntries.length > 0;
   const notesText = hasVersionNotes
     ? notesEntries
@@ -192,23 +266,38 @@ function PresentationViewer() {
       document.exitFullscreen().catch(() => {});
     }
   };
+  const manifestValue: unknown = currentVersionRecord?.manifest ?? null;
+  const manifestSlides =
+    manifestValue &&
+    typeof manifestValue === 'object' &&
+    !Array.isArray(manifestValue) &&
+    'slides' in manifestValue &&
+    Array.isArray(manifestValue.slides)
+      ? manifestValue.slides
+      : null;
+  const slideCount =
+    manifestSlides && manifestSlides.length > 0 ? manifestSlides.length : null;
+  const clampSlide = (n: number) =>
+    slideCount === null ? Math.max(1, n) : Math.min(slideCount, Math.max(1, n));
+  const embedOrigin =
+    typeof window === 'undefined' ? '' : window.location.origin;
   const handlePrevSlide = () => {
-    if (iframeRef.current?.contentWindow) {
+    if (iframeRef.current?.contentWindow && embedOrigin) {
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ method: 'prev' }),
-        '*',
+        embedOrigin,
       );
-      setCurrentSlideIndex((prev) => Math.max(1, prev - 1));
+      setCurrentSlideIndex((prev) => clampSlide(prev - 1));
     }
   };
 
   const handleNextSlide = () => {
-    if (iframeRef.current?.contentWindow) {
+    if (iframeRef.current?.contentWindow && embedOrigin) {
       iframeRef.current.contentWindow.postMessage(
         JSON.stringify({ method: 'next' }),
-        '*',
+        embedOrigin,
       );
-      setCurrentSlideIndex((prev) => prev + 1);
+      setCurrentSlideIndex((prev) => clampSlide(prev + 1));
     }
   };
 
@@ -217,7 +306,14 @@ function PresentationViewer() {
     handleNextSlideRef.current = handleNextSlide;
   });
 
-  const embedSrc = `/api/slides/embed/${presentation.id}/v${selectedVersion}/index.html${tokenQuery}`;
+  const embedSrc =
+    tokenQuery === null
+      ? null
+      : `/api/slides/embed/${presentation.id}/v${selectedVersion}/index.html${tokenQuery}`;
+  const printSrc =
+    embedSrc === null
+      ? null
+      : `${embedSrc}${tokenQuery ? '&print-pdf' : '?print-pdf'}`;
 
   if (isPresent) {
     return (
@@ -225,14 +321,41 @@ function PresentationViewer() {
         ref={containerRef}
         className="fixed inset-0 z-50 bg-black text-[#E3E2DE] font-sans overflow-hidden"
       >
-        <iframe
-          ref={iframeRef}
-          src={embedSrc}
-          title={presentation.title}
-          sandbox="allow-scripts allow-same-origin"
-          className="absolute inset-0 w-full h-full border-0"
-          referrerPolicy="no-referrer"
-        />
+        {embedSrc === null || !versionExists ? (
+          <div
+            role={!versionExists ? 'alert' : 'status'}
+            className="absolute inset-0 flex items-center justify-center p-8 text-center"
+          >
+            <p className="text-sm text-[#E3E2DE]">
+              {!versionExists
+                ? `La versión v${selectedVersion} no existe para esta presentación.`
+                : 'Resolviendo acceso al contenido…'}
+            </p>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            src={embedSrc}
+            title={presentation.title}
+            // Trust decision: bundles are first-party build output served from
+            // our own embed endpoint, and sub-asset requests inside the bundle
+            // carry no ?token= query — they authenticate via the session
+            // cookie through the web proxy, which requires a same-origin
+            // context. Hence allow-same-origin stays alongside allow-scripts.
+            sandbox="allow-scripts allow-same-origin"
+            className="absolute inset-0 w-full h-full border-0"
+            referrerPolicy="no-referrer"
+            onError={() => setIframeFailed(true)}
+          />
+        )}
+        {iframeFailed && embedSrc !== null && versionExists && (
+          <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
+            <p className="text-sm text-[#E3E2DE]">
+              No se pudo cargar el contenido embebido. Revisa tu sesión e
+              inténtalo de nuevo.
+            </p>
+          </div>
+        )}
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap justify-center items-center gap-2 px-3 py-1.5 rounded-none bg-[#141414] border border-[#C7C7C7] text-xs z-10 max-w-[calc(100vw-2rem)]">
           <button
             type="button"
@@ -308,7 +431,12 @@ function PresentationViewer() {
             <select
               id={versionSelectId}
               value={selectedVersion}
-              onChange={(e) => setSelectedVersion(Number(e.target.value))}
+              onChange={(e) => {
+                setSelectedVersion(Number(e.target.value));
+                setCurrentSlideIndex(1);
+                setIframeFailed(false);
+                setShowPrint(false);
+              }}
               className="bg-transparent text-[#141414] text-xs rounded-none px-2 py-1 border border-[#C7C7C7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA] shrink-0"
             >
               {versions.length > 0 ? (
@@ -335,15 +463,18 @@ function PresentationViewer() {
           >
             ▶ Presentar
           </Link>
-          <a
-            href={`${embedSrc}${tokenQuery ? '&print-pdf' : '?print-pdf'}`}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Exportar a PDF (abre en pestaña nueva)"
-            className="px-2.5 py-1.5 rounded-none bg-[#141414] text-[#E3E2DE] text-xs font-semibold transition-colors duration-300 hover:bg-[#1351AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
-          >
-            ⬇ PDF
-          </a>
+          {embedSrc !== null && versionExists ? (
+            <button
+              ref={pdfButtonRef}
+              type="button"
+              onClick={() => setShowPrint(true)}
+              aria-label="Exportar a PDF (abre diálogo de impresión)"
+              aria-haspopup="dialog"
+              className="px-2.5 py-1.5 rounded-none bg-[#141414] text-[#E3E2DE] text-xs font-semibold transition-colors duration-300 hover:bg-[#1351AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
+            >
+              ⬇ PDF
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={toggleFullscreen}
@@ -372,14 +503,48 @@ function PresentationViewer() {
 
       {/* Main Slide Sandbox Viewport */}
       <main className="flex-1 relative w-full h-full bg-black min-h-[500px]">
-        <iframe
-          ref={iframeRef}
-          src={embedSrc}
-          title={presentation.title}
-          sandbox="allow-scripts allow-same-origin"
-          className="absolute inset-0 w-full h-full border-0"
-          referrerPolicy="no-referrer"
-        />
+        {embedSrc === null ? (
+          <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
+            <p className="text-sm text-[#E3E2DE]">
+              Resolviendo acceso al contenido…
+            </p>
+          </div>
+        ) : !versionExists ? (
+          <div
+            role="alert"
+            className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-8 text-center"
+          >
+            <p className="text-sm font-semibold text-[#E3E2DE]">
+              La versión v{selectedVersion} no existe para esta presentación.
+            </p>
+            <p className="text-xs text-[#C7C7C7]">
+              Selecciona una versión disponible en el menú superior.
+            </p>
+          </div>
+        ) : (
+          <iframe
+            ref={iframeRef}
+            src={embedSrc}
+            title={presentation.title}
+            // Trust decision: bundles are first-party build output served from
+            // our own embed endpoint, and sub-asset requests inside the bundle
+            // carry no ?token= query — they authenticate via the session
+            // cookie through the web proxy, which requires a same-origin
+            // context. Hence allow-same-origin stays alongside allow-scripts.
+            sandbox="allow-scripts allow-same-origin"
+            className="absolute inset-0 w-full h-full border-0"
+            referrerPolicy="no-referrer"
+            onError={() => setIframeFailed(true)}
+          />
+        )}
+        {iframeFailed && embedSrc !== null && versionExists && (
+          <div className="absolute inset-0 flex items-center justify-center p-8 text-center">
+            <p className="text-sm text-[#E3E2DE]">
+              No se pudo cargar el contenido embebido. Revisa tu sesión e
+              inténtalo de nuevo.
+            </p>
+          </div>
+        )}
       </main>
 
       {/* Navigation and Speaker Notes Bar */}
@@ -496,10 +661,102 @@ function PresentationViewer() {
                 className="p-3 bg-[#141414] text-[#E3E2DE] font-mono rounded-none border border-[#C7C7C7] max-h-60 overflow-y-auto"
               >
                 <pre className="whitespace-pre-wrap">{notesText}</pre>
+                {skippedNotesCount > 0 ? (
+                  <p className="mt-2 text-[#C7C7C7]">
+                    {skippedNotesCount} notas omitidas por formato
+                  </p>
+                ) : null}
               </section>
             </div>
           </div>
         )}
+        {/* Print PDF Modal */}
+        {showPrint && printSrc !== null && versionExists ? (
+          <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4">
+            <button
+              type="button"
+              aria-label="Cerrar vista de impresión"
+              onClick={() => {
+                setShowPrint(false);
+                pdfButtonRef.current?.focus();
+              }}
+              tabIndex={-1}
+              className="absolute inset-0 cursor-default focus-visible:outline-none"
+            />
+            <div
+              ref={printModalRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Exportar a PDF"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e: ReactKeyboardEvent<HTMLDivElement>) => {
+                if (e.key !== 'Tab') return;
+                const root = printModalRef.current;
+                if (!root) return;
+                const focusables = Array.from(
+                  root.querySelectorAll<HTMLElement>(
+                    'button, [href], select, textarea, input, [tabindex]:not([tabindex="-1"])',
+                  ),
+                ).filter(
+                  (el) =>
+                    !el.hasAttribute('disabled') &&
+                    el.getAttribute('aria-hidden') !== 'true',
+                );
+                if (focusables.length === 0) {
+                  e.preventDefault();
+                  return;
+                }
+                const first = focusables[0];
+                const last = focusables[focusables.length - 1];
+                if (e.shiftKey && document.activeElement === first) {
+                  e.preventDefault();
+                  last.focus();
+                } else if (!e.shiftKey && document.activeElement === last) {
+                  e.preventDefault();
+                  first.focus();
+                }
+              }}
+              className="relative flex flex-col w-full max-w-5xl h-[90vh] rounded-none border border-[#C7C7C7] bg-[#E3E2DE] p-4 text-xs text-[#141414]"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <p className="font-semibold text-[#141414]">
+                  Exportar a PDF — {presentation.title} v{selectedVersion}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      printIframeRef.current?.contentWindow?.print()
+                    }
+                    className="px-3 py-1.5 rounded-none bg-[#1351AA] text-[#E3E2DE] text-xs font-semibold transition-colors duration-300 hover:bg-[#141414] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
+                  >
+                    ⎙ Imprimir
+                  </button>
+                  <button
+                    ref={printCloseRef}
+                    type="button"
+                    onClick={() => {
+                      setShowPrint(false);
+                      pdfButtonRef.current?.focus();
+                    }}
+                    aria-label="Cerrar vista de impresión"
+                    className="px-2 py-1 rounded-none bg-[#141414] text-[#E3E2DE] transition-colors duration-300 hover:bg-[#1351AA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1351AA]"
+                  >
+                    ✕ Cerrar
+                  </button>
+                </div>
+              </div>
+              <iframe
+                ref={printIframeRef}
+                src={printSrc}
+                title={`${presentation.title} — vista de impresión`}
+                sandbox="allow-scripts allow-same-origin"
+                referrerPolicy="no-referrer"
+                className="flex-1 w-full min-h-0 border border-[#C7C7C7] bg-white"
+              />
+            </div>
+          </div>
+        ) : null}
       </footer>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   listCategories,
   listLayouts,
   registerLayout,
+  unregisterLayout,
 } from '@/layouts/registry';
 import { LayoutCategory } from '@/layouts/types';
 import {
@@ -137,8 +138,14 @@ describe('packages/slides-kit: Core Kit & Registries', () => {
         component: () => null,
       });
 
-      expect(layoutRegistry.hasLayout('test-custom-layout')).toBe(true);
-      expect(getLayout('test-custom-layout')?.name).toBe('Test Layout');
+      try {
+        expect(layoutRegistry.hasLayout('test-custom-layout')).toBe(true);
+        expect(getLayout('test-custom-layout')?.name).toBe('Test Layout');
+      } finally {
+        // The registry is global: unregister so layout-count pins stay
+        // order-independent across test files.
+        unregisterLayout('test-custom-layout');
+      }
     });
   });
 

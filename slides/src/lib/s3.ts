@@ -123,12 +123,20 @@ export async function deleteS3Object(key: string): Promise<void> {
 }
 
 export async function deleteS3Prefix(prefix: string): Promise<void> {
+  if (!prefix) {
+    throw new Error('deleteS3Prefix: refusing to delete with an empty prefix');
+  }
+  // Normalize to ".../" form: S3 prefixes are flat string matches, so
+  // without the trailing slash `presentations/<id>` would also match sibling
+  // keys such as `presentations/<id>-draft/...`. The single caller passes
+  // `presentations/<id>/` already, which passes through unchanged.
+  const guardedPrefix = prefix.endsWith('/') ? prefix : `${prefix}/`;
   let continuationToken: string | undefined;
   do {
     const listRes = await s3Client.send(
       new ListObjectsV2Command({
         Bucket: config.s3.bucket,
-        Prefix: prefix,
+        Prefix: guardedPrefix,
         ContinuationToken: continuationToken,
       }),
     );
@@ -176,6 +184,11 @@ const MIME_TYPES: Record<string, string> = {
   '.txt': 'text/plain; charset=utf-8',
   '.xml': 'application/xml',
   '.wasm': 'application/wasm',
+  '.mp4': 'video/mp4',
+  '.webm': 'video/webm',
+  '.pdf': 'application/pdf',
+  '.avif': 'image/avif',
+  '.mp3': 'audio/mpeg',
 };
 
 export function getMimeType(filePath: string): string {

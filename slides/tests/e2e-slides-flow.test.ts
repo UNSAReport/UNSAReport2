@@ -222,14 +222,17 @@ describe('E2E Slides Lifecycle: init → dev → deploy → web viewing', () => 
     formData.append('description', sampleManifest.description);
     formData.append('visibility', 'public');
     formData.append('manifest', JSON.stringify(sampleManifest));
-    // ZIP header bytes simulation
+    // Minimal valid ZIP (index.html + main.js + valid central directory)
     formData.append(
       'bundle',
       new Blob(
         [
-          new Uint8Array([
-            80, 75, 5, 6, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-          ]),
+          new Uint8Array(
+            Buffer.from(
+              'UEsDBAoAAAAAAAGkQ118+Oq0yAAAAMgAAAAKAAAAaW5kZXguaHRtbDwhRE9DVFlQRSBodG1sPjxodG1sPjxoZWFkPjx0aXRsZT5JbnZlc3RpZ2FjacOzbiBBY2Fkw6ltaWNhIFVOU0EgMjAyNjwvdGl0bGU+PC9oZWFkPjxib2R5PjxkaXYgY2xhc3M9InJldmVhbCI+PGRpdiBjbGFzcz0ic2xpZGVzIj48aDE+SW52ZXN0aWdhY2nDs24gQWNhZMOpbWljYSBVTlNBIDIwMjY8L2gxPjwvZGl2PjwvZGl2PjwvYm9keT48L2h0bWw+UEsDBAoAAAAAAAGkQ12g9TYlOgAAADoAAAAHAAAAbWFpbi5qc2NvbnNvbGUubG9nKCJJbml0aWFsaXplZCBSZXZlYWwuanMgd2l0aCB1bnNhLWRhcmsgdGhlbWUiKTtQSwECFAAKAAAAAAABpENdfPjqtMgAAADIAAAACgAAAAAAAAAAAAAAAAAAAAAAaW5kZXguaHRtbFBLAQIUAAoAAAAAAAGkQ12g9TYlOgAAADoAAAAHAAAAAAAAAAAAAAAAAPAAAABtYWluLmpzUEsFBgAAAAACAAIAbQAAAE8BAAAAAA==',
+              'base64',
+            ),
+          ),
         ],
         {
           type: 'application/zip',

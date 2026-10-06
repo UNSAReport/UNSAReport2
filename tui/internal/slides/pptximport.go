@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -26,6 +27,11 @@ type PptxTheme struct {
 	MasterBackgrounds []string
 	// Source is the parsed file base name, for patch provenance comments.
 	Source string
+	// SkippedSlots lists clrScheme slots that could not be resolved
+	// (placeholder phClr references, unknown sysClr names without a
+	// lastClr fallback, empty elements). Kept in canonical
+	// PptxColorSlots order.
+	SkippedSlots []string
 }
 
 // PptxColorSlots is the canonical 12-slot clrScheme order (ECMA-376).
@@ -140,6 +146,11 @@ type masterXML struct {
 						Scheme *struct {
 							Val string `xml:"val,attr"`
 						} `xml:"schemeClr"`
+						Tint   *modVal `xml:"tint"`
+						Shade  *modVal `xml:"shade"`
+						LumMod *modVal `xml:"lumMod"`
+						LumOff *modVal `xml:"lumOff"`
+						SatMod *modVal `xml:"satMod"`
 					} `xml:"gs"`
 				} `xml:"gsLst"`
 			} `xml:"bgPr"`
@@ -387,31 +398,38 @@ func readZipEntry(f *zip.File) ([]byte, error) {
 	return out, nil
 }
 
-// ParsePptxTheme extracts colors + fonts from a .pptx file using only
-// archive/zip + encoding/xml. It reads ppt/theme/theme1.xml (falling back
-// to any ppt/theme/theme*.xml) and all ppt/slideMasters/*.xml backgrounds.
 func ParsePptxTheme(pptxPath string) (*PptxTheme, error) {
 	z, err := zip.OpenReader(pptxPath)
 	if err != nil {
 		return nil, fmt.Errorf("slides import: open %s: %w", pptxPath, err)
 	}
 	defer func() { _ = z.Close() }()
-	var themeData []byte
+	// Collect theme entries deterministically: prefer ppt/theme/theme1.xml
+	// when present, else the first sorted theme entry. Never rely on
+	// zip iteration order.
+	var themeNames []string
+	themeBlobs := map[string][]byte{}
 	for _, f := range z.File {
 		if strings.HasPrefix(f.Name, "ppt/theme/theme") && strings.HasSuffix(f.Name, ".xml") {
 			out, oerr := readZipEntry(f)
 			if oerr != nil {
 				continue
 			}
-			themeData = out
-			if f.Name == "ppt/theme/theme1.xml" {
-				break
+			if _, seen := themeBlobs[f.Name]; !seen {
+				themeNames = append(themeNames, f.Name)
 			}
+			themeBlobs[f.Name] = out
 		}
 	}
-	if themeData == nil {
+	if len(themeNames) == 0 {
 		return nil, fmt.Errorf("slides import: no ppt/theme/theme*.xml found in %s (not a PowerPoint .pptx?)", pptxPath)
 	}
+	sort.Strings(themeNames)
+	themeName := themeNames[0]
+	if _, ok := themeBlobs["ppt/theme/theme1.xml"]; ok {
+		themeName = "ppt/theme/theme1.xml"
+	}
+	themeData := themeBlobs[themeName]
 
 	var th themeXML
 	if err := xml.Unmarshal(themeData, &th); err != nil {
@@ -442,12 +460,22 @@ func ParsePptxTheme(pptxPath string) (*PptxTheme, error) {
 	if len(colors) == 0 {
 		return nil, fmt.Errorf("slides import: theme clrScheme has no resolvable colors")
 	}
+	// Every slot left unresolvable (phClr placeholders, unknown sysClr
+	// names without a lastClr fallback, empty elements) is reported in
+	// canonical slot order so callers can surface the fidelity gap.
+	var skipped []string
+	for _, slot := range PptxColorSlots {
+		if _, ok := colors[slot]; !ok {
+			skipped = append(skipped, slot)
+		}
+	}
 
 	theme := &PptxTheme{
-		Colors:    colors,
-		MajorFont: strings.TrimSpace(th.ThemeElements.FontScheme.MajorFont.Latin.Typeface),
-		MinorFont: strings.TrimSpace(th.ThemeElements.FontScheme.MinorFont.Latin.Typeface),
-		Source:    filepath.Base(pptxPath),
+		Colors:       colors,
+		MajorFont:    strings.TrimSpace(th.ThemeElements.FontScheme.MajorFont.Latin.Typeface),
+		MinorFont:    strings.TrimSpace(th.ThemeElements.FontScheme.MinorFont.Latin.Typeface),
+		Source:       filepath.Base(pptxPath),
+		SkippedSlots: skipped,
 	}
 
 	// SlideMaster backgrounds (solid fills + first gradient stop).
@@ -489,6 +517,14 @@ func ParsePptxTheme(pptxPath string) (*PptxTheme, error) {
 				default:
 					continue
 				}
+				// Preserve per-stop transforms (tint/shade/lumMod/lumOff/
+				// satMod) so gradient stops approximate the file instead of
+				// resolving to the untransformed base color.
+				c.Tint = gs.Tint
+				c.Shade = gs.Shade
+				c.LumMod = gs.LumMod
+				c.LumOff = gs.LumOff
+				c.SatMod = gs.SatMod
 				if hex, ok := resolveChoice(c, colors); ok {
 					theme.MasterBackgrounds = append(theme.MasterBackgrounds, hex)
 					break
@@ -541,6 +577,11 @@ func camelThemeName(slug string) string {
 // Mapping heuristic: the brighter of lt1/dk1 becomes the page background;
 // accent1/accent2 become the brand accents; surfaces derive from the
 // background; success/warning/error keep kit defaults (not in OOXML).
+// Body copy uses the parsed minor latin font (fallback "Calibri" when the
+// file has none); headings use the parsed major latin font (fallback: the
+// resolved body font). ThemeDefinition has no dedicated heading-family
+// field, so the heading typeface is emitted via customVariables
+// (--slide-heading-font-family) for renderers that honor it.
 func (t *PptxTheme) ToThemePatch(slug string) string {
 	if slug == "" {
 		slug = themeSlug(strings.TrimSuffix(t.Source, filepath.Ext(t.Source)))
@@ -581,12 +622,16 @@ func (t *PptxTheme) ToThemePatch(slug string) string {
 		accentSecondary = accent
 	}
 	minor := t.MinorFont
+	minorFallback := false
 	if minor == "" {
 		minor = "Calibri"
+		minorFallback = true
 	}
 	major := t.MajorFont
+	majorFallback := false
 	if major == "" {
 		major = minor
+		majorFallback = true
 	}
 
 	var b strings.Builder
@@ -594,6 +639,17 @@ func (t *PptxTheme) ToThemePatch(slug string) string {
 	fmt.Fprintf(&b, "// Auto-generated by `unsarep slides import %s` (colors/fonts only).\n", t.Source)
 	fmt.Fprintf(&b, "// Fidelity ceiling: OOXML theme colors + major/minor latin fonts.\n")
 	fmt.Fprintf(&b, "// Layouts, shapes, images and animations are NOT imported.\n")
+	if minorFallback {
+		fmt.Fprintf(&b, "// Body font fallback: file has no minor latin typeface; using \"Calibri\".\n")
+	}
+	if majorFallback {
+		fmt.Fprintf(&b, "// Heading font fallback: file has no major latin typeface; using body font \"%s\".\n", major)
+	} else {
+		fmt.Fprintf(&b, "// Heading typeface from theme major latin font: \"%s\".\n", major)
+	}
+	if len(t.SkippedSlots) > 0 {
+		fmt.Fprintf(&b, "// Skipped clrScheme slot(s): %s (dropped/unresolvable: phClr or unknown sysClr without lastClr; kit defaults used).\n", strings.Join(t.SkippedSlots, ", "))
+	}
 	if len(t.MasterBackgrounds) > 0 {
 		fmt.Fprintf(&b, "// slideMaster background hint(s): %s\n", strings.Join(t.MasterBackgrounds, ", "))
 	}
@@ -621,6 +677,9 @@ func (t *PptxTheme) ToThemePatch(slug string) string {
 	fmt.Fprintf(&b, "    monoFamily: 'ui-monospace, \"SFMono-Regular\", Consolas, monospace',\n")
 	fmt.Fprintf(&b, "    headingWeight: 700,\n")
 	fmt.Fprintf(&b, "  },\n")
+	fmt.Fprintf(&b, "  customVariables: {\n")
+	fmt.Fprintf(&b, "    '--slide-heading-font-family': '%s, %s, system-ui, sans-serif',\n", major, minor)
+	fmt.Fprintf(&b, "  },\n")
 	fmt.Fprintf(&b, "  effects: {\n")
 	fmt.Fprintf(&b, "    cardBorderRadius: '12px',\n")
 	fmt.Fprintf(&b, "    glowEnabled: false,\n")
@@ -628,6 +687,5 @@ func (t *PptxTheme) ToThemePatch(slug string) string {
 	fmt.Fprintf(&b, "    slideBorderGradient: false,\n")
 	fmt.Fprintf(&b, "  },\n")
 	fmt.Fprintf(&b, "};\n")
-	_ = major
 	return b.String()
 }

@@ -100,7 +100,11 @@ unsa-classic, epis-tech, fips-light, epis-night); there is no --theme flag.`,
 			if _, err := os.Stat(target); err == nil {
 				return fmt.Errorf("slides init: %s already exists", target)
 			}
-			for _, f := range slides.StarterTemplate(name) {
+			files, err := slides.StarterTemplate(name)
+			if err != nil {
+				return fmt.Errorf("slides init: %w", err)
+			}
+			for _, f := range files {
 				full := filepath.Join(target, f.Path)
 				if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 					return fmt.Errorf("slides init: %w", err)

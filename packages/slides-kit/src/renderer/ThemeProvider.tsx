@@ -33,15 +33,32 @@ export function ThemeProvider({
 }: ThemeProviderProps) {
   const resolvedTheme = useMemo<ThemeDefinition>(() => {
     if (typeof theme === 'string') {
-      return themeRegistry.getTheme(theme);
+      if (themeRegistry.hasTheme(theme)) {
+        return themeRegistry.getTheme(theme);
+      }
+      console.warn(
+        `ThemeProvider: unknown theme '${theme}', falling back to 'unsa-dark'. Register it with registerTheme() or use a registered id.`,
+      );
+      return themeRegistry.getTheme('unsa-dark');
     }
     return theme;
   }, [theme]);
 
   const cssVariables = useMemo<CSSProperties>(() => {
-    const { colors, typography, effects, customVariables } = resolvedTheme;
+    const {
+      colors,
+      typography,
+      effects,
+      customVariables,
+      logoUrl,
+      facultyName,
+    } = resolvedTheme;
 
-    return {
+    // Namespacing rule: theme-owned `--slide-*` tokens are authoritative.
+    // Custom keys under the same `--slide-` prefix that collide with a core
+    // token are ignored (dev-only warn); non-colliding custom keys still
+    // spread last so user extensions win over nothing they shouldn't.
+    const coreVariables = {
       '--slide-bg': colors.background,
       '--slide-surface': colors.surface,
       '--slide-surface-muted': colors.surfaceMuted,
@@ -56,6 +73,8 @@ export function ThemeProvider({
       '--slide-error': colors.error,
       '--slide-font-family': typography.fontFamily,
       '--slide-mono-family': typography.monoFamily,
+      '--slide-logo-url': logoUrl ? `url("${logoUrl}")` : 'none',
+      '--slide-faculty-name': facultyName ? `"${facultyName}"` : '""',
       '--slide-heading-weight': String(typography.headingWeight),
       '--slide-heading-spacing': typography.headingLetterSpacing ?? 'normal',
       '--slide-radius': effects.cardBorderRadius,
@@ -65,7 +84,32 @@ export function ThemeProvider({
         ? 'linear-gradient(90deg, var(--slide-accent), var(--slide-accent-secondary), var(--slide-accent))'
         : 'none',
       '--slide-watermark-opacity': String(effects.watermarkOpacity ?? 0),
-      ...customVariables,
+    } as CSSProperties;
+
+    const safeCustom: Record<string, string> = {};
+    if (customVariables) {
+      for (const key of Object.keys(customVariables)) {
+        if (
+          key.startsWith('--slide-') &&
+          key in coreVariables
+        ) {
+          if (
+            typeof process === 'undefined' ||
+            process.env?.NODE_ENV !== 'production'
+          ) {
+            console.warn(
+              `ThemeProvider: ignoring customVariable '${key}' because it collides with a core --slide-* token. Use a non-reserved key (e.g. '--slide-custom-*') instead.`,
+            );
+          }
+          continue;
+        }
+        safeCustom[key] = customVariables[key] as string;
+      }
+    }
+
+    return {
+      ...coreVariables,
+      ...safeCustom,
     } as CSSProperties;
   }, [resolvedTheme]);
 
@@ -78,6 +122,11 @@ export function ThemeProvider({
           ...cssVariables,
         }}
       >
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `pre, code { font-family: var(--slide-mono-family); }\nh1, h2, h3, h4, h5, h6 { font-weight: var(--slide-heading-weight); }`,
+          }}
+        />
         {children}
       </div>
     </ThemeContext.Provider>
