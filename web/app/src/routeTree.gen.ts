@@ -19,7 +19,6 @@ import { Route as AuthPatRouteImport } from './routes/auth/pat'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations/index'
 import { Route as PresentationsSlugRouteImport } from './routes/presentations/$slug'
 import { Route as PresentationsCatalogRouteImport } from './routes/presentations/catalog'
-import { Route as PresentationsShowcaseRouteImport } from './routes/presentations/showcase'
 import { Route as PresentationsUploadRouteImport } from './routes/presentations/upload'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
@@ -78,11 +77,6 @@ const PresentationsCatalogRoute = PresentationsCatalogRouteImport.update({
   path: '/catalog',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
-const PresentationsShowcaseRoute = PresentationsShowcaseRouteImport.update({
-  id: '/showcase',
-  path: '/showcase',
-  getParentRoute: () => PresentationsRouteRoute,
-} as any)
 const PresentationsUploadRoute = PresentationsUploadRouteImport.update({
   id: '/upload',
   path: '/upload',
@@ -129,7 +123,6 @@ export interface FileRoutesByFullPath {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
-  '/presentations/showcase': typeof PresentationsShowcaseRoute
   '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
@@ -148,7 +141,6 @@ export interface FileRoutesByTo {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
-  '/presentations/showcase': typeof PresentationsShowcaseRoute
   '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
@@ -169,7 +161,6 @@ export interface FileRoutesById {
   '/auth/pat': typeof AuthPatRoute
   '/presentations/$slug': typeof PresentationsSlugRoute
   '/presentations/catalog': typeof PresentationsCatalogRoute
-  '/presentations/showcase': typeof PresentationsShowcaseRoute
   '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
@@ -191,7 +182,6 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
-    | '/presentations/showcase'
     | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
@@ -210,7 +200,6 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
-    | '/presentations/showcase'
     | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
@@ -230,7 +219,6 @@ export interface FileRouteTypes {
     | '/auth/pat'
     | '/presentations/$slug'
     | '/presentations/catalog'
-    | '/presentations/showcase'
     | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
@@ -328,13 +316,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsCatalogRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
-    '/presentations/showcase': {
-      id: '/presentations/showcase'
-      path: '/showcase'
-      fullPath: '/presentations/showcase'
-      preLoaderRoute: typeof PresentationsShowcaseRouteImport
-      parentRoute: typeof PresentationsRouteRoute
-    }
     '/presentations/upload': {
       id: '/presentations/upload'
       path: '/upload'
@@ -390,7 +371,6 @@ declare module '@tanstack/react-router' {
 interface PresentationsRouteRouteChildren {
   PresentationsSlugRoute: typeof PresentationsSlugRoute
   PresentationsCatalogRoute: typeof PresentationsCatalogRoute
-  PresentationsShowcaseRoute: typeof PresentationsShowcaseRoute
   PresentationsUploadRoute: typeof PresentationsUploadRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
 }
@@ -398,7 +378,6 @@ interface PresentationsRouteRouteChildren {
 const PresentationsRouteRouteChildren: PresentationsRouteRouteChildren = {
   PresentationsSlugRoute: PresentationsSlugRoute,
   PresentationsCatalogRoute: PresentationsCatalogRoute,
-  PresentationsShowcaseRoute: PresentationsShowcaseRoute,
   PresentationsUploadRoute: PresentationsUploadRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
 }

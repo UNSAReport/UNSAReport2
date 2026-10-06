@@ -1,0 +1,34 @@
+{
+  "name": "deck-azul",
+  "version": "1.0.0",
+  "title": "deck-azul",
+  "description": "A presentation created with unsarep slides",
+  "config": {
+    "width": 1280,
+    "height": 720,
+    "transition": "slide",
+    "theme": "unsa-dark"
+  },
+  "slides": [
+    {
+      "id": "hero",
+      "index": 0,
+      "title": "deck-azul"
+    },
+    {
+      "id": "comparison",
+      "index": 1,
+      "title": "Arquitectura Modular"
+    },
+    {
+      "id": "bento",
+      "index": 2,
+      "title": "Ecosistema de Presentaciones"
+    },
+    {
+      "id": "closing",
+      "index": 3,
+      "title": "¿Preguntas?"
+    }
+  ]
+}

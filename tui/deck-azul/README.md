@@ -1,0 +1,13 @@
+# deck-azul
+
+Presentation project created with `unsarep slides` and `@unsa/slides-kit`.
+
+## Development
+
+```bash
+# Preview locally with live reload
+unsarep slides dev
+
+# Deploy to Cloud
+unsarep slides deploy
+```
