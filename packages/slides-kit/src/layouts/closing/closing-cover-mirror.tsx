@@ -1,4 +1,4 @@
-import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideBadge, SlideCheckBadge } from '@/primitives/SlideAccent';
 import { SlideSection } from '@/primitives/SlideSection';
 
 export interface ClosingCoverMirrorProps {
@@ -12,6 +12,8 @@ export interface ClosingCoverMirrorProps {
   footerLeft?: string;
   /** Pie derecho */
   footerRight?: string;
+  /** Legado: URL del sello/insignia (S11). Sin uso: la insignia es SVG vectorial integrado. */
+  badgeUrl?: string;
 }
 
 /**
@@ -23,9 +25,20 @@ export function ClosingCoverMirror({
   line2,
   footerLeft,
   footerRight,
+  badgeUrl: _badgeUrl,
 }: ClosingCoverMirrorProps) {
   return (
     <SlideSection withGradientBar={true}>
+      <div
+        aria-hidden="true"
+        className="absolute z-10 flex items-center"
+        style={{ left: '5.6%', top: '10%', gap: '0.75rem' }}
+      >
+        <SlideCheckBadge
+          className="block shrink-0"
+          style={{ width: '5.2vw', maxWidth: '104px', height: 'auto', aspectRatio: '47 / 27' }}
+        />
+      </div>
       <div className="flex-1 min-h-0 min-w-0 w-full flex flex-col items-center justify-center text-center max-w-3xl mx-auto overflow-hidden">
         {tag && (
           <div className="mb-6 shrink-0">

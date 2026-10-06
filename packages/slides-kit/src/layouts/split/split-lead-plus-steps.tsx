@@ -18,6 +18,8 @@ export interface SplitLeadPlusStepsProps {
   lead?: string[];
   /** Pasos numerados (máximo 4) */
   steps: LeadStepItem[];
+  /** Lavado claro/oscuro */
+  tone?: 'light' | 'dark';
 }
 
 /**
@@ -28,10 +30,11 @@ export function SplitLeadPlusSteps({
   title,
   lead = [],
   steps = [],
+  tone = 'light',
 }: SplitLeadPlusStepsProps) {
   const visible = steps.slice(0, 4);
   return (
-    <SlideSection tag={tag} title={title}>
+    <SlideSection tag={tag} title={title} tone={tone}>
       <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col justify-center max-w-5xl mx-auto overflow-hidden">
         {lead.length > 0 && (
           <div className="mb-8 space-y-3 min-w-0 overflow-hidden shrink-0">

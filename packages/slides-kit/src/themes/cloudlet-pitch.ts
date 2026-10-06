@@ -39,6 +39,8 @@ export const cloudletPitchTheme: ThemeDefinition = {
     '--slide-panel-gradient': 'linear-gradient(180deg,#A0CEFD,#E4F2FF)',
     '--slide-panel-border': 'rgba(255,255,255,0.9)',
     '--slide-eyebrow-color': '#424242',
+    '--slide-eyebrow-tracking': '0.22em',
+    '--slide-wash-dark': '#424242',
     '--slide-divider-color': 'rgba(66,66,66,0.25)',
     '--slide-heading-font-family':
       "'Open Sauce', 'Open Sans', system-ui, sans-serif",

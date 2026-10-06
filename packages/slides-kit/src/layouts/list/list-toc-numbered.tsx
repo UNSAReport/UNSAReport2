@@ -16,6 +16,8 @@ export interface ListTocNumberedProps {
   title: string;
   /** Entradas del índice (máx. ~10) */
   items: TocNumberedItem[];
+  /** Lavado claro/oscuro */
+  tone?: 'light' | 'dark';
 }
 
 /**
@@ -25,11 +27,12 @@ export function ListTocNumbered({
   tag = 'Índice',
   title,
   items = [],
+  tone = 'light',
 }: ListTocNumberedProps) {
   const shown = items.slice(0, 10);
   const twoCol = shown.length >= 6;
   return (
-    <SlideSection tag={tag} title={title}>
+    <SlideSection tag={tag} title={title} tone={tone}>
       <div
         className={`mx-auto flex w-full min-w-0 max-w-4xl flex-1 min-h-0 flex-col justify-center gap-x-10 gap-y-4 overflow-hidden ${
           twoCol ? 'sm:grid sm:grid-cols-2' : ''

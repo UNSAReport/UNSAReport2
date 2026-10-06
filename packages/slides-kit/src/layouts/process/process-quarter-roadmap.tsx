@@ -17,6 +17,8 @@ export interface ProcessQuarterRoadmapProps {
   title: string;
   /** Trimestres del roadmap (máximo 4) */
   quarters: QuarterRoadmapItem[];
+  /** Lavado claro/oscuro */
+  tone?: 'light' | 'dark';
 }
 
 /**
@@ -26,10 +28,11 @@ export function ProcessQuarterRoadmap({
   tag,
   title,
   quarters,
+  tone = 'light',
 }: ProcessQuarterRoadmapProps) {
   const cards = quarters.slice(0, 4);
   return (
-    <SlideSection withGradientBar={false}>
+    <SlideSection withGradientBar={false} tone={tone}>
       <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col justify-center max-w-5xl mx-auto px-8 overflow-hidden">
         {tag && (
           <div className="mb-5 shrink-0">

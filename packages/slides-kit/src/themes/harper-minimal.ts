@@ -38,10 +38,12 @@ export const harperMinimalTheme: ThemeDefinition = {
     '--slide-heading-font-family': "'PT Serif', Georgia, serif",
     '--slide-kicker-tracking': '0.22em',
     '--slide-kicker-color': '#ff5347',
-    '--slide-ghost-numeral-opacity': '0.07',
+    '--slide-ghost-numeral-opacity': '0.06',
     '--slide-accent-bar': '#ff5347',
     '--slide-pill-radius': '999px',
     '--slide-stat-divider': 'rgba(0,0,0,0.12)',
+    '--slide-photo-panel-width': '36%',
+    '--slide-rule-color': '#ff5347',
   },
   thumbnail:
     "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='180'%3E%3Crect width='320' height='180' fill='%23fafafa'/%3E%3Crect x='0' y='0' width='320' height='56' fill='%23000000'/%3E%3Crect x='24' y='76' width='72' height='8' fill='%23ff5347'/%3E%3Crect x='24' y='92' width='200' height='12' fill='%23000000'/%3E%3Crect x='24' y='112' width='160' height='9' fill='%234d4d4d'/%3E%3Ccircle cx='276' cy='128' r='26' fill='%23ff5347'/%3E%3C/svg%3E",

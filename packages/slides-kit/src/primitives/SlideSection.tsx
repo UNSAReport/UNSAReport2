@@ -14,6 +14,10 @@ export interface SlideSectionProps {
   withGradientBar?: boolean;
   /** Acciones o pie de diapositiva opcional */
   footer?: ReactNode;
+  /** Desactiva el acento tenue de esquina (las portadas pintan su propia capa wash) */
+  withBlobAccent?: boolean;
+  /** Alternancia de lavado claro/oscuro (cloudlet: light #D0D7DD vs dark #424242) */
+  tone?: 'light' | 'dark';
   /** Clases CSS adicionales */
   className?: string;
   /** Estilos inline adicionales */
@@ -29,16 +33,41 @@ export function SlideSection({
   title,
   subtitle,
   children,
-  withGradientBar = true,
   footer,
+  withGradientBar = true,
+  withBlobAccent = true,
+  tone = 'light',
   className = '',
   style = {},
 }: SlideSectionProps) {
+  const isDark = tone === 'dark';
   return (
     <div
-      className={`relative w-full h-full flex flex-col justify-between overflow-hidden bg-[var(--slide-bg,#0b0f19)] text-[var(--slide-text,#f1f5f9)] p-10 box-border ${className}`}
-      style={style}
+      className={`relative w-full h-full flex flex-col justify-between overflow-hidden p-10 box-border ${isDark ? '' : 'bg-[var(--slide-bg,#0b0f19)] text-[var(--slide-text,#f1f5f9)]'} ${className}`}
+      style={{
+        ...(isDark
+          ? {
+              backgroundColor: 'var(--slide-wash-dark, #424242)',
+              color: '#ffffff',
+              '--slide-text': '#ffffff',
+              '--slide-text-muted': 'rgba(255,255,255,0.75)',
+              '--slide-border': 'rgba(255,255,255,0.2)',
+            }
+          : {}),
+        ...style,
+      } as CSSProperties}
     >
+      {withBlobAccent && (
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            opacity: 0.35,
+            background:
+              'var(--slide-blob-gradient) 135% 120% / 60% 90% no-repeat',
+          }}
+        />
+      )}
       {withGradientBar && (
         <div className="absolute top-0 left-0 right-0">
           <SlideGradientBar height="4px" />

@@ -27,8 +27,8 @@ export function QuoteGhostNumeral({
           aria-hidden="true"
           className="absolute -top-6 right-0 font-black leading-none select-none pointer-events-none line-clamp-1 overflow-hidden"
           style={{
-            fontSize: '16rem',
-            opacity: 'var(--slide-ghost-numeral-opacity, 0.07)',
+            fontSize: '10rem',
+            opacity: 'var(--slide-ghost-numeral-opacity, 0.06)',
             fontFamily: 'var(--slide-heading-font-family, inherit)',
           }}
         >

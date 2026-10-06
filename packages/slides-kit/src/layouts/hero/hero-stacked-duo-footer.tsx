@@ -1,8 +1,8 @@
-import { SlideBadge } from '@/primitives/SlideAccent';
+import { SlideCheckBadge } from '@/primitives/SlideAccent';
 import { SlideSection } from '@/primitives/SlideSection';
 
 export interface HeroStackedDuoFooterProps {
-  /** Etiqueta superior o categoría */
+  /** Etiqueta superior o categoría (Blue S1: COMPANY, junto a la insignia) */
   tag?: string;
   /** Primera línea del título apilado */
   line1: string;
@@ -12,6 +12,10 @@ export interface HeroStackedDuoFooterProps {
   footerLeft?: string;
   /** Texto inferior derecho del pie */
   footerRight?: string;
+  /** Legado: URL del sello/insignia (S1/S11). Sin uso: la insignia es SVG vectorial integrado. */
+  badgeUrl?: string;
+  /** Variante del fondo: portada completa o acento tenue de esquina */
+  wash?: 'cover' | 'corner';
 }
 
 /**
@@ -23,21 +27,57 @@ export function HeroStackedDuoFooter({
   line2,
   footerLeft,
   footerRight,
+  badgeUrl: _badgeUrl,
+  wash = 'cover',
 }: HeroStackedDuoFooterProps) {
   return (
-    <SlideSection withGradientBar={true}>
-      <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col justify-center max-w-5xl mx-auto px-6 overflow-hidden">
+    <SlideSection withGradientBar={true} withBlobAccent={false}>
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 pointer-events-none"
+        style={
+          wash === 'cover'
+            ? {
+                background:
+                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 22% -58% / 135% 175% no-repeat, var(--slide-wash-base, #F6F2EF)',
+              }
+            : {
+                opacity: 0.35,
+                background:
+                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 78% 68% / 60% 90% no-repeat, var(--slide-wash-base, #F6F2EF)',
+              }
+        }
+      />
+      <div
+        aria-hidden="true"
+        className="absolute z-10 flex items-center"
+        style={{ left: '5.6%', top: '10%', gap: '0.75rem' }}
+      >
+        <SlideCheckBadge
+          className="block shrink-0"
+          style={{ width: '5.2vw', maxWidth: '104px', height: 'auto', aspectRatio: '47 / 27' }}
+        />
         {tag && (
-          <div className="mb-6 shrink-0">
-            <SlideBadge variant="accent">{tag}</SlideBadge>
-          </div>
+          <span
+            className="font-bold uppercase whitespace-nowrap"
+            style={{
+              fontFamily: 'var(--slide-heading-font-family, inherit)',
+              fontSize: 'clamp(0.9rem, 1.8vw, 1.35rem)',
+              letterSpacing: '0.08em',
+              color: 'var(--slide-heading-color, #185079)',
+            }}
+          >
+            {tag}
+          </span>
         )}
-
+      </div>
+      <div className="relative z-10 flex flex-1 min-h-0 min-w-0 w-full flex-col justify-center max-w-5xl mx-auto px-6 overflow-hidden">
         <h1
-          className="font-black uppercase leading-none tracking-tight break-words min-w-0"
+          className="font-black uppercase tracking-tight break-words min-w-0"
           style={{
             fontFamily: 'var(--slide-heading-font-family, inherit)',
-            fontSize: 'clamp(2.75rem, 8vw, 5.5rem)',
+            fontSize: 'clamp(3.5rem, 10vw, 7rem)',
+            lineHeight: 0.95,
           }}
         >
           <span className="block line-clamp-2">{line1}</span>

@@ -17,6 +17,8 @@ export interface StatsTeamGridProps {
   title: string;
   /** Miembros del equipo (máximo 4) */
   members: TeamGridMember[];
+  /** Lavado claro/oscuro */
+  tone?: 'light' | 'dark';
 }
 
 function initials(name: string): string {
@@ -31,10 +33,10 @@ function initials(name: string): string {
 /**
  * Grilla de equipo 4-up con marco de foto y nombre en mayúsculas.
  */
-export function StatsTeamGrid({ tag, title, members }: StatsTeamGridProps) {
+export function StatsTeamGrid({ tag, title, members, tone = 'light' }: StatsTeamGridProps) {
   const cards = members.slice(0, 4);
   return (
-    <SlideSection withGradientBar={false}>
+    <SlideSection withGradientBar={false} tone={tone}>
       <div className="flex flex-1 min-h-0 min-w-0 w-full flex-col justify-center max-w-5xl mx-auto px-8 overflow-hidden">
         {tag && (
           <div className="mb-5 shrink-0">
