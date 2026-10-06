@@ -7,6 +7,7 @@ import {
   listCategories,
   listLayouts,
   registerLayout,
+  unregisterLayout,
 } from '@/layouts/registry';
 import { LayoutCategory } from '@/layouts/types';
 import { DeckRenderer } from '@/renderer/DeckRenderer';
@@ -184,6 +185,9 @@ describe('slides-kit p0 regressions', () => {
       expect(warned).toBe(true);
     } finally {
       console.warn = originalWarn;
+      // The registry is global: unregister so layout-count pins stay
+      // order-independent across test files.
+      unregisterLayout('p0-required-slot-layout');
     }
   });
 
