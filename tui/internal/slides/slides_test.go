@@ -97,7 +97,10 @@ func TestProjectConfig_RoundTrip(t *testing.T) {
 }
 
 func TestStarterTemplate_Writes(t *testing.T) {
-	files := StarterTemplate("Demo Deck")
+	files, err := StarterTemplate("Demo Deck")
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := map[string]bool{
 		"package.json": false, ".slidesrc.json": false, "manifest.json": false,
 		"src/slides.tsx": false, "README.md": false,

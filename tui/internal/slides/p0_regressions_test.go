@@ -130,7 +130,10 @@ func TestP0StarterTemplateValidNpmName(t *testing.T) {
 		"O'Brien":   "o-brien",
 	}
 	for input, want := range cases {
-		files := StarterTemplate(input)
+		files, err := StarterTemplate(input)
+		if err != nil {
+			t.Fatal(err)
+		}
 		var pkgJSON string
 		for _, f := range files {
 			if f.Path == "package.json" {
@@ -416,5 +419,37 @@ func TestP1P2DriftReport(t *testing.T) {
 	}
 	if !strings.Contains(got, layoutIDs[0]) {
 		t.Errorf("expected removed layout %q flagged, got %q", layoutIDs[0], got)
+	}
+}
+
+func TestStarterTemplateEscapesSpecialCharsInTSStrings(t *testing.T) {
+	name := "linea\nsalto'O\\Brien" + string([]rune{'\u2028', '\u2029'}) + "end"
+	files, err := StarterTemplate(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var deck string
+	for _, f := range files {
+		if f.Path == "deck.config.ts" {
+			deck = f.Content
+		}
+	}
+	if deck == "" {
+		t.Fatal("template missing deck.config.ts")
+	}
+	for _, want := range []string{`linea\nsalto`, `salto\'O\\Brien`, `\u2028`, `\u2029`} {
+		if !strings.Contains(deck, want) {
+			t.Errorf("deck.config.ts missing escaped %q:\n%s", want, deck)
+		}
+	}
+	for _, raw := range []string{string('\u2028'), string('\u2029')} {
+		if strings.Contains(deck, raw) {
+			t.Errorf("deck.config.ts contains raw separator %q:\n%q", raw, deck)
+		}
+	}
+	for _, line := range strings.Split(deck, "\n") {
+		if strings.HasPrefix(line, "  title: '") && !strings.HasSuffix(line, "',") {
+			t.Errorf("title leaks across lines: %q", line)
+		}
 	}
 }
