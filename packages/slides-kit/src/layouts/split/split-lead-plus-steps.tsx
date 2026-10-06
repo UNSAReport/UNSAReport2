@@ -54,7 +54,7 @@ export function SplitLeadPlusSteps({
                 style={{
                   backgroundColor:
                     'var(--slide-number-disc, var(--slide-accent))',
-                  color: 'var(--slide-on-accent, inherit)',
+                  color: 'var(--slide-accent-contrast, #fff)',
                 }}
               >
                 {step.n ?? idx + 1}
