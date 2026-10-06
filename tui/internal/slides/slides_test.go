@@ -196,13 +196,13 @@ func TestCatalog(t *testing.T) {
 	}
 
 	themes := ListThemes()
-	if len(themes) != 5 {
-		t.Errorf("expected 5 themes, got %d", len(themes))
+	if len(themes) != 8 {
+		t.Errorf("expected 8 themes, got %d", len(themes))
 	}
 
 	allLayouts := ListLayouts("", "")
-	if len(allLayouts) != 110 {
-		t.Errorf("expected 110 layouts, got %d", len(allLayouts))
+	if len(allLayouts) != 120 {
+		t.Errorf("expected 120 layouts, got %d", len(allLayouts))
 	}
 
 	bentoLayouts := ListLayouts("bento", "")
@@ -219,13 +219,16 @@ func TestCatalog(t *testing.T) {
 func TestCatalog_ThemeAgreementWithKit(t *testing.T) {
 	// Contrato con packages/slides-kit/src/themes/types.ts ThemeId: si el kit
 	// agrega/quita un tema (K1), este test falla y recuerda sincronizar
-	// officialThemes (DT-3: el catálogo web lee "5 temas" del kit).
+	// officialThemes (DT-3: el catálogo web lee "8 temas" del kit).
 	want := []string{
 		"unsa-dark",
 		"unsa-classic",
 		"epis-tech",
 		"fips-light",
 		"epis-night",
+		"cloudlet-pitch",
+		"azul-proposal",
+		"harper-minimal",
 	}
 	themes := ListThemes()
 	if len(themes) != len(want) {

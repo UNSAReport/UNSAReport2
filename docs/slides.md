@@ -7,7 +7,7 @@ Este documento describe la arquitectura técnica, flujos de diseño, estructura 
 ## 1. Visión General del Ecosistema
 
 El ecosistema de diapositivas está desacoplado en cuatro componentes fundamentales:
-- **`packages/slides-kit` (`@unsa/slides-kit`)**: Kit modular con 110 layouts, temas oficiales, primitivas y motor Reveal.js.
+- **`packages/slides-kit` (`@unsa/slides-kit`)**: Kit modular con 120 layouts, temas oficiales, primitivas y motor Reveal.js.
 - **`tui/` (`unsarep slides`)**: CLI en Go para inicialización, descubrimiento, desarrollo local con HMR y empaquetado hacia la nube.
 - **`slides/`**: Microservicio backend (Hono + PostgreSQL + SeaweedFS S3) para almacenamiento, versionado y entrega estática.
 - **`web/` (`web/app`)**: Plataforma web institucional con dashboard por organizaciones, visor con shell institucional e iframe sandboxed, y catálogo interactivo.
@@ -16,8 +16,8 @@ El ecosistema de diapositivas está desacoplado en cuatro componentes fundamenta
 flowchart TD
     subgraph Kit["packages/slides-kit<br/>(@unsa/slides-kit)"]
         DefineConfig["defineConfig()"]
-        Registry["LayoutRegistry<br/>(110 layouts registrados)"]
-        ThemeReg["ThemeRegistry<br/>(5 temas: unsa-dark, unsa-classic, epis-tech, fips-light, epis-night)"]
+        Registry["LayoutRegistry<br/>(120 layouts registrados)"]
+        ThemeReg["ThemeRegistry<br/>(8 temas: unsa-dark, unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal, harper-minimal)"]
         Primitives["Primitivas CSS<br/>(Grid, Split, Bento, Stack)"]
         Renderer["DeckRenderer<br/>(Reveal.js + React)"]
 
@@ -72,7 +72,7 @@ flowchart TD
 Siguiendo las directrices del proyecto:
 1. **Sin barrel files**: Se prohíbe el uso de `index.ts` que re-exporten indiscriminadamente componentes o módulos.
 2. **Subpath exports**: Cada submódulo se expone canónicamente mediante el bloque `exports` en `package.json`.
-3. **Neutralidad cromática de layouts**: Los 110 layouts son estrictamente estructurales (geometría, tipometría y layout CSS), dejando la paleta cromática a los temas.
+3. **Neutralidad cromática de layouts**: Los 120 layouts son estrictamente estructurales (geometría, tipometría y layout CSS), dejando la paleta cromática a los temas.
 4. **Importaciones absolutas**: En todo el monorepo se emplea exclusivamente el alias `@/*`.
 
 ```mermaid
@@ -87,7 +87,7 @@ flowchart TD
 
         subgraph LayoutsModule["Dominio: src/layouts/"]
             LRegistry["layouts/registry.ts<br/>LayoutRegistry"]
-            LCatalog["layouts/catalog.ts<br/>Catálogo de 110 Layouts"]
+            LCatalog["layouts/catalog.ts<br/>Catálogo de 120 Layouts"]
             LTypes["layouts/types.ts<br/>LayoutDefinition, LayoutCategory"]
             LComponents["layouts/{hero,split,bento,...}/*.tsx<br/>Componentes React"]
 
@@ -137,7 +137,7 @@ flowchart TD
 
 ## 3. Flujo de Registro y Resolución de Layouts
 
-El sistema soporta 110 layouts agrupados en 9 familias funcionales (`hero`, `split`, `bento`, `stats`, `process`, `code`, `list`, `quote`, `closing`).
+El sistema soporta 120 layouts agrupados en 9 familias funcionales (`hero`, `split`, `bento`, `stats`, `process`, `code`, `list`, `quote`, `closing`).
 
 ```mermaid
 flowchart LR
@@ -192,7 +192,7 @@ flowchart LR
         TProvider["ThemeProvider.tsx<br/>Genera variables CSS (--slide-bg, --slide-accent)"]
         CLIT["CLI: unsarep slides themes<br/>Lista temas en terminal"]
         WebTheme["Web: /presentations/catalog<br/>Preview y cambio dinámico de tema"]
-        Reveal["Contenedor Reveal.js<br/>Aplica variables a todos los 110 layouts"]
+        Reveal["Contenedor Reveal.js<br/>Aplica variables a todos los 120 layouts"]
 
         TRegistry --> TProvider
         TRegistry --> CLIT

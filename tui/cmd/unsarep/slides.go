@@ -209,7 +209,7 @@ func newSlidesLayoutsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "layouts",
 		Short: "Explore and search official slide layouts",
-		Long: `List the 110 official slides-kit layouts in 9 families
+		Long: `List the 120 official slides-kit layouts in 9 families
 (hero, split, bento, stats, process, code, list, quote, closing).
 Mirrors packages/slides-kit/src/layouts/catalog.ts (kit is the source of truth).`,
 		Example: `  unsarep slides layouts
@@ -261,8 +261,8 @@ func newSlidesThemesCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "themes",
 		Short: "List official themes for UNSA slides",
-		Long: `List the 5 official slides-kit themes
-(unsa-dark, unsa-classic, epis-tech, fips-light, epis-night).
+		Long: `List the 8 official slides-kit themes
+	(unsa-dark, unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal, harper-minimal).
 Mirrors packages/slides-kit/src/themes/catalog.ts (kit is the source of truth).`,
 		Example: `  unsarep slides themes`,
 		Args:    cobra.NoArgs,

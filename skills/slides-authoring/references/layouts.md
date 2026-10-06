@@ -1,6 +1,6 @@
 # Layout picking via SlotSchema
 
-110 layouts in 9 families. Kit source of truth:
+120 layouts in 9 families. Kit source of truth:
 `packages/slides-kit/src/layouts/catalog.ts` (CLI mirrors it in
 `tui/internal/slides/catalog.go`).
 

@@ -6,9 +6,9 @@ Kit oficial de diapositivas interactivas para el ecosistema **UNSAReport**, basa
 
 ## Características
 
-- 🎯 **110 Layouts Oficiales** organizados en 9 familias (`hero`, `split`, `bento`, `stats`, `process`, `code`, `list`, `quote`, `closing`).
+- 🎯 **120 Layouts Oficiales** organizados en 9 familias (`hero`, `split`, `bento`, `stats`, `process`, `code`, `list`, `quote`, `closing`).
 - 🎨 **Layouts Neutros**: Los componentes son estrictamente estructurales; el color, tipografía y estilo visual son inyectados exclusivamente por los temas a través de variables CSS.
-- 🏛️ **Temas Institucionales**: `unsa-dark` (predeterminado institucional), `unsa-classic` (académico formal), `epis-tech` (ciencias de la computación / tecnología).
+- 🏛️ **Temas Institucionales**: `unsa-dark` (predeterminado institucional), `unsa-classic` (académico formal), `epis-tech` (ciencias de la computación / tecnología), `cloudlet-pitch` (pitch startup Cloudlet Tech), `azul-proposal` (propuesta corporativa azul), `harper-minimal` (pitch minimalista negro/rojo).
 - 🧩 **Primitivas Flexibles**: `SlideGrid`, `SlideSplit`, `SlideStack`, `SlideCard`, `SlideAccent`, `SlideSection`.
 - 📦 **Cero Barrel Files**: Exportaciones canónicas directas mediante `package.json` para optimizar compilación y tree-shaking.
 - ⚡ **Tipado Estricto**: Función `defineConfig()` para configuración de presentaciones con autocompletado en el IDE.
@@ -29,7 +29,7 @@ flowchart TD
 
         subgraph LayoutsModule["Dominio: src/layouts/"]
             LRegistry["layouts/registry.ts<br/>LayoutRegistry"]
-            LCatalog["layouts/catalog.ts<br/>Catálogo de 110 Layouts"]
+            LCatalog["layouts/catalog.ts<br/>Catálogo de 120 Layouts"]
             LTypes["layouts/types.ts<br/>LayoutDefinition, LayoutCategory"]
             LComponents["layouts/{hero,split,bento,...}/*.tsx<br/>Componentes React"]
 
