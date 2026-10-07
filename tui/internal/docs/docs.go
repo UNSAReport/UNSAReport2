@@ -434,17 +434,17 @@ type downloadedPkgInfo struct {
 	rootFiles map[string][]byte
 }
 
-func installComponentTree(ctx context.Context, root, name, version, mode string, selectRootFiles func(files []string) ([]string, error), resolveRootFiles RootFileResolver) (pkg.PkgToml, error) {
+func installComponentTree(ctx context.Context, root, name, version, mode string, selectRootFiles func(files []string) ([]string, error), resolveRootFiles RootFileResolver) (pkg.PkgToml, []downloadedPkgInfo, error) {
 	visited := map[string]bool{name: true}
 	var downloaded []downloadedPkgInfo
 	p, err := installComponentTreeRecursive(ctx, root, name, version, visited, &downloaded)
 	if err != nil {
-		return pkg.PkgToml{}, err
+		return pkg.PkgToml{}, nil, err
 	}
 	if err := processAllRootFiles(root, downloaded, mode, selectRootFiles, resolveRootFiles); err != nil {
-		return pkg.PkgToml{}, err
+		return pkg.PkgToml{}, nil, err
 	}
-	return p, nil
+	return p, downloaded, nil
 }
 
 func installComponentTreeRecursive(ctx context.Context, root, name, version string, visited map[string]bool, downloaded *[]downloadedPkgInfo) (pkg.PkgToml, error) {
@@ -974,7 +974,7 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		mode = m
 	}
 
-	p, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
+	_, downloaded, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
 	if err != nil {
 		return err
 	}
@@ -997,15 +997,13 @@ func Init(ctx context.Context, cwd string, opt InitOptions) error {
 		}
 	}
 
-	if len(opt.Flags) > 0 {
-		mErr := mode
-		if mErr != "" && mErr != "none" {
-			if err := copyCommands(root, &cfg, p, mErr); err != nil {
+	if mode != "none" {
+		for _, dp := range downloaded {
+			if err := copyCommands(root, &cfg, dp.toml, mode); err != nil {
 				return err
 			}
 		}
-	} else if opt.Yes {
-		if err := copyCommands(root, &cfg, p, "all"); err != nil {
+		if err := saveConfig(root, cfg); err != nil {
 			return err
 		}
 	}
@@ -1041,12 +1039,15 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 	if err != nil {
 		return err
 	}
-	p, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
+	p, downloaded, err := installComponentTree(ctx, root, name, version, mode, opt.SelectRootFiles, opt.ResolveRootFiles)
 	if err != nil {
 		return err
 	}
-	if err := copyCommands(root, &cfg, p, mode); err != nil {
-		return err
+	_ = p
+	for _, dp := range downloaded {
+		if err := copyCommands(root, &cfg, dp.toml, mode); err != nil {
+			return err
+		}
 	}
 	if cfg.Dependencies == nil {
 		cfg.Dependencies = map[string]string{}
@@ -1062,6 +1063,9 @@ func Add(ctx context.Context, cwd string, opt AddOptions) error {
 }
 
 func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode string) error {
+	if len(p.Commands) == 0 && len(p.Hooks) == 0 && len(p.ConfigSchema) == 0 {
+		return nil
+	}
 	prefix := p.Package.CommandPrefix
 	if prefix == "" {
 		prefix = p.Package.Name[strings.LastIndex(p.Package.Name, "/")+1:]
@@ -1079,56 +1083,58 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			selected[c] = true
 		}
 	case "ask":
-		if isTTYFunc() && stdinReader == os.Stdin && len(cmds) > 0 {
-			var chosenCmds []string
-			var defaultCmds []string
-			options := make([]huh.Option[string], 0, len(cmds))
-			for _, c := range cmds {
-				label := prefix + ":" + c
-				if desc := p.Commands[c].Description; desc != "" {
-					label += " — " + desc
-				}
-				options = append(options, huh.NewOption(label, c))
-				defaultCmds = append(defaultCmds, c)
-			}
-			form := huh.NewForm(huh.NewGroup(
-				ui.NewMultiSelect[string]().
-					Title("Install Package Commands").
-					Description("Select script aliases to add to your project (a: all, d: defaults, n: none):").
-					Options(options...).
-					Defaults(defaultCmds...).
-					Value(&chosenCmds),
-			))
-			if err := form.Run(); err != nil {
-				return fmt.Errorf("command selection cancelled: %w", err)
-			}
-			for _, c := range chosenCmds {
-				selected[c] = true
-			}
-		} else {
-			fmt.Println("Commands:")
-			for i, c := range cmds {
-				fmt.Printf("  %d. %s:%s — %s\n", i+1, prefix, c, p.Commands[c].Description)
-			}
-			line, err := promptLine("Select [numbers/all/none, default=all]:")
-			if err != nil {
-				return err
-			}
-			line = strings.ToLower(strings.TrimSpace(line))
-			switch line {
-			case "", "all":
+		if len(cmds) > 0 {
+			if isTTYFunc() && stdinReader == os.Stdin {
+				var chosenCmds []string
+				var defaultCmds []string
+				options := make([]huh.Option[string], 0, len(cmds))
 				for _, c := range cmds {
+					label := prefix + ":" + c
+					if desc := p.Commands[c].Description; desc != "" {
+						label += " — " + desc
+					}
+					options = append(options, huh.NewOption(label, c))
+					defaultCmds = append(defaultCmds, c)
+				}
+				form := huh.NewForm(huh.NewGroup(
+					ui.NewMultiSelect[string]().
+						Title(fmt.Sprintf("Install Package Commands: %s", p.Package.Name)).
+						Description("Select script aliases to add to your project (a: all, d: defaults, n: none):").
+						Options(options...).
+						Defaults(defaultCmds...).
+						Value(&chosenCmds),
+				))
+				if err := form.Run(); err != nil {
+					return fmt.Errorf("command selection cancelled: %w", err)
+				}
+				for _, c := range chosenCmds {
 					selected[c] = true
 				}
-			case "none":
-			default:
-				for _, part := range strings.Split(line, ",") {
-					part = strings.TrimSpace(part)
-					var idx int
-					if _, err := fmt.Sscanf(part, "%d", &idx); err != nil || idx < 1 || idx > len(cmds) {
-						return fmt.Errorf("invalid selection %q", part)
+			} else {
+				fmt.Printf("Commands (%s):\n", p.Package.Name)
+				for i, c := range cmds {
+					fmt.Printf("  %d. %s:%s — %s\n", i+1, prefix, c, p.Commands[c].Description)
+				}
+				line, err := promptLine("Select [numbers/all/none, default=all]:")
+				if err != nil {
+					return err
+				}
+				line = strings.ToLower(strings.TrimSpace(line))
+				switch line {
+				case "", "all":
+					for _, c := range cmds {
+						selected[c] = true
 					}
-					selected[cmds[idx-1]] = true
+				case "none":
+				default:
+					for _, part := range strings.Split(line, ",") {
+						part = strings.TrimSpace(part)
+						var idx int
+						if _, err := fmt.Sscanf(part, "%d", &idx); err != nil || idx < 1 || idx > len(cmds) {
+							return fmt.Errorf("invalid selection %q", part)
+						}
+						selected[cmds[idx-1]] = true
+					}
 				}
 			}
 		}
@@ -1197,109 +1203,121 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 		}
 	}
 
-	if mode == "ask" && isTTYFunc() && stdinReader == os.Stdin {
-		type hookCandidate struct {
-			std    string
-			timing string
-			alias  string
-		}
-		var candidates []hookCandidate
-		var options []huh.Option[string]
-		for std, timing := range p.Hooks {
-			for _, s := range timing.Before {
-				alias := prefix + ":" + s
-				idxStr := fmt.Sprintf("%d", len(candidates))
-				candidates = append(candidates, hookCandidate{std: std, timing: "before", alias: alias})
-				options = append(options, huh.NewOption(fmt.Sprintf("[%s.before] %s", std, alias), idxStr))
+	if len(p.Hooks) > 0 {
+		if mode == "ask" && isTTYFunc() && stdinReader == os.Stdin {
+			type hookCandidate struct {
+				std    string
+				timing string
+				alias  string
 			}
-			for _, s := range timing.After {
-				alias := prefix + ":" + s
-				idxStr := fmt.Sprintf("%d", len(candidates))
-				candidates = append(candidates, hookCandidate{std: std, timing: "after", alias: alias})
-				options = append(options, huh.NewOption(fmt.Sprintf("[%s.after] %s", std, alias), idxStr))
+			var candidates []hookCandidate
+			var options []huh.Option[string]
+			for std, timing := range p.Hooks {
+				for _, s := range timing.Before {
+					alias := prefix + ":" + s
+					if _, isPkgCmd := p.Commands[s]; isPkgCmd && !selected[s] {
+						if _, exists := cfg.Scripts[alias]; !exists {
+							continue
+						}
+					}
+					idxStr := fmt.Sprintf("%d", len(candidates))
+					candidates = append(candidates, hookCandidate{std: std, timing: "before", alias: alias})
+					options = append(options, huh.NewOption(fmt.Sprintf("[%s.before] %s", std, alias), idxStr))
+				}
+				for _, s := range timing.After {
+					alias := prefix + ":" + s
+					if _, isPkgCmd := p.Commands[s]; isPkgCmd && !selected[s] {
+						if _, exists := cfg.Scripts[alias]; !exists {
+							continue
+						}
+					}
+					idxStr := fmt.Sprintf("%d", len(candidates))
+					candidates = append(candidates, hookCandidate{std: std, timing: "after", alias: alias})
+					options = append(options, huh.NewOption(fmt.Sprintf("[%s.after] %s", std, alias), idxStr))
+				}
 			}
-		}
-		if len(options) > 0 {
-			var defaultHooks []string
-			for i := range candidates {
-				defaultHooks = append(defaultHooks, fmt.Sprintf("%d", i))
+			if len(options) > 0 {
+				var defaultHooks []string
+				for i := range candidates {
+					defaultHooks = append(defaultHooks, fmt.Sprintf("%d", i))
+				}
+				var chosen []string
+				form := huh.NewForm(huh.NewGroup(
+					ui.NewMultiSelect[string]().
+						Title(fmt.Sprintf("Hook Automations: %s", p.Package.Name)).
+						Description("Select lifecycle hooks to bind to this project (a: all, d: defaults, n: none):").
+						Options(options...).
+						Defaults(defaultHooks...).
+						Value(&chosen),
+				))
+				if err := form.Run(); err != nil {
+					return fmt.Errorf("hook selection cancelled: %w", err)
+				}
+				chosenSet := make(map[string]bool)
+				for _, idxStr := range chosen {
+					chosenSet[idxStr] = true
+				}
+				for i, cand := range candidates {
+					idxStr := fmt.Sprintf("%d", i)
+					if chosenSet[idxStr] {
+						current := bound[cand.std]
+						if cand.timing == "before" {
+							current.Before = append(current.Before, cand.alias)
+						} else {
+							current.After = append(current.After, cand.alias)
+						}
+						bound[cand.std] = current
+					}
+				}
 			}
-			var chosen []string
-			form := huh.NewForm(huh.NewGroup(
-				ui.NewMultiSelect[string]().
-					Title("Hook Automations").
-					Description("Select lifecycle hooks to bind to this project (a: all, d: defaults, n: none):").
-					Options(options...).
-					Defaults(defaultHooks...).
-					Value(&chosen),
-			))
-			if err := form.Run(); err != nil {
-				return fmt.Errorf("hook selection cancelled: %w", err)
-			}
-			chosenSet := make(map[string]bool)
-			for _, idxStr := range chosen {
-				chosenSet[idxStr] = true
-			}
-			for i, cand := range candidates {
-				idxStr := fmt.Sprintf("%d", i)
-				if chosenSet[idxStr] {
-					current := bound[cand.std]
-					if cand.timing == "before" {
-						current.Before = append(current.Before, cand.alias)
+		} else {
+			for std, timing := range p.Hooks {
+				var current project.HookTiming
+				for _, s := range timing.Before {
+					alias := prefix + ":" + s
+					if mode == "ask" {
+						line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.before]? [y/N]:", alias, std))
+						if err != nil {
+							return err
+						}
+						if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+							continue
+						}
+					} else if mode == "yes" || mode == "all" {
+						if _, ok := p.Commands[s]; !ok {
+							continue
+						}
+					} else if mode == "none" {
+						continue
 					} else {
-						current.After = append(current.After, cand.alias)
+						return fmt.Errorf("unknown command-select mode %q", mode)
 					}
-					bound[cand.std] = current
+					current.Before = append(current.Before, alias)
 				}
-			}
-		}
-	} else {
-		for std, timing := range p.Hooks {
-			var current project.HookTiming
-			for _, s := range timing.Before {
-				alias := prefix + ":" + s
-				if mode == "ask" {
-					line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.before]? [y/N]:", alias, std))
-					if err != nil {
-						return err
-					}
-					if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+				for _, s := range timing.After {
+					alias := prefix + ":" + s
+					if mode == "ask" {
+						line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.after]? [y/N]:", alias, std))
+						if err != nil {
+							return err
+						}
+						if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
+							continue
+						}
+					} else if mode == "yes" || mode == "all" {
+						if _, ok := p.Commands[s]; !ok {
+							continue
+						}
+					} else if mode == "none" {
 						continue
+					} else {
+						return fmt.Errorf("unknown command-select mode %q", mode)
 					}
-				} else if mode == "yes" || mode == "all" {
-					if _, ok := p.Commands[s]; !ok {
-						continue
-					}
-				} else if mode == "none" {
-					continue
-				} else {
-					return fmt.Errorf("unknown command-select mode %q", mode)
+					current.After = append(current.After, alias)
 				}
-				current.Before = append(current.Before, alias)
-			}
-			for _, s := range timing.After {
-				alias := prefix + ":" + s
-				if mode == "ask" {
-					line, err := promptLine(fmt.Sprintf("Bind %q to [hooks.%s.after]? [y/N]:", alias, std))
-					if err != nil {
-						return err
-					}
-					if strings.ToLower(line) != "y" && strings.ToLower(line) != "yes" {
-						continue
-					}
-				} else if mode == "yes" || mode == "all" {
-					if _, ok := p.Commands[s]; !ok {
-						continue
-					}
-				} else if mode == "none" {
-					continue
-				} else {
-					return fmt.Errorf("unknown command-select mode %q", mode)
+				if len(current.Before) > 0 || len(current.After) > 0 {
+					bound[std] = current
 				}
-				current.After = append(current.After, alias)
-			}
-			if len(current.Before) > 0 || len(current.After) > 0 {
-				bound[std] = current
 			}
 		}
 	}
@@ -1314,7 +1332,7 @@ func copyCommands(root string, cfg *project.SpecConfig, p pkg.PkgToml, mode stri
 			}
 		}
 	}
-	if len(p.ConfigSchema) > 0 && (len(selected) > 0 || len(bound) > 0) {
+	if len(p.ConfigSchema) > 0 {
 		if err := collectPackageConfig(root, cfg, p, prefix, mode); err != nil {
 			return err
 		}
@@ -1335,6 +1353,7 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 			vals[k] = v
 		}
 	}
+	var unconfigured []string
 	for _, k := range keys {
 		e := p.ConfigSchema[k]
 		if v, ok := vals[k]; ok {
@@ -1343,41 +1362,69 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 			}
 			continue
 		}
-		def, hasDef := configDefault(e)
-		var val string
-		switch mode {
-		case "ask":
-			if isTTYFunc() {
+		unconfigured = append(unconfigured, k)
+	}
+	if len(unconfigured) == 0 {
+		return nil
+	}
+
+	switch mode {
+	case "ask":
+		if isTTYFunc() && stdinReader == os.Stdin {
+			var fields []huh.Field
+			valPtrs := make(map[string]*string)
+			for _, k := range unconfigured {
+				e := p.ConfigSchema[k]
+				def, _ := configDefault(e)
+				v := def
+				valPtrs[k] = &v
 				input := huh.NewInput().
-					Title(fmt.Sprintf("Config: %s", k)).
+					Title(fmt.Sprintf("[%s] %s", origin, k)).
 					Description(e.Doc).
-					Value(&val)
-				if hasDef {
-					val = def
-				}
-				if e.Required {
-					input.Validate(func(s string) error {
-						if strings.TrimSpace(s) == "" {
-							return fmt.Errorf("package %q requires config %q", origin, k)
+					Value(valPtrs[k])
+				keyName := k
+				entry := e
+				defaultVal := def
+				input.Validate(func(s string) error {
+					s = strings.TrimSpace(s)
+					if s == "" {
+						if entry.Required && defaultVal == "" {
+							return fmt.Errorf("package %q requires config %q", origin, keyName)
 						}
 						return nil
-					})
-				}
-				form := huh.NewForm(huh.NewGroup(input))
+					}
+					return checkConfigType(keyName, entry.Type, s)
+				})
+				fields = append(fields, input)
+			}
+			if len(fields) > 0 {
+				form := huh.NewForm(huh.NewGroup(fields...))
 				if err := form.Run(); err != nil {
 					return err
 				}
-				val = strings.TrimSpace(val)
-				if val == "" {
-					val = def
-				}
-				if val == "" {
-					if e.Required {
-						return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+				for _, k := range unconfigured {
+					e := p.ConfigSchema[k]
+					def, _ := configDefault(e)
+					val := strings.TrimSpace(*valPtrs[k])
+					if val == "" {
+						val = def
 					}
-					continue
+					if val == "" {
+						if e.Required {
+							return fmt.Errorf("package %q requires config %q (no default); aborting", origin, k)
+						}
+						continue
+					}
+					if err := checkConfigType(k, e.Type, val); err != nil {
+						return err
+					}
+					vals[k] = val
 				}
-			} else {
+			}
+		} else {
+			for _, k := range unconfigured {
+				e := p.ConfigSchema[k]
+				def, hasDef := configDefault(e)
 				prompt := fmt.Sprintf("package %q config %q", origin, k)
 				if e.Doc != "" {
 					prompt += fmt.Sprintf(" (%s)", e.Doc)
@@ -1391,7 +1438,7 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 				if err != nil {
 					return err
 				}
-				val = strings.TrimSpace(line)
+				val := strings.TrimSpace(line)
 				if val == "" {
 					val = def
 				}
@@ -1401,22 +1448,29 @@ func collectPackageConfig(root string, cfg *project.SpecConfig, p pkg.PkgToml, p
 					}
 					continue
 				}
+				if err := checkConfigType(k, e.Type, val); err != nil {
+					return err
+				}
+				vals[k] = val
 			}
-		case "yes", "all":
+		}
+	case "yes", "all", "none":
+		for _, k := range unconfigured {
+			e := p.ConfigSchema[k]
+			def, hasDef := configDefault(e)
 			if !hasDef {
 				if e.Required {
 					return fmt.Errorf("package %q requires config %q with no default; re-run with prompts", origin, k)
 				}
 				continue
 			}
-			val = def
-		default:
-			return fmt.Errorf("unknown command-select mode %q", mode)
+			if err := checkConfigType(k, e.Type, def); err != nil {
+				return err
+			}
+			vals[k] = def
 		}
-		if err := checkConfigType(k, e.Type, val); err != nil {
-			return err
-		}
-		vals[k] = val
+	default:
+		return fmt.Errorf("unknown command-select mode %q", mode)
 	}
 	if len(vals) == 0 {
 		return nil
@@ -1965,6 +2019,16 @@ func Update(ctx context.Context, cwd string, opt UpdateOptions) error {
 		var deps []string
 		if ok {
 			if p, err := pkg.Parse(string(raw)); err == nil {
+				if pkgErr := pkg.Validate(p); pkgErr == nil {
+					if acceptedChanges > 0 || changesCount == 0 {
+						if err := copyCommands(root, &cfg, p, mode); err != nil {
+							return err
+						}
+						if err := saveConfig(root, cfg); err != nil {
+							return err
+						}
+					}
+				}
 				for depName, depRange := range p.Dependencies {
 					depName = strings.TrimSpace(depName)
 					depRange = strings.TrimSpace(depRange)
@@ -2315,25 +2379,6 @@ func enrichConfigForTarget(root, reportDir string, cfg *project.SpecConfig, hook
 	}
 }
 
-func copyFile(src, dst string) error {
-	in, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = in.Close() }()
-
-	out, err := os.Create(dst)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = out.Close() }()
-
-	if _, err := io.Copy(out, in); err != nil {
-		return err
-	}
-	return out.Close()
-}
-
 func Build(cwd, report string) error {
 	root, cfg, err := resolveRoot(cwd)
 	if err != nil {
@@ -2372,12 +2417,6 @@ func Build(cwd, report string) error {
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("typst compile failed: %w", err)
-	}
-	reportPdf := filepath.Join(reportDir, config.DefaultReportPDF)
-	if out != reportPdf {
-		if _, statErr := os.Stat(reportPdf); os.IsNotExist(statErr) {
-			_ = copyFile(out, reportPdf)
-		}
 	}
 	return runHooks(root, "build", project.HookAfter, cfg, hookEnvAfter)
 }

@@ -71,7 +71,7 @@ func newDocsInitCmd() *cobra.Command {
 				if !canPrompt() {
 					template = pkgs[0].Name
 				} else {
-					chosen, pErr := selectPackageFromList("Matching template packages", pkgs, client, ctx)
+					chosen, pErr := selectPackageFromList("Matching template packages", pkgs, client, ctx, true)
 					if pErr != nil {
 						return pErr
 					}
@@ -124,12 +124,14 @@ func newDocsInitCmd() *cobra.Command {
 	return cmd
 }
 
-func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *registry.Client, ctx context.Context) (string, error) {
+func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *registry.Client, ctx context.Context, isTemplate bool) (string, error) {
 	for {
 		var options []huh.Option[string]
 		options = append(options, huh.NewOption("Search registry by keyword...", config.ActionSearchRegistry))
 		options = append(options, huh.NewOption("Enter package name manually...", config.ActionManualPackage))
-		options = append(options, huh.NewOption("Blank template (no components)", config.TemplateBlank))
+		if isTemplate {
+			options = append(options, huh.NewOption("Blank template (no components)", config.TemplateBlank))
+		}
 
 		for _, p := range pkgs {
 			desc := p.Description
@@ -171,9 +173,15 @@ func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *re
 			if err := runForm(queryForm); err != nil {
 				return "", err
 			}
-			matched, err := client.SearchTemplatePackages(ctx, query, config.DefaultSearchLimit)
-			if err != nil {
-				return "", err
+			var matched []registry.PackageInfo
+			var sErr error
+			if isTemplate {
+				matched, sErr = client.SearchTemplatePackages(ctx, query, config.DefaultSearchLimit)
+			} else {
+				matched, sErr = client.SearchPackages(ctx, query, config.DefaultSearchLimit)
+			}
+			if sErr != nil {
+				return "", sErr
 			}
 			if len(matched) == 0 {
 				fmt.Printf("No packages matched %q.\n", query)
@@ -185,14 +193,18 @@ func selectPackageFromList(title string, pkgs []registry.PackageInfo, client *re
 
 		case config.ActionManualPackage:
 			var manual string
+			promptTitle := "Component package"
+			if isTemplate {
+				promptTitle = "Template package"
+			}
 			manualForm := huh.NewForm(huh.NewGroup(
 				huh.NewInput().
-					Title("Template package").
+					Title(promptTitle).
 					Description("Name[@version-range] from the registry").
 					Value(&manual).
 					Validate(func(s string) error {
 						if strings.TrimSpace(s) == "" {
-							return fmt.Errorf("template is required")
+							return fmt.Errorf("package is required")
 						}
 						return nil
 					}),
@@ -213,11 +225,19 @@ func promptSelectTemplate(ctx context.Context, client *registry.Client) (string,
 	if err != nil {
 		return "", err
 	}
-	return selectPackageFromList("Select template package", pkgs, client, ctx)
+	return selectPackageFromList("Select template package", pkgs, client, ctx, true)
+}
+
+func promptSelectPackage(ctx context.Context, client *registry.Client) (string, error) {
+	pkgs, err := client.ListPackagesCached(ctx)
+	if err != nil {
+		return "", err
+	}
+	return selectPackageFromList("Select component package", pkgs, client, ctx, false)
 }
 
 func newDocsAddCmd() *cobra.Command {
-	var pkgFlag string
+	var pkgFlag, searchFlag string
 	var yes, all, none bool
 	cmd := &cobra.Command{
 		Use:   "add [pkg@range]",
@@ -235,27 +255,39 @@ func newDocsAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			ctx := context.Background()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
+			if searchFlag != "" && pkg == "" {
+				pkgs, sErr := client.SearchPackages(ctx, searchFlag, config.DefaultSearchLimit)
+				if sErr != nil {
+					return sErr
+				}
+				if len(pkgs) == 0 {
+					return fmt.Errorf("no packages found matching %q", searchFlag)
+				}
+				if !canPrompt() {
+					pkg = pkgs[0].Name
+				} else {
+					chosen, pErr := selectPackageFromList("Matching component packages", pkgs, client, ctx, false)
+					if pErr != nil {
+						return pErr
+					}
+					pkg = chosen
+				}
+			}
 			if pkg == "" {
 				if !canPrompt() {
 					return usagef(cmd, "usage: unsarep docs add <pkg>@<ver-req> [--yes|--all|--none]")
 				}
-				form := huh.NewForm(huh.NewGroup(
-					huh.NewInput().
-						Title("Package").
-						Description("Name@version-range from the registry").
-						Value(&pkg).
-						Validate(func(s string) error {
-							if strings.TrimSpace(s) == "" {
-								return fmt.Errorf("package is required")
-							}
-							return nil
-						}),
-				))
-				if err := runForm(form); err != nil {
-					return err
+				chosen, pErr := promptSelectPackage(ctx, client)
+				if pErr != nil {
+					return pErr
 				}
+				pkg = chosen
 			}
-			ctx := context.Background()
 			cwd, _ := os.Getwd()
 			if err := docs.Add(ctx, cwd, docs.AddOptions{Package: pkg, Flags: selectFlags(yes, all, none)}); err != nil {
 				return err
@@ -265,7 +297,8 @@ func newDocsAddCmd() *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package [name@range], same as positional")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Select defaults only")
+	cmd.Flags().StringVarP(&searchFlag, "search", "s", "", "Search query for packages in registry")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Select defaults only")
 	cmd.Flags().BoolVar(&all, "all", false, "Select defaults+all")
 	cmd.Flags().BoolVar(&none, "none", false, "Select none")
 	return cmd
@@ -353,7 +386,7 @@ func newDocsUpdateCmd() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&pkgFlag, "package", "", "Package name (empty updates all), same as positional")
 	cmd.Flags().BoolVarP(&deps, "deps", "d", false, "Update dependencies as well")
-	cmd.Flags().BoolVar(&yes, "yes", false, "Apply all")
+	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Apply all")
 	cmd.Flags().BoolVar(&all, "all", false, "Apply all")
 	cmd.Flags().BoolVar(&none, "none", false, "Apply none")
 	return cmd
