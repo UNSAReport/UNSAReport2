@@ -123,6 +123,20 @@ func TestDocsInitCmdFlags(t *testing.T) {
 	}
 }
 
+func TestDocsAddCmdFlags(t *testing.T) {
+	cmd := newDocsAddCmd()
+	f := cmd.Flags().Lookup("search")
+	if f == nil {
+		t.Fatal("expected --search flag on add command")
+	}
+	if f.Shorthand != "s" {
+		t.Fatalf("expected -s shorthand for search, got %q", f.Shorthand)
+	}
+	if p := cmd.Flags().Lookup("package"); p == nil {
+		t.Fatal("expected --package flag on add command")
+	}
+}
+
 func TestRegistryBuildCmdFlags(t *testing.T) {
 	cmd := newRegistryBuildCmd()
 	if f := cmd.Flags().Lookup("target"); f == nil {

@@ -6,6 +6,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/pmezard/go-difflib/difflib"
+	"github.com/sergi/go-diff/diffmatchpatch"
 )
 
 const (
@@ -14,13 +15,15 @@ const (
 	DiffColorHunk    = "39"
 	DiffColorAdd     = "42"
 	DiffColorDel     = "197"
+	DiffColorGutter   = "240"
 )
 
 var (
 	diffHeaderStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(DiffColorHeader))
-	diffHunkStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color(DiffColorHunk))
+	diffHunkStyle   = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color(DiffColorHunk))
 	diffAddStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(DiffColorAdd))
 	diffDelStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color(DiffColorDel))
+	diffGutterStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(DiffColorGutter))
 )
 
 func generateDiff(oldLabel, newLabel string, oldContent, newContent []byte) (string, error) {
@@ -38,6 +41,13 @@ func generateDiff(oldLabel, newLabel string, oldContent, newContent []byte) (str
 	return text, nil
 }
 
+func generateInlineDiff(oldContent, newContent string) string {
+	dmp := diffmatchpatch.New()
+	diffs := dmp.DiffMain(oldContent, newContent, false)
+	diffs = dmp.DiffCleanupSemantic(diffs)
+	return dmp.DiffPrettyText(diffs)
+}
+
 func colorizeDiff(diffText string) string {
 	lines := strings.Split(diffText, "\n")
 	out := make([]string, 0, len(lines))
@@ -47,9 +57,16 @@ func colorizeDiff(diffText string) string {
 		} else if strings.HasPrefix(l, "@@") {
 			out = append(out, diffHunkStyle.Render(l))
 		} else if strings.HasPrefix(l, "+") {
-			out = append(out, diffAddStyle.Render(l))
+			prefix := diffAddStyle.Render("+ ")
+			content := diffAddStyle.Render(strings.TrimPrefix(l, "+"))
+			out = append(out, prefix+content)
 		} else if strings.HasPrefix(l, "-") {
-			out = append(out, diffDelStyle.Render(l))
+			prefix := diffDelStyle.Render("- ")
+			content := diffDelStyle.Render(strings.TrimPrefix(l, "-"))
+			out = append(out, prefix+content)
+		} else if strings.HasPrefix(l, " ") {
+			gutter := diffGutterStyle.Render("  ")
+			out = append(out, gutter+strings.TrimPrefix(l, " "))
 		} else {
 			out = append(out, l)
 		}
