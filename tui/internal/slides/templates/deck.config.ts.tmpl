@@ -3,7 +3,7 @@ import { defineConfig } from '@unsa/slides-kit';
 export default defineConfig({
   title: {{.TitleTS}},
   slug: {{.SlugTS}},
-  theme: 'unsa-dark',
+  theme: {{.ThemeTS}},
   visibility: 'private',
   slides: [
     {
@@ -40,7 +40,7 @@ export default defineConfig({
       },
       cards: [
         { title: 'Familias', stat: '9 familias', status: 'optimal' },
-        { title: 'Temas', stat: '3 oficiales', status: 'optimal' },
+        { title: 'Temas', stat: '8 oficiales', status: 'optimal' },
         { title: 'Embed Iframe', stat: 'Sandboxed', status: 'optimal' },
       ],
     },

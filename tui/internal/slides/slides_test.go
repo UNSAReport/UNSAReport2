@@ -191,8 +191,8 @@ func TestReachable(t *testing.T) {
 
 func TestCatalog(t *testing.T) {
 	cats := ListCategories()
-	if len(cats) != 9 {
-		t.Errorf("expected 9 categories, got %d", len(cats))
+	if len(cats) != 10 {
+		t.Errorf("expected 10 categories, got %d", len(cats))
 	}
 
 	themes := ListThemes()
@@ -201,8 +201,13 @@ func TestCatalog(t *testing.T) {
 	}
 
 	allLayouts := ListLayouts("", "")
-	if len(allLayouts) != 120 {
-		t.Errorf("expected 120 layouts, got %d", len(allLayouts))
+	if len(allLayouts) != 157 {
+		t.Errorf("expected 157 layouts, got %d", len(allLayouts))
+	}
+
+	templateLayouts := ListLayouts("template", "")
+	if len(templateLayouts) != 37 {
+		t.Errorf("expected 37 template layouts, got %d", len(templateLayouts))
 	}
 
 	bentoLayouts := ListLayouts("bento", "")
