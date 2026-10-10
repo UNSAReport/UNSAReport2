@@ -37,7 +37,6 @@ flowchart TD
         Init["unsarep slides init (theme key in deck.config.ts)"]
         Layouts["unsarep slides layouts<br/>(catálogo en terminal)"]
         ThemesCmd["unsarep slides themes<br/>(explorador de temas)"]
-        Import["unsarep slides import deck.pptx<br/>(colores/fuentes a themes/slug.ts)"]
         Dev["unsarep slides dev<br/>(preview local Vite)"]
         Deploy["unsarep slides deploy<br/>(build → zip → S3)"]
 
@@ -289,7 +288,17 @@ unsarep slides whoami   # verifica usuario + alcance del servicio
 
 # 2. Scaffold + edición
 unsarep slides init mi-charla
-cd mi-charla            # edita deck.config.ts (theme: 'unsa-dark', slides, notas)
+unsarep slides init mi-propuesta --theme azul-proposal  # 8 temas: unsa-dark, unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal, harper-minimal
+# Sin --theme en terminal, init ofrece la plantilla en un selector interactivo.
+# Los 3 temas portados (azul-proposal, cloudlet-pitch, harper-minimal) generan
+# la réplica exacta de la plantilla: un layout registrado por slide
+# (packages/slides-kit/src/layouts/<tema>/, contenido como defaults, assets
+# dentro del paquete). Sin custom/ ni assets sueltos en el deck.
+# Equivalencia init-vs-demo medida: 34/37 slides SSIM≥0.99; resto fotos y
+# texturas de grano 0.97+ con dif ≤1.4% confinada a la foto (invisible).
+# Tras cambios del kit: bun run build + bun pm pack en packages/slides-kit,
+# copiar el tgz a tui/internal/slides/assets/ y reinstalar decks.
+cd mi-charla            # edita deck.config.ts (theme, slides, notas)
 
 # 3. Preview local (default --port 4000)
 unsarep slides dev      # abre http://localhost:4000
