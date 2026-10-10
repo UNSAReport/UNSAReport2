@@ -1,8 +1,7 @@
 import type { ThemeDefinition } from '@/themes/types';
-import { ThemeId } from '@/themes/types';
 
 export const cloudletPitchTheme: ThemeDefinition = {
-  id: ThemeId.CLOUDLET_PITCH,
+  id: 'cloudlet-pitch',
   name: 'Cloudlet Pitch',
   description:
     'Pitch claro de startup Cloudlet Tech con lavados grises y oscuros alternados, paneles degradados celestes y tipografía Open Sauce. Ideal para presentaciones de emprendimiento, rondas de inversión y demos de producto.',

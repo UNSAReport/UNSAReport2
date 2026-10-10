@@ -1,14 +1,13 @@
 import type { ThemeDefinition } from '@/themes/types';
-import { ThemeId } from '@/themes/types';
 
 export const azulProposalTheme: ThemeDefinition = {
-  id: ThemeId.AZUL_PROPOSAL,
+  id: 'azul-proposal',
   name: 'Azul Proposal',
   description:
     'Propuesta de negocio sobre azul corporativo profundo #185079 en fondo cálido marfil, títulos apilados en dos líneas, pasos numerados y doble franja de pie. Ideal para propuestas comerciales y presentaciones corporativas.',
   tags: ['proposal', 'business', 'light', 'azul', 'imported'],
   colors: {
-    background: '#F6F2EF',
+    background: '#FBF6F1',
     surface: '#ffffff',
     surfaceMuted: '#bbd6e1',
     text: '#185079',
@@ -44,7 +43,7 @@ export const azulProposalTheme: ThemeDefinition = {
     '--slide-tint-ramp': '#BBD6E1,#95BFD1,#3885AB',
     '--slide-footer-rule': 'rgba(24,80,121,0.35)',
     '--slide-number-disc': '#185079',
-    '--slide-wash-base': '#F6F2EF',
+    '--slide-wash-base': '#FBF6F1',
     '--slide-blob-gradient':
       'radial-gradient(closest-side, rgba(72,170,198,0.95) 0%, rgba(48,153,181,0.9) 45%, rgba(24,80,121,0.55) 68%, rgba(24,80,121,0) 82%)',
     '--slide-paper-tint': 'rgba(246,242,239,0.6)',
