@@ -20,3 +20,8 @@ secrets/*.decrypted.env
 
 # demo scratch projects
 demo-*/
+demos/
+
+# visual loop shots & forensic media
+shots/
+packages/slides-kit/src/assets/
