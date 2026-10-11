@@ -1,7 +1,7 @@
 import { describe, expect, it, mock } from 'bun:test';
 import { SlideManifestSchema } from '@unsa/schemas/manifest';
 
-const NOTES_USER_ID = '11111111-1111-4111-8111-111111111111';
+const NOTES_USER_ID = '77777777-7777-4777-8777-777777777777';
 const NOTES_PRESENTATION_ID = 'a41d9440-eca6-4812-8521-dea0ded5c044';
 const NOTES_SLUG = 'notes-deck';
 

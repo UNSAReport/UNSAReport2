@@ -1,0 +1,51 @@
+import { defineConfig } from '@unsa/slides-kit';
+
+// Plantilla harper-minimal: réplica exacta, un layout por slide.
+// Cada layout trae el contenido de la plantilla como defaults;
+// edita props (title, subtitle, items, ...Src) para personalizar.
+// IDs y slots: unsarep slides layouts --theme harper-minimal
+
+export default defineConfig({
+  title: {{.TitleTS}},
+  slug: {{.SlugTS}},
+  theme: 'harper-minimal',
+  visibility: 'private',
+  slides: [
+    {
+      layout: 'harper-minimal/cover',
+    },
+    {
+      layout: 'harper-minimal/contents',
+    },
+    {
+      layout: 'harper-minimal/stats',
+    },
+    {
+      layout: 'harper-minimal/problem',
+    },
+    {
+      layout: 'harper-minimal/solution',
+    },
+    {
+      layout: 'harper-minimal/market-opportunity',
+    },
+    {
+      layout: 'harper-minimal/why-now',
+    },
+    {
+      layout: 'harper-minimal/product-overview',
+    },
+    {
+      layout: 'harper-minimal/features',
+    },
+    {
+      layout: 'harper-minimal/business-model',
+    },
+    {
+      layout: 'harper-minimal/roadmap-quarters',
+    },
+    {
+      layout: 'harper-minimal/closing',
+    },
+  ],
+});

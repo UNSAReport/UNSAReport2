@@ -85,7 +85,8 @@ export class LayoutRegistry {
   }
 
   /**
-   * Lista todos los layouts registrados, con filtros opcionales de categoría o búsqueda textual.
+   * Lista todos los layouts registrados, con filtros opcionales de categoría,
+   * búsqueda textual.
    */
   listLayouts(filter?: LayoutFilter): LayoutDefinition[] {
     let list = Array.from(this.layouts.values());

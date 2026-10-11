@@ -39,12 +39,12 @@ export function HeroStackedDuoFooter({
           wash === 'cover'
             ? {
                 background:
-                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 22% -58% / 135% 175% no-repeat, var(--slide-wash-base, #F6F2EF)',
+                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 22% -58% / 135% 175% no-repeat, var(--slide-wash-base, #FBF6F1)',
               }
             : {
                 opacity: 0.35,
                 background:
-                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 78% 68% / 60% 90% no-repeat, var(--slide-wash-base, #F6F2EF)',
+                  'var(--slide-blob-gradient, radial-gradient(closest-side, rgba(56,133,171,0.55) 0%, rgba(24,80,121,0.85) 55%, rgba(24,80,121,0) 72%)) 78% 68% / 60% 90% no-repeat, var(--slide-wash-base, #FBF6F1)',
               }
         }
       />

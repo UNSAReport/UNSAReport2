@@ -1,8 +1,7 @@
 import type { ThemeDefinition } from '@/themes/types';
-import { ThemeId } from '@/themes/types';
 
 export const harperMinimalTheme: ThemeDefinition = {
-  id: ThemeId.HARPER_MINIMAL,
+  id: 'harper-minimal',
   name: 'Harper Minimal',
   description:
     'Pitch minimalista en negro y rojo coral con titulares PT Serif, kickers rojos en versalitas, numerales fantasma y reglas finas. Ideal para presentaciones de empresa y portfolios sobrios.',

@@ -66,6 +66,10 @@ function checkDeployRateLimitOrThrow(userId: string): void {
   deployAttemptsByUser.set(userId, recent);
 }
 
+export function _resetDeployRateLimits(): void {
+  deployAttemptsByUser.clear();
+}
+
 function isValidBase64(value: string): boolean {
   const compact = value.replace(/\s+/g, '');
   if (compact.length === 0) return true;

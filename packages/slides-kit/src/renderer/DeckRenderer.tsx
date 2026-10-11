@@ -1,3 +1,4 @@
+import '@/packs/catalog';
 import { Deck, Slide } from '@revealjs/react';
 import { SlideRenderer } from '@/renderer/SlideRenderer';
 import { ThemeProvider } from '@/renderer/ThemeProvider';

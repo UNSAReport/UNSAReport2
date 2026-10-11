@@ -65,13 +65,26 @@
       "types": "./dist/primitives/*.d.ts",
       "import": "./dist/primitives/*.js",
       "default": "./dist/primitives/*.js"
+    },
+    "./packs": {
+      "types": "./dist/packs/registry.d.ts",
+      "import": "./dist/packs/registry.js",
+      "default": "./dist/packs/registry.js"
+    },
+    "./packs/types": {
+      "types": "./dist/packs/types.d.ts"
+    },
+    "./packs/assets": {
+      "types": "./dist/packs/assets.d.ts",
+      "import": "./dist/packs/assets.js",
+      "default": "./dist/packs/assets.js"
     }
   },
   "files": [
     "dist"
   ],
   "scripts": {
-    "build": "bun build src/config.ts src/types.ts src/layouts/registry.ts src/layouts/catalog.ts src/themes/registry.ts src/themes/catalog.ts src/primitives/SlideAccent.tsx src/primitives/SlideCard.tsx src/primitives/SlideGrid.tsx src/primitives/SlideSection.tsx src/primitives/SlideSplit.tsx src/primitives/SlideStack.tsx src/primitives/SlideDivider.tsx src/primitives/SlideBackground.tsx src/primitives/SlideBar.tsx src/primitives/SlideDonut.tsx src/primitives/SlideGauge.tsx src/primitives/SlideSparkline.tsx src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --root src --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && rm -f tsconfig.tsbuildinfo && tsc --declaration --emitDeclarationOnly --outDir dist-types && cp -r dist-types/. dist/ && rm -rf dist-types",
+    "build": "rm -rf dist dist-types && bun build src/config.ts src/packs/registry.ts src/packs/types.ts src/packs/assets.ts src/types.ts src/layouts/registry.ts src/layouts/catalog.ts src/themes/registry.ts src/themes/catalog.ts src/primitives/SlideAccent.tsx src/primitives/SlideCard.tsx src/primitives/SlideGrid.tsx src/primitives/SlideSection.tsx src/primitives/SlideSplit.tsx src/primitives/SlideStack.tsx src/primitives/SlideDivider.tsx src/primitives/SlideBackground.tsx src/primitives/SlideBar.tsx src/primitives/SlideDonut.tsx src/primitives/SlideGauge.tsx src/primitives/SlideSparkline.tsx src/renderer/DeckRenderer.tsx src/renderer/SlideRenderer.tsx src/renderer/ThemeProvider.tsx --outdir dist --root src --target browser --minify --external react --external react-dom --external reveal.js --external @revealjs/react && rm -f tsconfig.tsbuildinfo && tsc --declaration --emitDeclarationOnly --outDir dist-types && cp -r dist-types/. dist/ && rm -rf dist-types",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
     "check": "tsc --noEmit"

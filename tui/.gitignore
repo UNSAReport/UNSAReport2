@@ -15,5 +15,5 @@ secrets/*.env
 !secrets/*.enc.env
 # build
 dist/
-unsarep
+/unsarep
 demo-slides/

@@ -28,7 +28,6 @@ append ?print-pdf (via the viewer PDF button) for the PDF export.`,
 		Example: `  unsarep slides init mi-charla --install
   unsarep slides dev --port 4000
   unsarep slides layouts --category bento
-  unsarep slides import deck.pptx --print
   unsarep slides link --title "Mi charla" --visibility public
   unsarep slides deploy --yes`,
 	}
@@ -37,7 +36,6 @@ append ?print-pdf (via the viewer PDF button) for the PDF export.`,
 		newSlidesDevCmd(),
 		newSlidesLayoutsCmd(),
 		newSlidesThemesCmd(),
-		newSlidesImportCmd(),
 		newSlidesLoginCmd(),
 		newSlidesLinkCmd(),
 		newSlidesDeployCmd(),
@@ -57,14 +55,18 @@ func slidesCwd() string {
 func newSlidesInitCmd() *cobra.Command {
 	var nameFlag string
 	var installFlag bool
+	var themeFlag string
 	cmd := &cobra.Command{
 		Use:   "init [name]",
 		Short: "Scaffold a new slide deck",
 		Long: `Scaffold a new slides-kit deck (deck.config.ts, src/slides.tsx, manifest.json, .slidesrc.json).
 
-Pick a starting theme with the 'theme' key in deck.config.ts (unsa-dark,
-unsa-classic, epis-tech, fips-light, epis-night); there is no --theme flag.`,
+Pick a starting theme with --theme (one of the 8 official themes: unsa-dark,
+unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal,
+harper-minimal), selecting it interactively when omitted, or edit the 'theme'
+key in deck.config.ts afterwards.`,
 		Example: `  unsarep slides init mi-charla
+  unsarep slides init mi-charla --theme azul-proposal
   unsarep slides init mi-charla --install
   unsarep slides init --name mi-charla`,
 		Args: cobra.MaximumNArgs(1),
@@ -96,11 +98,32 @@ unsa-classic, epis-tech, fips-light, epis-night); there is no --theme flag.`,
 					return err
 				}
 			}
-			target := filepath.Join(slidesCwd(), name)
-			if _, err := os.Stat(target); err == nil {
-				return fmt.Errorf("slides init: %s already exists", target)
+		target := filepath.Join(slidesCwd(), name)
+		if _, err := os.Stat(target); err == nil {
+			return fmt.Errorf("slides init: %s already exists", target)
+		}
+		if themeFlag == "" && canPrompt() {
+			options := make([]huh.Option[string], 0, len(slides.ListThemes()))
+			for _, th := range slides.ListThemes() {
+				label := th.ID
+				if th.Name != "" && th.Name != th.ID {
+					label = fmt.Sprintf("%s (%s)", th.ID, th.Name)
+				}
+				options = append(options, huh.NewOption(label, th.ID))
 			}
-			files, err := slides.StarterTemplate(name)
+			themeFlag = "unsa-dark"
+			form := huh.NewForm(huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Plantilla inicial").
+					Description("Tema visual del deck (editable luego en deck.config.ts)").
+					Options(options...).
+					Value(&themeFlag),
+			))
+			if err := runForm(form); err != nil {
+				return err
+			}
+		}
+			files, err := slides.StarterTemplateWithTheme(name, themeFlag)
 			if err != nil {
 				return fmt.Errorf("slides init: %w", err)
 			}
@@ -172,6 +195,13 @@ unsa-classic, epis-tech, fips-light, epis-night); there is no --theme flag.`,
 	}
 	cmd.Flags().StringVar(&nameFlag, "name", "", "Presentation name, same as positional")
 	cmd.Flags().BoolVar(&installFlag, "install", false, "Install dependencies automatically after scaffolding")
+	cmd.Flags().StringVar(&themeFlag, "theme", "", "Starting theme (one of: "+strings.Join(slides.ThemeIDs(), ", ")+")")
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error {
+		if themeFlag != "" && !slides.ThemeRegistered(themeFlag) {
+			return fmt.Errorf("slides init: tema %q no registrado (usa uno de: %s)", themeFlag, strings.Join(slides.ThemeIDs(), ", "))
+		}
+		return nil
+	}
 	return cmd
 }
 
@@ -206,18 +236,36 @@ Default port is 4000 (override with --port).`,
 func newSlidesLayoutsCmd() *cobra.Command {
 	var category string
 	var search string
+	var theme string
 	cmd := &cobra.Command{
 		Use:   "layouts",
 		Short: "Explore and search official slide layouts",
 		Long: `List the 120 official slides-kit layouts in 9 families
 (hero, split, bento, stats, process, code, list, quote, closing).
-Mirrors packages/slides-kit/src/layouts/catalog.ts (kit is the source of truth).`,
+Mirrors packages/slides-kit/src/layouts/catalog.ts (kit is the source of truth).
+Filter by theme compatibility with --theme (universal layouts plus the
+theme's signature layouts).`,
 		Example: `  unsarep slides layouts
   unsarep slides layouts --category bento
-  unsarep slides layouts --search kpi`,
+  unsarep slides layouts --search kpi
+  unsarep slides layouts --theme azul-proposal`,
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			layouts := slides.ListLayouts(category, search)
+			if theme != "" {
+				byTheme := slides.ListLayoutsByTheme(theme)
+				keep := make(map[string]bool, len(byTheme))
+				for _, l := range byTheme {
+					keep[l.ID] = true
+				}
+				var filtered []slides.LayoutInfo
+				for _, l := range layouts {
+					if keep[l.ID] {
+						filtered = append(filtered, l)
+					}
+				}
+				layouts = filtered
+			}
 			if len(layouts) == 0 {
 				fmt.Println("No se encontraron layouts con los criterios indicados.")
 				return nil
@@ -254,20 +302,31 @@ Mirrors packages/slides-kit/src/layouts/catalog.ts (kit is the source of truth).
 	}
 	cmd.Flags().StringVarP(&category, "category", "c", "", "Filtrar por categoría (hero, split, bento, stats, process, code, list, quote, closing)")
 	cmd.Flags().StringVarP(&search, "search", "s", "", "Buscar por nombre o descripción")
+	cmd.Flags().StringVar(&theme, "theme", "", "Filtrar por compatibilidad de tema (ej: azul-proposal)")
 	return cmd
 }
 
 func newSlidesThemesCmd() *cobra.Command {
+	var layout string
 	cmd := &cobra.Command{
 		Use:   "themes",
 		Short: "List official themes for UNSA slides",
 		Long: `List the 8 official slides-kit themes
-	(unsa-dark, unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal, harper-minimal).
-Mirrors packages/slides-kit/src/themes/catalog.ts (kit is the source of truth).`,
-		Example: `  unsarep slides themes`,
-		Args:    cobra.NoArgs,
+(unsa-dark, unsa-classic, epis-tech, fips-light, epis-night, cloudlet-pitch, azul-proposal, harper-minimal).
+Mirrors packages/slides-kit/src/themes/catalog.ts (kit is the source of truth).
+Filter by layout compatibility with --layout.`,
+		Example: `  unsarep slides themes
+  unsarep slides themes --layout hero-two-line`,
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			themes := slides.ListThemes()
+			if layout != "" {
+				themes = slides.ListThemesByLayout(layout)
+				if len(themes) == 0 {
+					fmt.Printf("Layout %q no registrado en el catálogo.\n", layout)
+					return nil
+				}
+			}
 			fmt.Println("\n  TEMAS DISPONIBLES EN @unsa/slides-kit:")
 			for _, t := range themes {
 				prefix := "   "
@@ -280,6 +339,7 @@ Mirrors packages/slides-kit/src/themes/catalog.ts (kit is the source of truth).`
 			return nil
 		},
 	}
+	cmd.Flags().StringVar(&layout, "layout", "", "Filtrar por compatibilidad de layout (ej: hero-two-line)")
 	return cmd
 }
 

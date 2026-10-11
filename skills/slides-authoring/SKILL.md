@@ -7,8 +7,11 @@ validation.
 
 Related ecosystem skills (reference by name; install on demand, never vendored):
 
-- `anthropics/skills@pptx` — `.pptx` = ZIP of XML mental model behind
-  `unsarep slides import` (`npx skills add https://github.com/anthropics/skills --skill pptx`).
+- `pptx-porting` (`../pptx-porting/SKILL.md`) — port a `.pptx` template in:
+  forensic inventory, theme polish, signature layouts, theme-layout matrix,
+  visual loop to ≥ 0.90, demo + report. Start here for template ports.
+- `anthropics/skills@pptx` — `.pptx` = ZIP of XML mental model
+  (`npx skills add https://github.com/anthropics/skills --skill pptx`).
 - `wshobson/agents@pptx-slide-specification` — stable slide ids, message-led
   titles, a11y reading order, `layout_tree` concept model for slot planning.
 - `anthropics/skills@frontend-design` — color/type discipline for new themes
@@ -48,4 +51,6 @@ Related ecosystem skills (reference by name; install on demand, never vendored):
 - `references/qa-bounds.md` — 1280×720 overflow contract + patterns.
 - `references/config.md` — `deck.config.ts` vs `.slidesrc.json` precedence.
 - `references/deploy.md` — deploy validation checklist + env switch.
-- `references/themes.md` — theme tokens + `slides import` fidelity ceiling.
+- `references/themes.md` — theme tokens + theme-layout matrix.
+- Template ports (forense → matriz → loop visual) live in `pptx-porting`,
+  not here — this skill links there instead of duplicating it.

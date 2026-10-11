@@ -130,8 +130,7 @@ El ecosistema de diapositivas de UNSAReport está compuesto por:
 - **`tui/`**: CLI oficial `unsarep` con subcomandos `slides`:
   - `unsarep slides init <nombre>`: Inicializa un proyecto configurado con Vite y `@unsa/slides-kit` (el tema se elige con la clave `theme` en `deck.config.ts`; no existe flag `--theme`).
   - `unsarep slides dev` (default `--port 4000`): Servidor de previsualización local con HMR.
-  - `unsarep slides layouts` (110 en 9 familias) y `unsarep slides themes` (5 oficiales): Exploración y catálogo de componentes en terminal.
-  - `unsarep slides import deck.pptx`: Extrae colores/fuentes OOXML a un patch `themes/<slug>.ts` (fidelidad: solo colores/fuentes).
+  - `unsarep slides layouts` (120 en 9 familias) y `unsarep slides themes` (8 oficiales): Exploración y catálogo de componentes en terminal.
   - `unsarep slides link --title/--slug/--org/--visibility` y `unsarep slides deploy --token/--yes`: Empaquetado zip (límite 50 MiB) y subida multipart a S3.
   - `unsarep slides login` y `unsarep slides whoami --token/--json`: Auth IdP + estado del servicio.
 - **`web/`**: Plataforma web:

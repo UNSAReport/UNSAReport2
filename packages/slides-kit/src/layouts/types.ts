@@ -13,6 +13,8 @@ export const LayoutCategory = {
   LIST: 'list',
   QUOTE: 'quote',
   CLOSING: 'closing',
+  /** Composiciones fijas de plantilla (portadas .pptx pixel-fieles por tema). */
+  TEMPLATE: 'template',
 } as const;
 
 export type LayoutCategory =
@@ -69,6 +71,11 @@ export interface LayoutDefinition {
   /** Componente React que renderiza el layout */
   // biome-ignore lint/suspicious/noExplicitAny: Los layouts aceptan props polimórficas según su SlotSchema
   component: ComponentType<any>;
+  /**
+   * Temas donde este layout luce óptimo (matriz tema-layout).
+   * Ausente o vacío = universal: visible en todos los listados por tema.
+   * Agregar un layout a un tema es solo declarar su id aquí (una línea).
+   */
   /** Ruta o URI de la imagen de previsualización */
   thumbnail?: string;
 }

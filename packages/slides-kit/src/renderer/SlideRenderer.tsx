@@ -1,4 +1,5 @@
 import { layoutRegistry } from '@/layouts/registry';
+import { templatePackRegistry } from '@/packs/registry';
 import { SlideCard } from '@/primitives/SlideCard';
 import type { SlideDefinition } from '@/types';
 
@@ -7,12 +8,17 @@ export interface SlideRendererProps {
   slide: SlideDefinition;
   /** Índice opcional de la diapositiva en el deck */
   index?: number;
+  /**
+   * Tema activo (id en ThemeRegistry) para el aviso de matriz tema-layout.
+   * Un par no declarado avisa en dev y renderiza igual (nunca throw).
+   */
+  theme?: string;
 }
 
 /**
  * Motor de resolución de diapositivas: mapea un SlideDefinition a su componente React correspondiente.
  */
-export function SlideRenderer({ slide, index }: SlideRendererProps) {
+export function SlideRenderer({ slide, index, theme }: SlideRendererProps) {
   const {
     layout,
     component: CustomComponent,
@@ -102,7 +108,66 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
     );
   }
 
-  // 2. Búsqueda en el LayoutRegistry (ids normalizados: trim + lowercase)
+  // 2. Resolución de slides de pack (notación 'pack-id/slide-id')
+  const slashIdx = normalizedLayout.indexOf('/');
+  if (slashIdx !== -1) {
+    const packId = normalizedLayout.slice(0, slashIdx);
+    const slideId = normalizedLayout.slice(slashIdx + 1);
+    const packSlide = templatePackRegistry.resolveSlide(packId, slideId);
+
+    if (!packSlide) {
+      // Pack o slide no encontrado — mostrar error card
+      return (
+        <>
+          <div
+            className="w-full h-full flex items-center justify-center p-12"
+            style={{
+              backgroundColor: 'var(--slide-bg, #4c0519)',
+              color: 'var(--slide-text, #fecdd3)',
+            }}
+          >
+            <SlideCard
+              variant="outlined"
+              className="max-w-xl p-8"
+              style={{
+                borderColor: 'var(--slide-error, #fb7185)',
+                backgroundColor: 'var(--slide-surface, rgba(136, 19, 55, 0.3))',
+              }}
+            >
+              <h3
+                className="text-2xl font-bold mb-2"
+                style={{ color: 'var(--slide-error, #fb7185)' }}
+              >
+                ⚠️ Pack slide no encontrado: &apos;{layout}&apos;
+              </h3>
+              <p
+                className="text-sm mb-4"
+                style={{ color: 'var(--slide-text-muted, #fda4af)' }}
+              >
+                La diapositiva #{index !== undefined ? index + 1 : ''} referencia
+                el pack &apos;{packId}&apos; con slide &apos;{slideId}&apos;, pero
+                no se encontró en TemplatePackRegistry. Verifica que el pack esté
+                registrado con registerPack() antes de renderizar.
+              </p>
+            </SlideCard>
+          </div>
+          {notes && <aside className="notes">{notes}</aside>}
+        </>
+      );
+    }
+
+    const PackSlideComponent = packSlide.component;
+    return (
+      <>
+        <div className="w-full h-full relative">
+          <PackSlideComponent {...props}>{children}</PackSlideComponent>
+        </div>
+        {notes && <aside className="notes">{notes}</aside>}
+      </>
+    );
+  }
+
+  // 3. Búsqueda en el LayoutRegistry (ids normalizados: trim + lowercase)
   const layoutDef = layoutRegistry.getLayout(normalizedLayout);
 
   if (!layoutDef) {
@@ -153,7 +218,7 @@ export function SlideRenderer({ slide, index }: SlideRendererProps) {
       </>
     );
   }
-  const LayoutComponent = layoutDef.component;
+    const LayoutComponent = layoutDef.component;
 
   if (
     typeof process === 'undefined' ||

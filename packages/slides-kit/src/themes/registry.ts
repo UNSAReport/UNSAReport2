@@ -5,6 +5,10 @@ import { ThemeId } from '@/themes/types';
 export type { ThemeDefinition };
 export { ThemeId };
 
+export interface ThemeFilter {
+  layout?: string;
+}
+
 const THEME_ID_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 function assertValidTheme(theme: ThemeDefinition): void {
@@ -73,7 +77,7 @@ export class ThemeRegistry {
   /**
    * Lista todos los temas registrados en el catálogo.
    */
-  listThemes(): ThemeDefinition[] {
+  listThemes(filter?: ThemeFilter): ThemeDefinition[] {
     return Array.from(this.themes.values());
   }
 
@@ -117,7 +121,8 @@ export const getTheme = (id: string): ThemeDefinition =>
   themeRegistry.getTheme(id);
 
 /** Función helper para listar todos los temas disponibles */
-export const listThemes = (): ThemeDefinition[] => themeRegistry.listThemes();
+export const listThemes = (filter?: ThemeFilter): ThemeDefinition[] =>
+  themeRegistry.listThemes(filter);
 
 /** Función helper para registrar un tema personalizado */
 export const registerTheme = (theme: ThemeDefinition): void =>

@@ -46,9 +46,6 @@ export const ThemeId = {
   EPIS_TECH: 'epis-tech',
   FIPS_LIGHT: 'fips-light',
   EPIS_NIGHT: 'epis-night',
-  CLOUDLET_PITCH: 'cloudlet-pitch',
-  AZUL_PROPOSAL: 'azul-proposal',
-  HARPER_MINIMAL: 'harper-minimal',
 } as const;
 
 export type ThemeId = (typeof ThemeId)[keyof typeof ThemeId];
@@ -73,6 +70,10 @@ export interface ThemeDefinition {
   effects: ThemeEffects;
   /** Variables CSS adicionales personalizadas */
   customVariables?: Record<string, string>;
+  /**
+   */
+  /**
+   */
   /** Ruta o URI del thumbnail para la galería web */
   thumbnail?: string;
   /** URL del logotipo institucional o de facultad (marca opcional) */
