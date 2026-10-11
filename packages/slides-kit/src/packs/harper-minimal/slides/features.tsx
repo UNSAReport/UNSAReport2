@@ -1,9 +1,11 @@
 import type { CSSProperties } from 'react';
-import iconAutomation from '../../../assets/harper/asset-56010f13.webp';
-import iconCompliance from '../../../assets/harper/asset-75cfbe2c.webp';
-import iconRealtime from '../../../assets/harper/asset-7caad1a8.webp';
-import iconMobile from '../../../assets/harper/asset-df584510.webp';
-import iconWorkflow from '../../../assets/harper/asset-f89547e3.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const iconAutomation = getTemplateAssetUrl('harper-minimal', 'asset-56010f13.webp');
+const iconCompliance = getTemplateAssetUrl('harper-minimal', 'asset-75cfbe2c.webp');
+const iconRealtime = getTemplateAssetUrl('harper-minimal', 'asset-7caad1a8.webp');
+const iconMobile = getTemplateAssetUrl('harper-minimal', 'asset-df584510.webp');
+const iconWorkflow = getTemplateAssetUrl('harper-minimal', 'asset-f89547e3.webp');
 
 const BG: CSSProperties = { position: "relative", width: 1280, height: 720, overflow: "hidden", background: "#ffffff" };
 

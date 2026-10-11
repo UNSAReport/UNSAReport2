@@ -1,9 +1,10 @@
 import type { CSSProperties } from 'react';
-import washLeft from '../../../assets/cloudlet/asset-7a50af3d.webp';
-import logo from '../../../assets/cloudlet/asset-b00f7859.webp';
-import iconSolution1 from '../../../assets/cloudlet/asset-2fc608df.webp';
-import iconSolution2 from '../../../assets/cloudlet/asset-bf5c208c.webp';
-import iconSolution3 from '../../../assets/cloudlet/asset-64af8525.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const logo = getTemplateAssetUrl('cloudlet-pitch', 'asset-b00f7859.webp');
+const iconSolution1 = getTemplateAssetUrl('cloudlet-pitch', 'asset-2fc608df.webp');
+const iconSolution2 = getTemplateAssetUrl('cloudlet-pitch', 'asset-bf5c208c.webp');
+const iconSolution3 = getTemplateAssetUrl('cloudlet-pitch', 'asset-64af8525.webp');
 
 export interface CloudletSolution {
   title: string;
@@ -34,7 +35,7 @@ export function CloudletInnovativeSolutions({
 }: CloudletInnovativeSolutionsProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washLeft} style={{ position: "absolute", left: "-147.6px", top: "353.2px", width: "650.3px", height: "480.0px", opacity: 0.24 }} />
+      <div style={{ position: "absolute", left: "-147.6px", top: "353.2px", width: "650.3px", height: "480.0px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.2), transparent 70%)", filter: "blur(30px)", pointerEvents: "none" }} />
       <img src={logo} style={{ position: "absolute", left: "66.7px", top: "45.3px", width: "45.1px", height: "45.1px" }} />
       <svg style={{ position: "absolute", left: "601.4px", top: "67.9px", width: "615.8px", height: "586.9px" }} viewBox={`0 0 615.8 586.9`} preserveAspectRatio="none"><path d="M 21.8 0.0 L 594.0 0.0 C 606.1 0.0 615.8 9.7 615.8 21.7 L 615.8 565.2 C 615.8 577.2 606.1 586.9 594.0 586.9 L 21.8 586.9 C 9.7 586.9 0.0 577.2 0.0 565.2 L 0.0 21.7 C 0.0 9.7 9.7 0.0 21.8 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>
       <img src={iconSolution1} style={{ position: "absolute", left: "657.2px", top: "300.8px", width: "115.9px", height: "112.5px" }} />

@@ -1,12 +1,11 @@
 import type { CSSProperties } from 'react';
-import washSide from '../../../assets/cloudlet/asset-05273750.webp';
-import washTall from '../../../assets/cloudlet/asset-05273750.webp';
-import logo from '../../../assets/cloudlet/asset-b00f7859.webp';
-import washStrip from '../../../assets/cloudlet/asset-59d84272.webp';
-import photoDaniel from '../../../assets/cloudlet/asset-d8f3ff84.jpg';
-import photoLewis from '../../../assets/cloudlet/asset-4eea6d91.jpg';
-import photoSarah from '../../../assets/cloudlet/asset-994b1fc5.jpg';
-import photoNaomi from '../../../assets/cloudlet/asset-381bd85d.jpg';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const logo = getTemplateAssetUrl('cloudlet-pitch', 'asset-b00f7859.webp');
+const photoDaniel = getTemplateAssetUrl('cloudlet-pitch', 'asset-d8f3ff84.jpg');
+const photoLewis = getTemplateAssetUrl('cloudlet-pitch', 'asset-4eea6d91.jpg');
+const photoSarah = getTemplateAssetUrl('cloudlet-pitch', 'asset-994b1fc5.jpg');
+const photoNaomi = getTemplateAssetUrl('cloudlet-pitch', 'asset-381bd85d.jpg');
 
 export interface CloudletTeamMember {
   name: string;
@@ -38,10 +37,10 @@ export function CloudletTeam({
 }: CloudletTeamProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washSide} style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", opacity: 0.02 }} />
-      <img src={washTall} style={{ position: "absolute", left: "-163.1px", top: "186.0px", width: "657.0px", height: "738.9px", opacity: 0.25 }} />
+      <div style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.1), transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "-163.1px", top: "186.0px", width: "657.0px", height: "738.9px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.2), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
       <img src={logo} style={{ position: "absolute", left: "66.7px", top: "45.3px", width: "45.1px", height: "45.1px" }} />
-      <img src={washStrip} style={{ position: "absolute", left: "723.9px", top: "-100.6px", width: "900.0px", height: "345.3px", opacity: 0.25 }} />
+      <div style={{ position: "absolute", left: "723.9px", top: "-100.6px", width: "900.0px", height: "345.3px", background: "linear-gradient(135deg, rgba(66, 66, 66, 0.2), transparent)", filter: "blur(30px)", pointerEvents: "none" }} />
       <svg style={{ position: "absolute", left: "600.3px", top: "35.6px", width: "286.7px", height: "303.2px" }} viewBox={`0 0 286.7 303.2`} preserveAspectRatio="none"><path d="M 35.7 0.0 L 251.0 0.0 C 260.5 0.0 269.6 3.8 276.3 10.4 C 282.9 17.1 286.7 26.2 286.7 35.7 L 286.7 267.5 C 286.7 287.2 270.7 303.2 251.0 303.2 L 35.7 303.2 C 26.2 303.2 17.1 299.4 10.4 292.8 C 3.8 286.1 0.0 277.0 0.0 267.5 L 0.0 35.7 C 0.0 26.2 3.8 17.1 10.4 10.4 C 17.1 3.8 26.2 0.0 35.7 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>
       <svg style={{ position: "absolute", left: "600.3px", top: "374.8px", width: "286.7px", height: "303.2px" }} viewBox={`0 0 286.7 303.2`} preserveAspectRatio="none"><path d="M 35.7 0.0 L 251.0 0.0 C 260.5 0.0 269.6 3.8 276.3 10.4 C 282.9 17.1 286.7 26.2 286.7 35.7 L 286.7 267.5 C 286.7 287.2 270.7 303.2 251.0 303.2 L 35.7 303.2 C 26.2 303.2 17.1 299.4 10.4 292.8 C 3.8 286.1 0.0 277.0 0.0 267.5 L 0.0 35.7 C 0.0 26.2 3.8 17.1 10.4 10.4 C 17.1 3.8 26.2 0.0 35.7 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>
       <svg style={{ position: "absolute", left: "921.3px", top: "35.6px", width: "286.7px", height: "303.2px" }} viewBox={`0 0 286.7 303.2`} preserveAspectRatio="none"><path d="M 35.7 0.0 L 251.0 0.0 C 260.5 0.0 269.6 3.8 276.3 10.4 C 282.9 17.1 286.7 26.2 286.7 35.7 L 286.7 267.5 C 286.7 287.2 270.7 303.2 251.0 303.2 L 35.7 303.2 C 26.2 303.2 17.1 299.4 10.4 292.8 C 3.8 286.1 0.0 277.0 0.0 267.5 L 0.0 35.7 C 0.0 26.2 3.8 17.1 10.4 10.4 C 17.1 3.8 26.2 0.0 35.7 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>

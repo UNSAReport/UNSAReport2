@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
-import washTall from '../../../assets/cloudlet/asset-05273750.webp';
-import logo from '../../../assets/cloudlet/asset-54672936.webp';
-import washBottom from '../../../assets/cloudlet/asset-8f9c8dbd.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const logo = getTemplateAssetUrl('cloudlet-pitch', 'asset-54672936.webp');
 
 export interface CloudletProblem {
   title: string;
@@ -32,9 +32,9 @@ export function CloudletProblemStatement({
 }: CloudletProblemStatementProps) {
   return (
     <div style={{ ...BG, background: "#424242" }}>
-      <img src={washTall} style={{ position: "absolute", left: "802.5px", top: "-282.8px", width: "657.0px", height: "738.9px", opacity: 0.21 }} />
+      <div style={{ position: "absolute", left: "802.5px", top: "-282.8px", width: "657.0px", height: "738.9px", background: "radial-gradient(ellipse at center, rgba(208, 215, 221, 0.15), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
       <img src={logo} style={{ position: "absolute", left: "66.7px", top: "45.3px", width: "45.1px", height: "45.1px" }} />
-      <img src={washBottom} style={{ position: "absolute", left: "-137.5px", top: "431.4px", width: "860.9px", height: "360.0px", opacity: 0.11 }} />
+      <div style={{ position: "absolute", left: "-137.5px", top: "431.4px", width: "860.9px", height: "360.0px", background: "radial-gradient(ellipse at center, rgba(208, 215, 221, 0.1), transparent 70%)", filter: "blur(30px)", pointerEvents: "none" }} />
       <svg style={{ position: "absolute", left: "72.0px", top: "312.2px", width: "1145.1px", height: "347.2px" }} viewBox={`0 0 1145.1 347.2`} preserveAspectRatio="none"><path d="M 11.7 0.0 L 1133.4 0.0 C 1136.5 0.0 1139.5 1.2 1141.7 3.4 C 1143.9 5.6 1145.1 8.6 1145.1 11.7 L 1145.1 335.5 C 1145.1 338.6 1143.9 341.6 1141.7 343.8 C 1139.5 346.0 1136.5 347.2 1133.4 347.2 L 11.7 347.2 C 8.6 347.2 5.6 346.0 3.4 343.8 C 1.2 341.6 0.0 338.6 0.0 335.5 L 0.0 11.7 C 0.0 8.6 1.2 5.6 3.4 3.4 C 5.6 1.2 8.6 0.0 11.7 0.0 Z" fill="#424242" stroke="#d0d7dd" stroke-width="1.3" /></svg>
       <div style={{ position: "absolute", left: "72.0px", top: "161.7px", width: "937.1px", height: "98.4px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -12.19, marginBottom: 0, lineHeight: "91.62px", fontSize: "97.47px" }}><span style={{ fontSize: "97.47px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#ffffff", letterSpacing: "-4.58px" }}>{title}</span></p></div>
       <div style={{ position: "absolute", left: "168.9px", top: "360.7px", width: "246.4px", height: "26.7px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: 1.32, marginBottom: 0, lineHeight: "27.73px", fontSize: "23.11px" }}><span style={{ fontSize: "23.11px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#ffffff", letterSpacing: "-1.08px" }}>{problems[0].title}</span></p></div>

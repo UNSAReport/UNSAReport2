@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react';
-import visualSegments from '../../../assets/harper/asset-e6aefbe6.webp';
-import visualDemand from '../../../assets/harper/asset-c3142c76.webp';
-import visualPenetration from '../../../assets/harper/asset-3a20ea07.webp';
+import { getTemplateAssetUrl } from '../../assets';
+
+const visualSegments = getTemplateAssetUrl('harper-minimal', 'asset-e6aefbe6.webp');
+const visualDemand = getTemplateAssetUrl('harper-minimal', 'asset-c3142c76.webp');
+const visualPenetration = getTemplateAssetUrl('harper-minimal', 'asset-3a20ea07.webp');
 
 const BG: CSSProperties = { position: "relative", width: 1280, height: 720, overflow: "hidden", background: "#ffffff" };
 
@@ -37,7 +39,7 @@ export function HarperMarketOpportunity({
 }: HarperMarketOpportunityProps) {
   return (
     <div style={{ ...BG, background: "#fafafa" }}>
-      <svg style={{ position: "absolute", left: "72.0px", top: "152.6px", width: "75.4px", height: "6.7px", overflow: "visible" }} viewBox={`0 0 75.4 6.7`} preserveAspectRatio="none"><line x1="0.0" y1="0.0" x2="75.4" y2="0.0" stroke="#ff5347" strokeWidth="6.7" /></svg>
+      <div style={{ position: "absolute", left: "72.0px", top: "152.6px", width: "75.4px", height: "6.7px", backgroundColor: "#ff5347" }} />
       {items.map((item, i) => (
         <img key={`img-${i}`} src={item.imageSrc} style={{ position: "absolute", left: IMAGE_GEOMETRY[i].left, top: IMAGE_GEOMETRY[i].top, width: IMAGE_GEOMETRY[i].width, height: IMAGE_GEOMETRY[i].height }} />
       ))}

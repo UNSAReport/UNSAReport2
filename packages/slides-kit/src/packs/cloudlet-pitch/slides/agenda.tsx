@@ -1,8 +1,7 @@
 import type { CSSProperties } from 'react';
-import washSide from '../../../assets/cloudlet/asset-05273750.webp';
-import washTall from '../../../assets/cloudlet/asset-05273750.webp';
-import logo from '../../../assets/cloudlet/asset-b00f7859.webp';
-import washStrip from '../../../assets/cloudlet/asset-59d84272.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const logo = getTemplateAssetUrl('cloudlet-pitch', 'asset-b00f7859.webp');
 
 export interface CloudletAgendaItem {
   number: string;
@@ -38,10 +37,10 @@ export function CloudletAgenda({
 }: CloudletAgendaProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washSide} style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", opacity: 0.02 }} />
-      <img src={washTall} style={{ position: "absolute", left: "-163.1px", top: "186.0px", width: "657.0px", height: "738.9px", opacity: 0.25 }} />
+      <div style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.1), transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "-163.1px", top: "186.0px", width: "657.0px", height: "738.9px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.2), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
       <img src={logo} style={{ position: "absolute", left: "66.7px", top: "45.3px", width: "45.1px", height: "45.1px" }} />
-      <img src={washStrip} style={{ position: "absolute", left: "723.9px", top: "-100.6px", width: "900.0px", height: "345.3px", opacity: 0.25 }} />
+      <div style={{ position: "absolute", left: "723.9px", top: "-100.6px", width: "900.0px", height: "345.3px", background: "linear-gradient(135deg, rgba(66, 66, 66, 0.2), transparent)", filter: "blur(30px)", pointerEvents: "none" }} />
       <svg style={{ position: "absolute", left: "648.7px", top: "-133.9px", width: "568.4px", height: "984.3px" }} viewBox={`0 0 568.4 984.3`} preserveAspectRatio="none"><path d="M 10.1 0.0 L 558.3 0.0 C 561.0 0.0 563.5 1.1 565.4 3.0 C 567.3 4.9 568.4 7.4 568.4 10.1 L 568.4 974.2 C 568.4 976.9 567.3 979.4 565.4 981.3 C 563.5 983.2 561.0 984.3 558.3 984.3 L 10.1 984.3 C 7.4 984.3 4.9 983.2 3.0 981.3 C 1.1 979.4 0.0 976.9 0.0 974.2 L 0.0 10.1 C 0.0 7.4 1.1 4.9 3.0 3.0 C 4.9 1.1 7.4 0.0 10.1 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>
       <div style={{ position: "absolute", left: "72.0px", top: "456.3px", width: "533.9px", height: "210.6px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -13.56, marginBottom: 0, lineHeight: "101.9px", fontSize: "108.41px" }}><span style={{ fontSize: "108.41px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#424242", letterSpacing: "-5.09px" }}>{title}</span></p></div>
       <div style={{ position: "absolute", left: "714.9px", top: "93.9px", width: "65.2px", height: "21.8px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "center", marginTop: -2.78, marginBottom: 0, lineHeight: "20.89px", fontSize: "22.22px" }}><span style={{ fontSize: "22.22px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#424242", letterSpacing: "-1.04px" }}>{items[0].number}</span></p></div>

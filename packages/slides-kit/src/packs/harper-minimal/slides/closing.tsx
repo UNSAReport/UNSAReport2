@@ -1,5 +1,7 @@
 import type { CSSProperties } from 'react';
-import grainTexture from '../../../assets/harper/asset-56d4e034.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const grainTexture = getTemplateAssetUrl('harper-minimal', 'asset-56d4e034.webp');
 
 const BG: CSSProperties = { position: "relative", width: 1280, height: 720, overflow: "hidden", background: "#ffffff" };
 

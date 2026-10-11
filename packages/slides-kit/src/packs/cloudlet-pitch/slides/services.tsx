@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import washFull from '../../../assets/cloudlet/asset-6bb10841.webp';
 
 export interface CloudletService {
   number: string;
@@ -30,7 +29,7 @@ export function CloudletServices({
 }: CloudletServicesProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washFull} style={{ position: "absolute", left: "82.4px", top: "156.2px", width: "1169.9px", height: "757.2px", opacity: 0.24 }} />
+      <div style={{ position: "absolute", left: "82.4px", top: "156.2px", width: "1169.9px", height: "757.2px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.15), transparent 70%)", filter: "blur(50px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", left: "72.0px", top: "74.0px", width: "1136.0px", height: "98.4px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -12.19, marginBottom: 0, lineHeight: "91.62px", fontSize: "97.47px" }}><span style={{ fontSize: "97.47px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#424242", letterSpacing: "-4.58px" }}>{title}</span></p></div>
       <svg style={{ position: "absolute", left: "63.1px", top: "214.3px", width: "520.0px", height: "209.9px" }} viewBox={`0 0 520.0 209.9`} preserveAspectRatio="none"><linearGradient id="g6_2" x1="0.000" y1="0.500" x2="1.000" y2="0.500"><stop offset="0.000" stop-color="#a0cefd" /><stop offset="1.000" stop-color="#e4f2ff" /></linearGradient><path d="M 18.3 0.0 L 501.7 0.0 C 511.8 0.0 520.0 8.2 520.0 18.3 L 520.0 191.6 C 520.0 201.7 511.8 209.9 501.7 209.9 L 18.3 209.9 C 8.2 209.9 0.0 201.7 0.0 191.6 L 0.0 18.3 C 0.0 8.2 8.2 0.0 18.3 0.0 Z" fill="url(#g6_2)" stroke="#424242" stroke-width="1.3" /></svg>
       <svg style={{ position: "absolute", left: "82.4px", top: "227.9px", width: "80.8px", height: "56.3px" }} viewBox={`0 0 80.8 56.3`} preserveAspectRatio="none"><path d="M 28.2 0.0 L 52.6 0.0 C 68.2 0.0 80.8 12.6 80.8 28.2 L 80.8 28.2 C 80.8 35.6 77.8 42.8 72.6 48.1 C 67.3 53.3 60.1 56.3 52.6 56.3 L 28.2 56.3 C 20.7 56.3 13.5 53.3 8.2 48.1 C 3.0 42.8 0.0 35.6 0.0 28.2 L 0.0 28.2 C 0.0 20.7 3.0 13.5 8.2 8.2 C 13.5 3.0 20.7 0.0 28.2 0.0 Z" fill="#ffffff" stroke="#424242" stroke-width="1.3" /></svg>

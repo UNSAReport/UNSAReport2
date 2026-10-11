@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
-import backgroundDefault from '../../../assets/azul/asset-5ff18b4e.jpg';
-import washSmall from '../../../assets/azul/asset-1b392fd5.webp';
-import washLarge from '../../../assets/azul/asset-9249942d.webp';
+import { getTemplateAssetUrl } from '../../assets';
+
+const backgroundDefault = getTemplateAssetUrl('azul-proposal', 'asset-5ff18b4e.jpg');
 
 export interface AzulCompetitiveAnalysisProps {
   /** URL de imagen (default: asset de la plantilla) */
@@ -30,9 +30,9 @@ export function AzulCompetitiveAnalysis({
       <div style={{ position: "absolute", left: "0.0px", top: "0.0px", width: "1280.0px", height: "720.0px", overflow: "hidden" }}><img src={backgroundSrc} style={{ position: "absolute", left: "-91.9px", top: "-137.3px", width: "1410.3px", height: "939.6px", maxWidth: "none" }} /></div>
       <div style={{ position: "absolute", left: "736.4px", top: "179.8px", width: "471.6px", height: "153.5px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -1.9, marginBottom: 0, lineHeight: "76.0px", fontSize: "70.37px", marginLeft: "0.0px", textIndent: "0.0px" }}><span style={{ fontSize: "70.37px", fontWeight: 600, fontFamily: "'Open Sauce One', sans-serif", color: "#185079", letterSpacing: "-4.15px" }}>{title}</span></p></div>
       <div style={{ position: "absolute", left: "736.4px", top: "349.4px", width: "437.3px", height: "197.5px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: 3.15, marginBottom: 0, lineHeight: "22.4px", fontSize: "16.0px", marginLeft: "0.0px", textIndent: "0.0px" }}><span style={{ fontSize: "16.0px", fontWeight: 700, fontFamily: "'Open Sauce One', sans-serif", color: "#185079" }}>{intro[0]}</span></p><p style={{ textAlign: "left", marginTop: 0, marginBottom: 0, lineHeight: "22.4px", fontSize: "16.0px", marginLeft: "0.0px", textIndent: "0.0px" }}><span style={{ fontSize: "16.0px", fontWeight: 700, fontFamily: "'Open Sauce One', sans-serif", color: "#185079" }}>{intro[1]}</span></p></div>
-      <img src={washSmall} style={{ position: "absolute", left: "67.7px", top: "93.4px", width: "624.3px", height: "533.3px" }} />
-      <img src={washLarge} style={{ position: "absolute", left: "-570.7px", top: "345.5px", width: "1114.2px", height: "950.1px" }} />
-      <img src={washLarge} style={{ position: "absolute", left: "789.2px", top: "-540.8px", width: "1114.2px", height: "950.1px" }} />
+      <div style={{ position: "absolute", left: "67.7px", top: "93.4px", width: "624.3px", height: "533.3px", background: "radial-gradient(ellipse at center, rgba(56, 133, 171, 0.45) 0%, rgba(187, 214, 225, 0.3) 50%, rgba(251, 246, 241, 0) 75%)", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "-570.7px", top: "345.5px", width: "1114.2px", height: "950.1px", background: "radial-gradient(ellipse at center, rgba(24, 80, 121, 0.35) 0%, rgba(56, 133, 171, 0.2) 50%, rgba(251, 246, 241, 0) 75%)", filter: "blur(50px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "789.2px", top: "-540.8px", width: "1114.2px", height: "950.1px", background: "radial-gradient(ellipse at center, rgba(24, 80, 121, 0.35) 0%, rgba(56, 133, 171, 0.2) 50%, rgba(251, 246, 241, 0) 75%)", filter: "blur(50px)", pointerEvents: "none" }} />
     </div>
   );
 }

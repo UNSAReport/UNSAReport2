@@ -1,5 +1,4 @@
 import type { CSSProperties } from 'react';
-import washTop from '../../../assets/cloudlet/asset-6bb10841.webp';
 
 export interface CloudletMilestone {
   year: string;
@@ -29,7 +28,7 @@ export function CloudletAccomplishments({
 }: CloudletAccomplishmentsProps) {
   return (
     <div style={{ ...BG, background: "#424242" }}>
-      <img src={washTop} style={{ position: "absolute", left: "444.2px", top: "-119.8px", width: "988.2px", height: "639.6px", opacity: 0.21 }} />
+      <div style={{ position: "absolute", left: "444.2px", top: "-119.8px", width: "988.2px", height: "639.6px", background: "radial-gradient(ellipse at center, rgba(208, 215, 221, 0.15), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
       <svg style={{ position: "absolute", left: "148.3px", top: "282.1px", width: "1237.7px", height: "4.0px", overflow: "visible" }} viewBox={`0 0 1237.7 4.0`} preserveAspectRatio="none"><line x1="0.0" y1="0.0" x2="1237.7" y2="0.0" stroke="#d0d7dd" strokeWidth="4.0" /></svg>
       <svg style={{ position: "absolute", left: "68.7px", top: "250.4px", width: "202.6px", height: "65.9px" }} viewBox={`0 0 202.6 65.9`} preserveAspectRatio="none"><linearGradient id="g11_1" x1="0.000" y1="0.500" x2="1.000" y2="0.500"><stop offset="0.000" stop-color="#a0cefd" /><stop offset="1.000" stop-color="#e4f2ff" /></linearGradient><path d="M 32.9 0.0 L 169.7 0.0 C 187.8 0.0 202.6 14.8 202.6 33.0 L 202.6 33.0 C 202.6 41.7 199.1 50.1 193.0 56.2 C 186.8 62.4 178.4 65.9 169.7 65.9 L 32.9 65.9 C 24.2 65.9 15.8 62.4 9.6 56.2 C 3.5 50.1 0.0 41.7 0.0 33.0 L 0.0 33.0 C 0.0 24.2 3.5 15.8 9.6 9.7 C 15.8 3.5 24.2 0.0 32.9 0.0 Z" fill="url(#g11_1)" stroke="#ffffff" stroke-width="1.3" /></svg>
       <svg style={{ position: "absolute", left: "351.7px", top: "250.4px", width: "202.6px", height: "65.9px" }} viewBox={`0 0 202.6 65.9`} preserveAspectRatio="none"><linearGradient id="g11_2" x1="0.000" y1="0.500" x2="1.000" y2="0.500"><stop offset="0.000" stop-color="#a0cefd" /><stop offset="1.000" stop-color="#e4f2ff" /></linearGradient><path d="M 32.9 0.0 L 169.7 0.0 C 187.8 0.0 202.6 14.8 202.6 33.0 L 202.6 33.0 C 202.6 41.7 199.1 50.1 193.0 56.2 C 186.8 62.4 178.4 65.9 169.7 65.9 L 32.9 65.9 C 24.2 65.9 15.8 62.4 9.6 56.2 C 3.5 50.1 0.0 41.7 0.0 33.0 L 0.0 33.0 C 0.0 24.2 3.5 15.8 9.6 9.7 C 15.8 3.5 24.2 0.0 32.9 0.0 Z" fill="url(#g11_2)" stroke="#ffffff" stroke-width="1.3" /></svg>

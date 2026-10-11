@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
-import washRight from '../../../assets/cloudlet/asset-7a50af3d.webp';
-import defaultChart from '../../../assets/cloudlet/asset-8eab7374.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const defaultChart = getTemplateAssetUrl('cloudlet-pitch', 'asset-8eab7374.webp');
 
 export interface CloudletTractionProps {
   title?: string;
@@ -26,7 +27,7 @@ export function CloudletTraction({
 }: CloudletTractionProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washRight} style={{ position: "absolute", left: "581.1px", top: "-56.1px", width: "895.3px", height: "660.9px", opacity: 0.28 }} />
+      <div style={{ position: "absolute", left: "581.1px", top: "-56.1px", width: "895.3px", height: "660.9px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.2), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", left: "72.0px", top: "76.9px", width: "518.0px", height: "108.9px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -13.55, marginBottom: 0, lineHeight: "101.94px", fontSize: "108.44px" }}><span style={{ fontSize: "108.44px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#424242", letterSpacing: "-5.09px" }}>{title}</span></p></div>
       <div style={{ position: "absolute", left: "72.0px", top: "246.4px", width: "480.7px", height: "153.5px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: 3.15, marginBottom: 0, lineHeight: "22.4px", fontSize: "16.0px" }}><span style={{ fontSize: "16.0px", fontFamily: "'Open Sauce One', sans-serif", fontWeight: 300, color: "#424242", letterSpacing: "-0.75px" }}>{description}</span></p></div>
       <svg style={{ position: "absolute", left: "62.3px", top: "450.3px", width: "490.4px", height: "52.5px" }} viewBox={`0 0 490.4 52.5`} preserveAspectRatio="none"><path d="M 19.4 0.0 L 471.0 0.0 C 476.2 0.0 481.1 2.0 484.7 5.7 C 488.4 9.3 490.4 14.2 490.4 19.4 L 490.4 33.1 C 490.4 38.3 488.4 43.2 484.7 46.8 C 481.1 50.5 476.2 52.5 471.0 52.5 L 19.4 52.5 C 14.2 52.5 9.3 50.5 5.7 46.8 C 2.0 43.2 0.0 38.3 0.0 33.1 L 0.0 19.4 C 0.0 14.2 2.0 9.3 5.7 5.7 C 9.3 2.0 14.2 0.0 19.4 0.0 Z" fill="#d0d7dd" stroke="#424242" stroke-width="1.3" /></svg>

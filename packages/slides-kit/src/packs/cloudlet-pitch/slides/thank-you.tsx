@@ -1,12 +1,11 @@
 import type { CSSProperties } from 'react';
-import washWide from '../../../assets/cloudlet/asset-7a50af3d.webp';
-import washTop from '../../../assets/cloudlet/asset-6bb10841.webp';
-import washSide from '../../../assets/cloudlet/asset-05273750.webp';
-import logo from '../../../assets/cloudlet/asset-b00f7859.webp';
-import iconPhone from '../../../assets/cloudlet/asset-c066a954.webp';
-import iconWeb from '../../../assets/cloudlet/asset-0b46f5d7.webp';
-import iconMail from '../../../assets/cloudlet/asset-fda9ff09.webp';
-import iconPin from '../../../assets/cloudlet/asset-e0e616bd.webp';
+import { getTemplateAssetUrl } from '@/packs/assets';
+
+const logo = getTemplateAssetUrl('cloudlet-pitch', 'asset-b00f7859.webp');
+const iconPhone = getTemplateAssetUrl('cloudlet-pitch', 'asset-c066a954.webp');
+const iconWeb = getTemplateAssetUrl('cloudlet-pitch', 'asset-0b46f5d7.webp');
+const iconMail = getTemplateAssetUrl('cloudlet-pitch', 'asset-fda9ff09.webp');
+const iconPin = getTemplateAssetUrl('cloudlet-pitch', 'asset-e0e616bd.webp');
 
 export interface CloudletThankYouProps {
   brand?: string;
@@ -37,9 +36,9 @@ export function CloudletThankYou({
 }: CloudletThankYouProps) {
   return (
     <div style={{ ...BG, background: "#d0d7dd" }}>
-      <img src={washWide} style={{ position: "absolute", left: "581.1px", top: "-56.1px", width: "895.3px", height: "660.9px", opacity: 0.42 }} />
-      <img src={washTop} style={{ position: "absolute", left: "-102.6px", top: "-77.3px", width: "421.2px", height: "251.9px", opacity: 0.12 }} />
-      <img src={washSide} style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", opacity: 0.02 }} />
+      <div style={{ position: "absolute", left: "581.1px", top: "-56.1px", width: "895.3px", height: "660.9px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.25), transparent 70%)", filter: "blur(40px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "-102.6px", top: "-77.3px", width: "421.2px", height: "251.9px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.15), transparent 70%)", filter: "blur(30px)", pointerEvents: "none" }} />
+      <div style={{ position: "absolute", left: "-64.7px", top: "363.2px", width: "330.1px", height: "437.5px", background: "radial-gradient(ellipse at center, rgba(66, 66, 66, 0.1), transparent 70%)", filter: "blur(20px)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", left: "72.0px", top: "258.4px", width: "677.0px", height: "423.8px", background: "transparent", display: "flex", flexDirection: "column", justifyContent: "flex-start", padding: "0.0px 0.0px 0.0px 0.0px", overflow: "visible" }}><p style={{ textAlign: "left", marginTop: -27.3, marginBottom: 0, lineHeight: "205.29px", fontSize: "218.39px" }}><span style={{ fontSize: "218.39px", fontWeight: 900, fontFamily: "'Open Sauce One', sans-serif", color: "#424242", letterSpacing: "-10.26px" }}>{title}</span></p></div>
       <svg style={{ position: "absolute", left: "73.2px", top: "103.6px", width: "1134.8px", height: "1.3px", overflow: "visible" }} viewBox={`0 0 1134.8 1.3`} preserveAspectRatio="none"><line x1="0.0" y1="0.0" x2="1134.8" y2="0.0" stroke="#424242" strokeWidth="1.3" /></svg>
       <img src={logo} style={{ position: "absolute", left: "66.7px", top: "45.3px", width: "45.1px", height: "45.1px" }} />
