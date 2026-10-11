@@ -13,6 +13,7 @@ import {
   verifyTestCredential,
   zipToB64,
 } from '@/fixtures';
+import { _resetDeployRateLimits } from '@/routes/presentations';
 
 // Unique owner UUID per test file: the deploy rate-limit map is keyed by
 // user id and shared process-wide, so files must not share budget owners.
@@ -811,5 +812,6 @@ describe('POST /presentations/deploy rate limit', () => {
     expect(statuses[statuses.length - 1]).toBe(429);
     expect(lastBody.error).toBe('RateLimitError');
     expect(statuses.filter((s) => s === 429).length).toBeGreaterThan(0);
+    _resetDeployRateLimits();
   });
 });
