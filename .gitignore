@@ -25,3 +25,5 @@ demos/
 # visual loop shots & forensic media
 shots/
 packages/slides-kit/src/assets/
+
+*.tsbuildinfo
