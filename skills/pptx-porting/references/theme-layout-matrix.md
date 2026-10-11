@@ -1,51 +1,20 @@
-# Matriz tema-layout
+# Matriz Tema-Layout (Deprecada / En Transición)
 
-Cada layout firma declara en qué temas luce óptimo. Lo no declarado es
-universal y sigue visible en todos los listados.
+> [!NOTE]
+> El modelo anterior de matriz tema-layout basado en `supportedThemes: ['...']` dentro de layouts individuales y `showcaseLayouts: [...]` en definiciones de temas ha sido **sustituido** por la arquitectura canónica de **Template Packs** (`TemplatePack` y `TemplateSlide`).
 
-## 1. Receta de inclusión (una línea, copiable)
+Para consultar la documentación completa de la arquitectura actual, consulta:
+👉 **[Template Packs](file:///home/gustadev121/orca/workspaces/UNSAReport2/dev-2/skills/pptx-porting/references/template-packs.md)**
 
-```tsx
-export const splitNumberedSteps: LayoutDefinition = {
-  id: 'split-numbered-steps',
-  supportedThemes: ['azul-proposal'], // ← la única línea que agrega
-  // ...resto igual
-};
-```
+---
 
-## 2. Curaduría del tema (no filtra, solo galería)
+## Resumen del Cambio Arquitectural
 
-```ts
-export const azulProposalTheme: ThemeDefinition = {
-  id: 'azul-proposal',
-  showcaseLayouts: ['hero-stacked-duo-footer', 'hero-two-line'],
-  // supportedLayouts ausente = el tema acepta todos los layouts
-};
-```
-
-## 3. Tokens firma con fallback (copiable)
-
-Los layouts son cromo-neutrales: consumen `var(--slide-*)`. Un token firma
-que otro tema no define debe degradar, nunca romper:
-
-```tsx
-style={{ backgroundColor: 'var(--slide-number-disc, var(--slide-accent))' }}
-```
-
-El proveedor ignora con aviso las `customVariables` que colisionen con un
-token central (`ThemeProvider.tsx`); usa prefijos propios (`--slide-blob-*`).
-
-## 4. Consultas (copiables)
-
-```bash
-bun -e "import {listLayouts} from './src/layouts/registry.ts'; \
-  console.log(listLayouts({theme:'azul-proposal'}).map(l=>l.id).join('\n'))"
-unsarep slides layouts --theme azul-proposal
-unsarep slides themes --layout hero-two-line
-```
-
-## 5. QA 1280×720
-
-Regiones que crecen: `flex-1 min-h-0 overflow-hidden`; texto con
-`line-clamp-*`/`truncate`; arreglos capados. Detalle en
-`../slides-authoring/references/qa-bounds.md`.
+1. **Ubicación Canónica:**
+   Los templates ya no se registran como layouts globales huérfanos con directivas de filtrado de tema. Ahora residen en paquetes atómicos en `packages/slides-kit/src/packs/<pack-id>/`.
+2. **Estructura Atómica:**
+   Cada `TemplatePack` agrupa su `theme` (estilos puros y tokens) y sus `slides` (`TemplateSlide[]` con sus slots parametrizables y componentes React limpios).
+3. **Assets Remotos (Zero Local Binaries):**
+   Las imágenes binarias e iconos no se commitean localmente; se suben a SeaweedFS S3 y se resuelven en runtime mediante `getTemplateAssetUrl(packId, filename)`.
+4. **CSS-First & Higiene TSX:**
+   Washes, gradientes y glows se resuelven en CSS puro / Tailwind. Se prohíbe terminantemente la inyección de bloques masivos de SVG inline.

@@ -1,6 +1,7 @@
 # Forense de `.pptx`
 
-A `.pptx` is a ZIP. Inventory it slide by slide before writing any code.
+Un `.pptx` es un archivo ZIP estándar. Realiza un inventario forense slide por slide
+antes de escribir una sola línea de código o crear componentes.
 
 ## 1. Estructura (copiable)
 
@@ -36,7 +37,7 @@ print('FILLS:', dict(fills.most_common(10)))
 EOF
 ```
 
-## 3. Ejemplo real (azul-proposal, slide1)
+## 3. Ejemplo real (`azul-proposal`, slide 1)
 
 ```text
 --- slide1.xml: 4 runs
@@ -48,23 +49,47 @@ FONTS: {'Open Sauce Bold': 40, 'Open Sauce Semi-Bold': 36, ...}
 FILLS: {'185079': 87, 'FBF6F1': 10, 'BBD6E1': 3, ...}
 ```
 
-Lectura: portada de 2 líneas apiladas en `#185079` sobre marfil, fuente real
-Open Sauce (el `theme.xml` dice Calibri de fábrica: ignorarlo).
+Lectura: portada de 2 líneas apiladas en `#185079` sobre marfil `#FBF6F1`, fuente real
+Open Sauce (el `theme.xml` suele decir Calibri de fábrica: ignorarlo siempre).
 
-## 4. Decisión tema vs layout
+## 4. Categorización Forense de Elementos Visuales
 
-- Recurrente en ≥3 slides (fondo, pie, tipografía) → **tema** (tokens).
-- Composición puntual (portada, pasos, equipo) → **layout firma**.
-- Salida: tabla slide → layout existente (`unsarep slides layouts --search`)
-  o firma nueva + matriz existente-vs-faltante.
+Durante el análisis forense, clasifica de forma rigurosa cada elemento visual en una
+de las siguientes categorías:
 
-## 5. Fuentes embebidas (obligatorio antes de capturar)
+### A. CSS-Replicable (Obligatorio en CSS/Tailwind)
+Todo efecto cosmético estructural debe implementarse mediante CSS puro o Tailwind:
+- **Washes, gradientes y glows:** Degradados radiales y lineales (`radial-gradient(...)`, `linear-gradient(...)`).
+- **Desenfoques y filtros:** `filter: blur(...)`, `backdrop-filter: blur(...)`.
+- **Paneles y tarjetas:** Cajas semánticas con fondo translúcido (`background: rgba(...)`), sombras (`box-shadow`, `drop-shadow`).
+- **Bordes y acentos geométricos:** Líneas separadoras (`height: 1px`, `border-*`), píldoras o círculos (`border-radius: 9999px`).
+- **Regla estricta:** **PROHIBIDO** exportar imágenes raster decorativas (PNG/JPEG de washes, difuminados, destellos o formas geométricas simples) desde el `.pptx`.
+
+### B. Remote Assets (Zero Binarios Locales)
+Elementos que representan contenido real irreproducible por CSS:
+- **Fotos e ilustraciones fotográficas:** Retratos de equipo, fotos de producto, capturas de pantalla.
+- **Iconos limpios:** Gráficos vectoriales o marcas que no sean simples formas geométricas.
+- **Almacenamiento remoto:** Estos assets deben optimizarse (WebP/JPEG limpio) y subirse al CDN de UNSAReport / SeaweedFS S3 (`/api/slides/assets/templates/:packId/:filename`).
+- **Regla estricta:** **NUNCA** comitear binarios pesados al repositorio de git ni empaquetarlos dentro de `@unsa/slides-kit`.
+
+### C. Higiene TSX (Prohibido SVG Inline Spaghetti)
+- **Cero SVG inline masivos:** Queda estrictamente prohibido incrustar bloques kilométricos de `<svg><path d="M ... Z" /></svg>` dentro del código TSX de las slides. El código debe mantenerse legible, modular y mantenible.
+- **Conversión de formas:** Si el `.pptx` contiene una forma geométrica (círculos, líneas, rectángulos, viñetas), conviértela a contenedores y estilos CSS nativos (`<div>`, clases de Tailwind o inline styles).
+- **Iconos:** Si un icono vectorial no se puede resolver con CSS simple o fuentes tipográficas, trátalo como asset remoto (`<img src={getTemplateAssetUrl(packId, filename)} />`).
+
+## 5. Arquitectura Template Pack: Tema vs Slide
+
+En lugar de layouts huérfanos o matrices desacopladas:
+- **Tokens de Tema (`theme.ts`):** Extrae tipografías base, jerarquía de tamaños, colores dominantes y acentos recurrentes en ≥3 slides en el `ThemeDefinition` del pack.
+- **Template Slides (`slides/*.tsx`):** Cada slide única del PPTX se implementa como una `TemplateSlide` atómica con sus slots de contenido parametrizados (`SlotSchema[]`), estilos CSS limpios y referencias a assets remotos.
+
+## 6. Fuentes embebidas (obligatorio antes de capturar)
 
 PowerPoint embebe fuentes en `ppt/fonts/*.fntdata` (EOT). LibreOffice las usa;
-si no se instalan, el loop compara contra sustituciones distintas y la
-paridad es inalcanzable. Caso real: `typeface="Open Sauce Heavy"` se
+si no se instalan, el loop visual compara contra sustituciones erróneas y la
+paridad pixel-perfect es inalcanzable. Caso real: `typeface="Open Sauce Heavy"` se
 resuelve a la familia embarcada **Open Sauce One** (Black), no a
-"Open Sauce Sans" del sistema — glifos y métricas distintos.
+"Open Sauce Sans" del sistema — los glifos y métricas divergen por completo.
 
 ```bash
 python3 skills/pptx-porting/scripts/eot-extract.py \
@@ -76,4 +101,16 @@ fc-cache -f ~/.local/share/fonts
 
 Regla: el `fontFamily` CSS debe apuntar a la familia que LibreOffice usa
 (verifícalo en el PDF de referencia con `pdffonts ref.pdf`), no al nombre
-del `typeface` del XML.
+literal del `typeface` del XML.
+
+## 7. Inventario y Extracción de Medios (`ppt/media/`)
+
+Para auditar y extraer los recursos binarios antes de subirlos al CDN de SeaweedFS:
+
+```bash
+PPTX="plantilla.pptx"
+unzip -l "$PPTX" | grep "ppt/media/"
+# Extrae solo imágenes reales a un directorio temporal de staging (no comitear a git)
+unzip -j "$PPTX" "ppt/media/*" -d /tmp/pack-assets/
+ls -lh /tmp/pack-assets/
+```
