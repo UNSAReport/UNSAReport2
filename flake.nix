@@ -92,6 +92,7 @@
               sops
               bun
               go
+              golangci-lint
               nodejs
             ])
             (with unstable; [

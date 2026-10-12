@@ -76,7 +76,7 @@ func FetchExpectedChecksum(ctx context.Context, checksumsURL, binaryName string)
 	if err != nil {
 		return "", fmt.Errorf("fetch checksums from %s: %w", checksumsURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("checksums endpoint returned status %d", resp.StatusCode)
@@ -109,7 +109,7 @@ func VerifyBinaryHeader(path, goos string) error {
 	if err != nil {
 		return fmt.Errorf("open downloaded binary: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	header := make([]byte, 4)
 	n, err := f.Read(header)
@@ -196,7 +196,7 @@ func UpgradeBinary(ctx context.Context, target ReleaseInfo) error {
 		_ = tempFile.Close()
 		return fmt.Errorf("download binary from %s: %w", downloadURL, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		_ = tempFile.Close()

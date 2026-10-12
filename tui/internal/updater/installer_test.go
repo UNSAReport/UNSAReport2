@@ -87,10 +87,7 @@ func TestVerifyBinaryHeader(t *testing.T) {
 }
 
 func TestUpgradeBinary_Disabled(t *testing.T) {
-	orig := os.Getenv(config.EnvDisableAutoUpdate)
-	defer os.Setenv(config.EnvDisableAutoUpdate, orig)
-
-	os.Setenv(config.EnvDisableAutoUpdate, "1")
+	t.Setenv(config.EnvDisableAutoUpdate, "1")
 	err := UpgradeBinary(context.Background(), ReleaseInfo{Version: "v0.2.0"})
 	if err == nil {
 		t.Fatal("expected error when auto-updates disabled, got nil")
@@ -106,7 +103,7 @@ func TestUpgradeBinary_ChecksumMismatch(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/checksums.txt" {
-			fmt.Fprintf(w, "0000000000000000000000000000000000000000000000000000000000000000  %s\n", binaryName)
+			_, _ = fmt.Fprintf(w, "0000000000000000000000000000000000000000000000000000000000000000  %s\n", binaryName)
 			return
 		}
 		if r.URL.Path == "/binary" {

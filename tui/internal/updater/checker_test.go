@@ -5,21 +5,18 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/UNSAReport/tui/internal/config"
 )
 
 func TestResolveChannel(t *testing.T) {
-	origEnv := os.Getenv(config.EnvUpdateChannel)
 	origCfg := config.Channel
 	defer func() {
-		os.Setenv(config.EnvUpdateChannel, origEnv)
 		config.Channel = origCfg
 	}()
 
-	os.Unsetenv(config.EnvUpdateChannel)
+	t.Setenv(config.EnvUpdateChannel, "")
 	config.Channel = config.ChannelStable
 
 	if ch := ResolveChannel("dev"); ch != config.ChannelDev {
@@ -29,12 +26,12 @@ func TestResolveChannel(t *testing.T) {
 		t.Errorf("expected stable from override, got %s", ch)
 	}
 
-	os.Setenv(config.EnvUpdateChannel, "dev")
+	t.Setenv(config.EnvUpdateChannel, "dev")
 	if ch := ResolveChannel(""); ch != config.ChannelDev {
 		t.Errorf("expected dev from env, got %s", ch)
 	}
 
-	os.Unsetenv(config.EnvUpdateChannel)
+	t.Setenv(config.EnvUpdateChannel, "")
 	config.Channel = config.ChannelDev
 	if ch := ResolveChannel(""); ch != config.ChannelDev {
 		t.Errorf("expected dev from config, got %s", ch)
@@ -42,16 +39,13 @@ func TestResolveChannel(t *testing.T) {
 }
 
 func TestResolveEndpoint(t *testing.T) {
-	orig := os.Getenv(config.EnvUpdateEndpoint)
-	defer os.Setenv(config.EnvUpdateEndpoint, orig)
-
-	os.Unsetenv(config.EnvUpdateEndpoint)
+	t.Setenv(config.EnvUpdateEndpoint, "")
 	if ep := ResolveEndpoint(); ep != config.DefaultUpdateEndpoint {
 		t.Errorf("expected default endpoint, got %s", ep)
 	}
 
 	custom := "https://custom.endpoint.com/api/version"
-	os.Setenv(config.EnvUpdateEndpoint, custom)
+	t.Setenv(config.EnvUpdateEndpoint, custom)
 	if ep := ResolveEndpoint(); ep != custom {
 		t.Errorf("expected custom endpoint, got %s", ep)
 	}

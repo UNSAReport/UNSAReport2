@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/UNSAReport/tui/internal/config"
@@ -29,10 +28,7 @@ func TestUpgradeCmd_Flags(t *testing.T) {
 }
 
 func TestUpgradeCmd_Disabled(t *testing.T) {
-	orig := os.Getenv(config.EnvDisableAutoUpdate)
-	defer os.Setenv(config.EnvDisableAutoUpdate, orig)
-
-	os.Setenv(config.EnvDisableAutoUpdate, "1")
+	t.Setenv(config.EnvDisableAutoUpdate, "1")
 
 	cmd := newUpgradeCmd()
 	cmd.SetArgs([]string{"--check"})
@@ -47,18 +43,14 @@ func TestUpgradeCmd_Disabled(t *testing.T) {
 }
 
 func TestUpgradeCmd_CheckOnly(t *testing.T) {
-	origDisabled := os.Getenv(config.EnvDisableAutoUpdate)
-	origEndpoint := os.Getenv(config.EnvUpdateEndpoint)
 	origVer := config.Version
 	origCommit := config.GitCommit
 	defer func() {
-		os.Setenv(config.EnvDisableAutoUpdate, origDisabled)
-		os.Setenv(config.EnvUpdateEndpoint, origEndpoint)
 		config.Version = origVer
 		config.GitCommit = origCommit
 	}()
 
-	os.Unsetenv(config.EnvDisableAutoUpdate)
+	t.Setenv(config.EnvDisableAutoUpdate, "")
 	config.Version = "v0.1.0"
 	config.GitCommit = "old1234"
 
@@ -77,7 +69,7 @@ func TestUpgradeCmd_CheckOnly(t *testing.T) {
 	}))
 	defer server.Close()
 
-	os.Setenv(config.EnvUpdateEndpoint, server.URL)
+	t.Setenv(config.EnvUpdateEndpoint, server.URL)
 
 	cmd := newUpgradeCmd()
 	var outBuf bytes.Buffer

@@ -10,10 +10,7 @@ import (
 
 func TestCacheState_SaveAndLoad(t *testing.T) {
 	tmpDir := t.TempDir()
-	orig := os.Getenv(config.EnvXDGCacheHome)
-	defer os.Setenv(config.EnvXDGCacheHome, orig)
-
-	os.Setenv(config.EnvXDGCacheHome, tmpDir)
+	t.Setenv(config.EnvXDGCacheHome, tmpDir)
 
 	state := &CacheState{
 		LastChecked:     1728690000,

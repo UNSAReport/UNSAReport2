@@ -51,7 +51,7 @@ func QueryManifest(ctx context.Context, endpoint string) (*Manifest, error) {
 	if err != nil {
 		return nil, fmt.Errorf("fetch manifest from %s: %w", endpoint, err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("update endpoint %s returned status %d %s", endpoint, resp.StatusCode, resp.Status)
