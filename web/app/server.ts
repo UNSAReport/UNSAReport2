@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 // biome-ignore lint/style/noRestrictedImports: dist/server/server.js is built dynamically
 import server from './dist/server/server.js';
@@ -5,7 +6,22 @@ import server from './dist/server/server.js';
 import { getVersionManifest } from './src/lib/version';
 
 const DEFAULT_PORT = 3000;
-const CLIENT_DIR = path.resolve(import.meta.dir, 'dist/client');
+
+function resolveClientDir(): string {
+  const nested = path.resolve(import.meta.dir, 'dist/client');
+  if (fs.existsSync(nested)) {
+    return nested;
+  }
+  const sibling = path.resolve(import.meta.dir, 'client');
+  if (fs.existsSync(sibling)) {
+    return sibling;
+  }
+  throw new Error(
+    `Cannot find client assets directory relative to ${import.meta.dir}`,
+  );
+}
+
+const CLIENT_DIR = resolveClientDir();
 const ASSETS_PATH_PREFIX = '/assets/';
 const ASSET_CACHE_CONTROL = 'public, max-age=31536000, immutable';
 
