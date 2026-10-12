@@ -291,7 +291,7 @@ func buildTemplateTarget(wsRoot, pkgDir string, decl pkg.PkgToml, specificEntry 
 func typstBin() (string, error) {
 	p, err := exec.LookPath("typst")
 	if err != nil {
-		return "", fmt.Errorf("typst not found on PATH (install via nix run nixpkgs#typst)")
+		return "", fmt.Errorf("typst not found on PATH")
 	}
 	return p, nil
 }
