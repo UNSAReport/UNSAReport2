@@ -362,8 +362,9 @@ jobs:
         run: |
           SHORT_SHA=$(git rev-parse --short HEAD)
           gh release delete dev --cleanup-tag --yes || true
+          git push origin :refs/tags/dev || true
           git tag -f dev HEAD
-          git push -f origin dev
+          git push origin refs/tags/dev --force
           gh release create dev \
             tui/dist/unsarep-linux-amd64 \
             tui/dist/unsarep-linux-arm64 \
@@ -372,6 +373,7 @@ jobs:
             tui/dist/unsarep-windows-amd64.exe \
             tui/dist/unsarep-windows-arm64.exe \
             tui/dist/checksums.txt \
+            --target dev \
             --title "Dev Prerelease (${SHORT_SHA})" \
             --prerelease \
             --notes "Automated development prerelease built from branch dev (commit ${SHORT_SHA})."
