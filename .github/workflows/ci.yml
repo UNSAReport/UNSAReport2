@@ -311,7 +311,7 @@ jobs:
   check-tui:
     name: Check TUI multiplatform builds
     needs: changes
-    if: needs.changes.outputs.tui == 'true' && !startsWith(github.ref, 'refs/tags/v')
+    if: needs.changes.outputs.tui == 'true' && !startsWith(github.ref, 'refs/tags/v') && github.ref != 'refs/heads/dev'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -330,6 +330,51 @@ jobs:
 
       - name: Build multiplatform binaries and checksums
         run: moon run tui:build-all
+
+  release-tui-dev:
+    name: Release unsarep TUI dev prerelease
+    needs: [changes, moon]
+    if: github.ref == 'refs/heads/dev' && needs.changes.outputs.tui == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build multiplatform binaries and checksums (dev channel)
+        env:
+          VERSION: 0.2.0-dev+${{ github.sha }}
+          CHANNEL: dev
+          COMMIT: ${{ github.sha }}
+        run: moon run tui:build-all
+
+      - name: Publish or update GitHub Prerelease (dev)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          gh release delete dev --cleanup-tag --yes || true
+          git tag -f dev HEAD
+          git push -f origin dev
+          gh release create dev \
+            tui/dist/unsarep-linux-amd64 \
+            tui/dist/unsarep-linux-arm64 \
+            tui/dist/unsarep-darwin-amd64 \
+            tui/dist/unsarep-darwin-arm64 \
+            tui/dist/unsarep-windows-amd64.exe \
+            tui/dist/unsarep-windows-arm64.exe \
+            tui/dist/checksums.txt \
+            --title "Dev Prerelease (${SHORT_SHA})" \
+            --prerelease \
+            --notes "Automated development prerelease built from branch dev (commit ${SHORT_SHA})."
 
   release-tui:
     name: Release unsarep TUI binaries
@@ -352,6 +397,8 @@ jobs:
       - name: Build multiplatform binaries and checksums
         env:
           VERSION: ${{ github.ref_name }}
+          CHANNEL: stable
+          COMMIT: ${{ github.sha }}
         run: moon run tui:build-all
 
       - name: Publish GitHub Release

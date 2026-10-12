@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as PresentationsRouteRouteImport } from './routes/presentations/route'
+import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthMeRouteImport } from './routes/auth/me'
 import { Route as AuthPatRouteImport } from './routes/auth/pat'
@@ -45,6 +46,11 @@ const DashboardRoute = DashboardRouteImport.update({
 const PresentationsRouteRoute = PresentationsRouteRouteImport.update({
   id: '/presentations',
   path: '/presentations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/presentations': typeof PresentationsRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/presentations': typeof PresentationsRouteRouteWithChildren
   '/admin': typeof AdminRoute
   '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/presentations'
     | '/admin'
     | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/presentations'
     | '/admin'
     | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   PresentationsRouteRoute: typeof PresentationsRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
   DashboardRoute: typeof DashboardRoute
+  ReleasesRoute: typeof ReleasesRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthMeRoute: typeof AuthMeRoute
   AuthPatRoute: typeof AuthPatRoute
@@ -272,6 +285,13 @@ declare module '@tanstack/react-router' {
       path: '/presentations'
       fullPath: '/presentations'
       preLoaderRoute: typeof PresentationsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   PresentationsRouteRoute: PresentationsRouteRouteWithChildren,
   AdminRoute: AdminRoute,
   DashboardRoute: DashboardRoute,
+  ReleasesRoute: ReleasesRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthMeRoute: AuthMeRoute,
   AuthPatRoute: AuthPatRoute,

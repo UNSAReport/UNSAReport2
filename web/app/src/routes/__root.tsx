@@ -156,6 +156,12 @@ function RootComponent() {
             )}
           </div>
           <div className="col-span-9 md:col-span-3 flex items-center justify-end gap-5">
+            <Link
+              to="/releases"
+              className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
+            >
+              Releases
+            </Link>
             {user ? (
               <Link
                 to="/dashboard"
