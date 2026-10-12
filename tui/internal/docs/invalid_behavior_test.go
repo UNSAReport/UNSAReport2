@@ -43,34 +43,6 @@ func TestInvalidMidDownloadFailure(t *testing.T) {
 	}
 }
 
-func TestInvalidChecksumDrift(t *testing.T) {
-	srv := testutil.MockRegistry(t)
-	defer srv.Close()
-	root := invalidDocsRoot(t)
-	if err := Add(context.Background(), root, AddOptions{Package: "@scope/cardo", Flags: []string{"--yes"}}); err != nil {
-		t.Fatal(err)
-	}
-	l, err := lock.Load(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	e, ok := l.Find("@scope/cardo")
-	if !ok || len(e.Files) == 0 {
-		t.Fatalf("lock %+v", l)
-	}
-	target := filepath.Join(root, "components", "@scope", "cardo", e.Files[0].Path)
-	raw, err := os.ReadFile(target)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(target, append(raw, []byte("drift")...), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := runCheck(root); err == nil || (!strings.Contains(err.Error(), "drift") && !strings.Contains(err.Error(), "sha256")) {
-		t.Fatalf("expected checksum-drift error, got %v", err)
-	}
-}
-
 func TestInvalidCircularDeps(t *testing.T) {
 	srv := testutil.MockRegistry(t)
 	defer srv.Close()

@@ -134,22 +134,30 @@ unsarep docs build lab-01
 | `unsarep docs check` | Valida la configuración, la integridad del lockfile y las dependencias |
 | `unsarep docs run <alias>` | Ejecuta scripts y alias definidos en el proyecto (ej. `unsarep docs run submit`) |
 
-<!--
 ### Creación de diapositivas (`unsarep slides`)
 
-Crea y visualiza presentaciones interactivas:
+Crea, previsualiza y publica presentaciones interactivas institucionales:
 
 ```bash
-# Crear la estructura de una nueva presentación
+# Crear la estructura de una nueva presentación con el kit oficial
+# (el tema se elige con la clave 'theme' en deck.config.ts, no con --theme)
 unsarep slides init mi-presentacion
 
-# Iniciar el servidor local de desarrollo con recarga en vivo
-unsarep slides dev mi-presentacion
+# Explorar el catálogo de 120 layouts y 8 temas oficiales
+unsarep slides layouts --category bento
+unsarep slides themes
+
+# Iniciar el servidor local de desarrollo con recarga en vivo (HMR, puerto 4000)
+cd mi-presentacion && unsarep slides dev
 
 # Vincular y desplegar la presentación en la plataforma en la nube
 unsarep slides link
 unsarep slides deploy
-```-->
+```
+
+El visor vive en `/presentations/<slug>` (`?present=1` para modo
+presentación, botón PDF para exportar); el servicio interno `:3002` se
+expone públicamente vía el gateway `/api/slides`.
 
 ---
 
@@ -171,6 +179,30 @@ unsarep registry check ./mi-paquete
 unsarep registry publish ./mi-paquete
 ```
 
+### Publicación automatizada en GitHub Actions (estilo npm)
+
+Puedes publicar automáticamente tus paquetes desde GitHub Actions utilizando la GitHub Action oficial [`actions/publish`](actions/README.md) y un Personal Access Token (PAT):
+
+```yaml
+name: Publicar Paquete
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: UNSAReport/UNSAReport2/actions/publish@v0.2.0
+        with:
+          token: ${{ secrets.UNSAREP_TOKEN }}
+          dir: '.'
+```
+
+Consulta la [documentación de GitHub Actions](actions/README.md) para más opciones como monorepos/scopes enteros con subida por lotes y caché automático, modo `dry-run` y la acción `actions/setup`.
+
+
 ---
 
 ## Contribuciones, Errores y Sugerencias
@@ -179,7 +211,7 @@ unsarep registry publish ./mi-paquete
 
 - **Reportar un error**: Abre una issue con nuestra [Plantilla de reporte de errores](https://github.com/UNSAReport/UNSAReport2/issues/new?template=bug_report.yml).
 - **Solicitar una funcionalidad**: Envía una solicitud con nuestra [Plantilla de sugerencias](https://github.com/UNSAReport/UNSAReport2/issues/new?template=feature_request.yml).
-- **Configuración para desarrolladores y pull requests**: Consulta la guía técnica en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar los microservicios locales, ejecutar pruebas y enviar contribuciones.
+- **Configuración para desarrolladores y pull requests**: Consulta la [Guía de Desarrollo del Monorepo](docs/development-guide.md) y las pautas en [CONTRIBUTING.md](CONTRIBUTING.md) para levantar la infraestructura, ejecutar pruebas y enviar contribuciones.
 
 ---
 

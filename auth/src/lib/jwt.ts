@@ -8,20 +8,12 @@ import {
 } from 'jose';
 import { config } from '@/config';
 import { db } from '@/db/index';
-import { signingKeys, userRoles } from '@/db/schema';
+import { signingKeys } from '@/db/schema';
 import { getOrGenerateActiveKey } from '@/lib/keys';
-import type { AccessTokenClaims, Role, UserPayload } from '@/types';
+import { getUserRoles } from '@/lib/roles';
+import type { AccessTokenClaims, UserPayload } from '@/types';
 
-export async function getUserRoles(
-  userId: string,
-): Promise<Record<string, Role>> {
-  const rows = await db
-    .select({ subApp: userRoles.subApp, role: userRoles.role })
-    .from(userRoles)
-    .where(eq(userRoles.userId, userId));
-
-  return Object.fromEntries(rows.map((r) => [r.subApp, r.role as Role]));
-}
+export { getUserRoles };
 
 export async function signAccessToken(user: UserPayload): Promise<string> {
   const activeKey = await getOrGenerateActiveKey();

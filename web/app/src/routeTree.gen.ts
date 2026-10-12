@@ -11,12 +11,16 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as PresentationsRouteRouteImport } from './routes/presentations/route'
+import { Route as ReleasesRouteImport } from './routes/releases'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AuthMeRouteImport } from './routes/auth/me'
 import { Route as AuthPatRouteImport } from './routes/auth/pat'
 import { Route as PresentationsIndexRouteImport } from './routes/presentations/index'
-import { Route as PresentationsTopicRouteImport } from './routes/presentations/$topic'
+import { Route as PresentationsSlugRouteImport } from './routes/presentations/$slug'
+import { Route as PresentationsCatalogRouteImport } from './routes/presentations/catalog'
+import { Route as PresentationsUploadRouteImport } from './routes/presentations/upload'
 import { Route as RegistryIndexRouteImport } from './routes/registry/index'
 import { Route as RegistryNameRouteImport } from './routes/registry/$name'
 import { Route as RegistryUploadRouteImport } from './routes/registry/upload'
@@ -34,9 +38,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PresentationsRouteRoute = PresentationsRouteRouteImport.update({
   id: '/presentations',
   path: '/presentations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReleasesRoute = ReleasesRouteImport.update({
+  id: '/releases',
+  path: '/releases',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLoginRoute = AuthLoginRouteImport.update({
@@ -59,9 +73,19 @@ const PresentationsIndexRoute = PresentationsIndexRouteImport.update({
   path: '/',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
-const PresentationsTopicRoute = PresentationsTopicRouteImport.update({
-  id: '/$topic',
-  path: '/$topic',
+const PresentationsSlugRoute = PresentationsSlugRouteImport.update({
+  id: '/$slug',
+  path: '/$slug',
+  getParentRoute: () => PresentationsRouteRoute,
+} as any)
+const PresentationsCatalogRoute = PresentationsCatalogRouteImport.update({
+  id: '/catalog',
+  path: '/catalog',
+  getParentRoute: () => PresentationsRouteRoute,
+} as any)
+const PresentationsUploadRoute = PresentationsUploadRouteImport.update({
+  id: '/upload',
+  path: '/upload',
   getParentRoute: () => PresentationsRouteRoute,
 } as any)
 const RegistryIndexRoute = RegistryIndexRouteImport.update({
@@ -99,10 +123,14 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/presentations': typeof PresentationsRouteRouteWithChildren
   '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -114,10 +142,14 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -131,10 +163,14 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/presentations': typeof PresentationsRouteRouteWithChildren
   '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/releases': typeof ReleasesRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/me': typeof AuthMeRoute
   '/auth/pat': typeof AuthPatRoute
-  '/presentations/$topic': typeof PresentationsTopicRoute
+  '/presentations/$slug': typeof PresentationsSlugRoute
+  '/presentations/catalog': typeof PresentationsCatalogRoute
+  '/presentations/upload': typeof PresentationsUploadRoute
   '/registry/$name': typeof RegistryNameRouteWithChildren
   '/registry/upload': typeof RegistryUploadRoute
   '/scopes/$scope': typeof ScopesScopeRoute
@@ -149,10 +185,14 @@ export interface FileRouteTypes {
     | '/'
     | '/presentations'
     | '/admin'
+    | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -164,10 +204,14 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/admin'
+    | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -180,10 +224,14 @@ export interface FileRouteTypes {
     | '/'
     | '/presentations'
     | '/admin'
+    | '/dashboard'
+    | '/releases'
     | '/auth/login'
     | '/auth/me'
     | '/auth/pat'
-    | '/presentations/$topic'
+    | '/presentations/$slug'
+    | '/presentations/catalog'
+    | '/presentations/upload'
     | '/registry/$name'
     | '/registry/upload'
     | '/scopes/$scope'
@@ -197,6 +245,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   PresentationsRouteRoute: typeof PresentationsRouteRouteWithChildren
   AdminRoute: typeof AdminRoute
+  DashboardRoute: typeof DashboardRoute
+  ReleasesRoute: typeof ReleasesRoute
   AuthLoginRoute: typeof AuthLoginRoute
   AuthMeRoute: typeof AuthMeRoute
   AuthPatRoute: typeof AuthPatRoute
@@ -223,11 +273,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/presentations': {
       id: '/presentations'
       path: '/presentations'
       fullPath: '/presentations'
       preLoaderRoute: typeof PresentationsRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/releases': {
+      id: '/releases'
+      path: '/releases'
+      fullPath: '/releases'
+      preLoaderRoute: typeof ReleasesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/login': {
@@ -258,11 +322,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PresentationsIndexRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
-    '/presentations/$topic': {
-      id: '/presentations/$topic'
-      path: '/$topic'
-      fullPath: '/presentations/$topic'
-      preLoaderRoute: typeof PresentationsTopicRouteImport
+    '/presentations/$slug': {
+      id: '/presentations/$slug'
+      path: '/$slug'
+      fullPath: '/presentations/$slug'
+      preLoaderRoute: typeof PresentationsSlugRouteImport
+      parentRoute: typeof PresentationsRouteRoute
+    }
+    '/presentations/catalog': {
+      id: '/presentations/catalog'
+      path: '/catalog'
+      fullPath: '/presentations/catalog'
+      preLoaderRoute: typeof PresentationsCatalogRouteImport
+      parentRoute: typeof PresentationsRouteRoute
+    }
+    '/presentations/upload': {
+      id: '/presentations/upload'
+      path: '/upload'
+      fullPath: '/presentations/upload'
+      preLoaderRoute: typeof PresentationsUploadRouteImport
       parentRoute: typeof PresentationsRouteRoute
     }
     '/registry/': {
@@ -311,12 +389,16 @@ declare module '@tanstack/react-router' {
 }
 
 interface PresentationsRouteRouteChildren {
-  PresentationsTopicRoute: typeof PresentationsTopicRoute
+  PresentationsSlugRoute: typeof PresentationsSlugRoute
+  PresentationsCatalogRoute: typeof PresentationsCatalogRoute
+  PresentationsUploadRoute: typeof PresentationsUploadRoute
   PresentationsIndexRoute: typeof PresentationsIndexRoute
 }
 
 const PresentationsRouteRouteChildren: PresentationsRouteRouteChildren = {
-  PresentationsTopicRoute: PresentationsTopicRoute,
+  PresentationsSlugRoute: PresentationsSlugRoute,
+  PresentationsCatalogRoute: PresentationsCatalogRoute,
+  PresentationsUploadRoute: PresentationsUploadRoute,
   PresentationsIndexRoute: PresentationsIndexRoute,
 }
 
@@ -339,6 +421,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   PresentationsRouteRoute: PresentationsRouteRouteWithChildren,
   AdminRoute: AdminRoute,
+  DashboardRoute: DashboardRoute,
+  ReleasesRoute: ReleasesRoute,
   AuthLoginRoute: AuthLoginRoute,
   AuthMeRoute: AuthMeRoute,
   AuthPatRoute: AuthPatRoute,

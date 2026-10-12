@@ -19,7 +19,13 @@ const (
 	CallbackPath          = "/callback"
 )
 
-var Version = "dev"
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	GitBranch = "dev"
+	BuildDate = "unknown"
+	Channel   = "stable"
+)
 
 const (
 	DefaultPrompt        = "❯ "
@@ -28,9 +34,12 @@ const (
 	DefaultSrcDir        = "src"
 	DefaultSubmissionDir = "submission"
 	DefaultReportFile    = "report.typ"
+	DefaultReportPDF     = "report.pdf"
 	DefaultReportWord    = "Informe"
 	DefaultCodeWord      = "Código Fuente"
 	DefaultFileTemplate  = "{output_type}_{lab_number}"
+	ExtTypst             = ".typ"
+	ExtPDF               = ".pdf"
 )
 
 const (
@@ -41,11 +50,19 @@ const (
 
 const (
 	DefaultRegistryLimit      = 100
+	DefaultSearchLimit        = 50
+	RegistryCacheTTL          = 10 * time.Minute
 	AuthTimeout               = 10 * time.Second
 	RegistryTimeout           = 30 * time.Second
 	CallbackTimeout           = 5 * time.Minute
 	CallbackReadHeaderTimeout = 5 * time.Second
 	CallbackShutdownTimeout   = 2 * time.Second
+)
+
+const (
+	ActionSearchRegistry = "__search_registry__"
+	ActionManualPackage  = "__manual_package__"
+	TemplateBlank        = "blank"
 )
 
 const (
@@ -76,9 +93,13 @@ const (
 	EnvSSHConnection   = "SSH_CONNECTION"
 	EnvDisplay         = "DISPLAY"
 	EnvWaylandDisplay  = "WAYLAND_DISPLAY"
-	EnvLang            = "LANG"
-	EnvLCAll           = "LC_ALL"
-	EnvLCMessages      = "LC_MESSAGES"
+	EnvLang              = "LANG"
+	EnvLCAll             = "LC_ALL"
+	EnvLCMessages        = "LC_MESSAGES"
+	EnvDisableAutoUpdate = "UNSAREP_DISABLE_AUTO_UPDATE"
+	EnvUpdateChannel     = "UNSAREP_UPDATE_CHANNEL"
+	EnvUpdateEndpoint    = "UNSAREP_UPDATE_ENDPOINT"
+	EnvNoUpdateNotifier  = "UNSAREP_NO_UPDATE_NOTIFIER"
 )
 
 const (
@@ -89,7 +110,24 @@ const (
 	CredentialsFileName = "credentials.json"
 	TokenFileName       = "token"
 	CacheFileName       = "registry.json"
+	UpdateCacheFileName = "update_check.json"
 	LockFileName        = "unsareport.lock"
+	ComponentsDirName   = "components"
+)
+
+const (
+	DefaultUpdateEndpoint = "https://unsareport.ynoacamino.tech/api/version"
+	UpdateCheckTTL        = 24 * time.Hour
+	UpdateTimeout         = 15 * time.Second
+	DefaultChecksumFile   = "checksums.txt"
+	ChannelStable         = "stable"
+	ChannelDev            = "dev"
+)
+
+const (
+	CheckScopeAll        = "all"
+	CheckScopeReport     = "report"
+	CheckScopeComponents = "components"
 )
 
 const (

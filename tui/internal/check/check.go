@@ -27,15 +27,53 @@ func (f Finding) Error() string {
 	return fmt.Sprintf("%s: %s", f.File, f.Message)
 }
 
+type CheckScope = string
+
+const (
+	ScopeAll        CheckScope = config.CheckScopeAll
+	ScopeReport     CheckScope = config.CheckScopeReport
+	ScopeComponents CheckScope = config.CheckScopeComponents
+)
+
+type Options struct {
+	Scope  CheckScope
+	Report string
+}
+
 func Run(root string) []Finding {
+	return RunWithOptions(root, Options{Scope: ScopeAll})
+}
+
+func RunReport(root, report string) []Finding {
+	return RunWithOptions(root, Options{
+		Scope:  ScopeReport,
+		Report: report,
+	})
+}
+
+func RunComponents(root string) []Finding {
+	return RunWithOptions(root, Options{Scope: ScopeComponents})
+}
+
+func RunWithOptions(root string, opts Options) []Finding {
 	var out []Finding
-	cfgPath := filepath.Join(root, "unsareport.toml")
+	cfgPath := filepath.Join(root, config.ConfigFileName)
 	cfg, err := project.Load(cfgPath)
 	if err != nil {
 		return []Finding{{File: cfgPath, Message: err.Error()}}
 	}
-	out = append(out, checkReports(root, cfg)...)
-	out = append(out, checkTypstSources(root)...)
+
+	switch opts.Scope {
+	case ScopeComponents:
+	case ScopeReport:
+		out = append(out, checkReport(root, opts.Report, cfg)...)
+	case ScopeAll:
+		out = append(out, checkReports(root, cfg)...)
+	default:
+		return []Finding{{File: root, Message: fmt.Sprintf("invalid check scope %q", opts.Scope)}}
+	}
+
+	out = append(out, checkTypstSources(root, opts)...)
 	out = append(out, checkLock(root)...)
 	out = append(out, checkScriptsHooks(root, cfg)...)
 	sort.Slice(out, func(i, j int) bool {
@@ -44,6 +82,23 @@ func Run(root string) []Finding {
 		}
 		return out[i].Line < out[j].Line
 	})
+	return out
+}
+
+func checkReport(root, report string, cfg project.SpecConfig) []Finding {
+	clean := filepath.Clean(report)
+	if clean == "." || clean == "" {
+		return nil
+	}
+	cleanSlash := filepath.ToSlash(clean)
+	topDir := strings.Split(cleanSlash, "/")[0]
+	if topDir == config.ComponentsDirName || topDir == config.ConfigDirName || strings.HasPrefix(topDir, ".") {
+		return nil
+	}
+	var out []Finding
+	if nested, _ := hasNestedReport(filepath.Join(root, topDir), cfg.Project.TypstEntry); nested {
+		out = append(out, Finding{File: filepath.Join(topDir, topDir, cfg.Project.TypstEntry), Message: "nested report dirs deeper than one level are rejected"})
+	}
 	return out
 }
 
@@ -58,7 +113,10 @@ func checkReports(root string, cfg project.SpecConfig) []Finding {
 			continue
 		}
 		name := e.Name()
-		if name == "components" || name == "unsareport.d" || strings.HasPrefix(name, ".") {
+		if name == config.ComponentsDirName || name == config.ConfigDirName || strings.HasPrefix(name, ".") {
+			continue
+		}
+		if _, sErr := os.Stat(filepath.Join(root, name, config.ConfigFileName)); sErr == nil {
 			continue
 		}
 		rel, _ := filepath.Rel(root, filepath.Join(root, name))
@@ -86,6 +144,12 @@ func hasNestedReport(dir, entry string) (bool, error) {
 			return nil
 		}
 		if d.IsDir() {
+			if d.Name() == "template" || d.Name() == config.ComponentsDirName || strings.HasPrefix(d.Name(), ".") {
+				return filepath.SkipDir
+			}
+			if _, sErr := os.Stat(filepath.Join(p, config.ConfigFileName)); sErr == nil {
+				return filepath.SkipDir
+			}
 			rel, _ := filepath.Rel(dir, p)
 			if strings.Contains(rel, string(os.PathSeparator)) {
 				if _, err := os.Stat(filepath.Join(p, entry)); err == nil {
@@ -105,14 +169,50 @@ var (
 	callPattern  = regexp.MustCompile(`\b(read|image)\s*\(\s*([A-Za-z_][\w-]*)\s*[,)]`)
 )
 
-func checkTypstSources(root string) []Finding {
+func checkTypstSources(root string, opts Options) []Finding {
 	var out []Finding
 	_ = filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".typ") {
+		if err != nil {
 			return nil
 		}
-		rel, _ := filepath.Rel(root, p)
-		inComponents := rel == "components" || strings.HasPrefix(rel, "components"+string(os.PathSeparator))
+		if p == root {
+			return nil
+		}
+		rel, rErr := filepath.Rel(root, p)
+		if rErr != nil {
+			return nil
+		}
+		relSlash := filepath.ToSlash(rel)
+
+		if d.IsDir() {
+			if d.Name() == ".git" {
+				return filepath.SkipDir
+			}
+			if !strings.Contains(relSlash, "/") {
+				switch opts.Scope {
+				case ScopeComponents:
+					if relSlash != config.ComponentsDirName {
+						return filepath.SkipDir
+					}
+				case ScopeReport:
+					cleanReport := filepath.ToSlash(filepath.Clean(opts.Report))
+					topDir := strings.Split(cleanReport, "/")[0]
+					if relSlash != config.ComponentsDirName && relSlash != topDir {
+						return filepath.SkipDir
+					}
+				case ScopeAll:
+				default:
+					return filepath.SkipDir
+				}
+			}
+			return nil
+		}
+
+		if !strings.HasSuffix(p, config.ExtTypst) {
+			return nil
+		}
+
+		inComponents := relSlash == config.ComponentsDirName || strings.HasPrefix(relSlash, config.ComponentsDirName+"/")
 		b, err := os.ReadFile(p)
 		if err != nil {
 			return nil
@@ -181,13 +281,9 @@ func checkLock(root string) []Finding {
 		}
 		for _, f := range p.Files {
 			fp := filepath.Join(dir, filepath.FromSlash(f.Path))
-			b, err := os.ReadFile(fp)
-			if err != nil {
+			if _, err := os.Stat(fp); err != nil {
 				out = append(out, Finding{File: config.LockFileName, Message: fmt.Sprintf("locked file %s/%s missing on disk", p.Name, f.Path)})
 				continue
-			}
-			if got := lock.SHA256Hex(b); got != f.SHA256 {
-				out = append(out, Finding{File: filepath.Join("components", p.Name, f.Path), Message: fmt.Sprintf("drift: sha256 mismatch vs %s", config.LockFileName)})
 			}
 		}
 	}

@@ -65,7 +65,7 @@ describe('Slides deploy contract', () => {
       presentationId: 'a41d9440-eca6-4812-8521-dea0ded5c033',
       slug: 'demo-deck',
       version: 2,
-      url: 'http://localhost:9876/p/demo-deck',
+      url: 'http://localhost:9876/presentations/a41d9440-eca6-4812-8521-dea0ded5c033',
       message: 'ok',
     });
     expect(parsed.success).toBe(true);

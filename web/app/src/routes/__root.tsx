@@ -1,6 +1,7 @@
 import {
   createRootRoute,
   HeadContent,
+  Link,
   Outlet,
   Scripts,
   useRouter,
@@ -137,45 +138,66 @@ function RootComponent() {
   return (
     <RootDocument>
       <AuthHashConsumer />
-      <nav style={{ padding: '1rem', borderBottom: '1px solid #ccc' }}>
-        <a href="/">/</a> | <a href="/registry">Registry</a> |{' '}
-        <a href="/presentations/microphoto">Slides</a> |{' '}
-        <a href="/auth/login">Login</a> | <a href="/auth/me">Me</a> |{' '}
-        <a href="/scopes">Scopes</a> | <a href="/auth/pat">PATs</a>
-        {hasAnyAdminRole ? (
-          <>
-            {' '}
-            |{' '}
-            <a href="/admin" style={{ fontWeight: 'bold', color: '#dc2626' }}>
-              Admin
-            </a>
-          </>
-        ) : null}
-        {user ? (
-          <span style={{ marginLeft: '1rem' }}>
-            — {user.email} ({user.name}){' '}
-            <button
-              type="button"
-              onClick={handleLogout}
-              style={{
-                marginLeft: '0.5rem',
-                padding: '0.2rem 0.5rem',
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                backgroundColor: '#fee2e2',
-                border: '1px solid #f87171',
-                borderRadius: '4px',
-                color: '#b91c1c',
-              }}
+      <nav className="sticky top-0 z-40 h-20 bg-[#E3E2DE]/95 backdrop-blur border-b border-[#C7C7C7]">
+        <div className="h-full max-w-none mx-auto px-6 grid grid-cols-12 items-center gap-4">
+          <Link
+            to="/"
+            className="col-span-3 font-black uppercase tracking-tight text-[#141414] text-lg leading-none"
+          >
+            UNSAReport
+          </Link>
+          <div className="col-span-6 hidden md:flex items-center gap-3">
+            {user ? (
+              <span className="grid-label normal-case tracking-normal font-mono text-[11px]">
+                {user.email} · {user.name}
+              </span>
+            ) : (
+              <span className="grid-label">Plataforma institucional UNSA</span>
+            )}
+          </div>
+          <div className="col-span-9 md:col-span-3 flex items-center justify-end gap-5">
+            <Link
+              to="/releases"
+              className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
             >
-              Logout
-            </button>
-          </span>
-        ) : (
-          <span style={{ marginLeft: '1rem' }}>— not logged in</span>
-        )}
+              Releases
+            </Link>
+            {user ? (
+              <Link
+                to="/dashboard"
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                Dashboard
+              </Link>
+            ) : null}
+            {hasAnyAdminRole ? (
+              <Link
+                to="/admin"
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                Admin
+              </Link>
+            ) : null}
+            {!user ? (
+              <Link
+                to="/auth/login"
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA]"
+              >
+                Acceso
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm font-semibold text-[#141414] uppercase tracking-wider transition-colors duration-300 hover:text-[#1351AA] cursor-pointer"
+              >
+                Salir
+              </button>
+            )}
+          </div>
+        </div>
       </nav>
-      <main style={{ padding: '1rem' }}>
+      <main>
         <Outlet />
       </main>
     </RootDocument>

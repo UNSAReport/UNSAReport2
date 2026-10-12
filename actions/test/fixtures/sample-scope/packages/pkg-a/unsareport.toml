@@ -1,0 +1,13 @@
+[project]
+config_version = 1
+
+[package]
+name = "@testscope/pkg-a"
+version = "0.1.0"
+description = "Sample package A for scope batch testing"
+
+[components]
+files = ["lib.typ"]
+
+[templates]
+files = []

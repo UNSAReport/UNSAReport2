@@ -128,3 +128,74 @@ func TestHooksTimingChecked(t *testing.T) {
 		t.Fatal("expected retired-prefix finding")
 	}
 }
+
+func TestTargetedReportCheckIgnoresOtherInvalidReports(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText)
+	write(t, filepath.Join(root, "l4", "report.typ"), "#import \"../components/theme/lib.typ\"\nBroken\n")
+	write(t, filepath.Join(root, "l5", "report.typ"), "#import \"/components/cardo/lib.typ\"\nWorking\n")
+
+	fullFindings := Run(root)
+	if len(fullFindings) == 0 {
+		t.Fatal("expected full check to fail on l4")
+	}
+	foundL4 := false
+	for _, f := range fullFindings {
+		if strings.Contains(f.File, "l4") {
+			foundL4 = true
+			break
+		}
+	}
+	if !foundL4 {
+		t.Fatalf("expected l4 finding in full check, got: %v", fullFindings)
+	}
+
+	reportFindings := RunReport(root, "l5")
+	if len(reportFindings) != 0 {
+		t.Fatalf("expected targeted check on l5 to ignore l4, but got findings: %v", reportFindings)
+	}
+}
+
+func TestTargetedReportCheckDetectsInvalidInTarget(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText)
+	write(t, filepath.Join(root, "l5", "report.typ"), "#import \"../components/theme/lib.typ\"\nBroken in target\n")
+
+	reportFindings := RunReport(root, "l5")
+	if len(reportFindings) == 0 {
+		t.Fatal("expected targeted check to detect invalid import in l5")
+	}
+	if !strings.Contains(reportFindings[0].File, "l5") {
+		t.Fatalf("expected finding on l5, got: %v", reportFindings[0])
+	}
+}
+
+func TestTargetedReportNestedReportCheck(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText)
+	write(t, filepath.Join(root, "l4", "report.typ"), "Valid l4 top\n")
+	write(t, filepath.Join(root, "l4", "sub", "sub2", "report.typ"), "Invalid nested report\n")
+	write(t, filepath.Join(root, "l5", "report.typ"), "Valid l5\n")
+
+	fullFindings := Run(root)
+	if len(fullFindings) == 0 {
+		t.Fatal("expected full check to flag nested report in l4")
+	}
+
+	reportFindings := RunReport(root, "l5")
+	if len(reportFindings) != 0 {
+		t.Fatalf("expected targeted check on l5 to ignore nested report in l4, got: %v", reportFindings)
+	}
+}
+
+func TestRunComponentsSkipsReports(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "unsareport.toml"), cfgText)
+	write(t, filepath.Join(root, "l4", "report.typ"), "#import \"../components/theme/lib.typ\"\n")
+	write(t, filepath.Join(root, "l5", "report.typ"), "#import \"/lib.typ\"\n")
+
+	compFindings := RunComponents(root)
+	if len(compFindings) != 0 {
+		t.Fatalf("expected RunComponents to ignore reports, got: %v", compFindings)
+	}
+}

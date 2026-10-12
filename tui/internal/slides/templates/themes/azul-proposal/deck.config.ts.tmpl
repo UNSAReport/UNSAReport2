@@ -1,0 +1,48 @@
+import { defineConfig } from '@unsa/slides-kit';
+
+// Plantilla azul-proposal: réplica exacta, un layout por slide.
+// Cada layout trae el contenido de la plantilla como defaults;
+// edita props (title, subtitle, items, ...Src) para personalizar.
+// IDs y slots: unsarep slides layouts --theme azul-proposal
+
+export default defineConfig({
+  title: {{.TitleTS}},
+  slug: {{.SlugTS}},
+  theme: 'azul-proposal',
+  visibility: 'private',
+  slides: [
+    {
+      layout: 'azul-proposal/cover-duo',
+    },
+    {
+      layout: 'azul-proposal/market-opportunity',
+    },
+    {
+      layout: 'azul-proposal/problem-statement',
+    },
+    {
+      layout: 'azul-proposal/our-solution',
+    },
+    {
+      layout: 'azul-proposal/value-proposition',
+    },
+    {
+      layout: 'azul-proposal/target-audience',
+    },
+    {
+      layout: 'azul-proposal/competitive-analysis',
+    },
+    {
+      layout: 'azul-proposal/marketing-strategy',
+    },
+    {
+      layout: 'azul-proposal/implementation-plan',
+    },
+    {
+      layout: 'azul-proposal/conclusion-next-steps',
+    },
+    {
+      layout: 'azul-proposal/thank-you',
+    },
+  ],
+});

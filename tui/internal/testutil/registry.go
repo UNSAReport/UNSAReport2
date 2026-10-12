@@ -62,6 +62,35 @@ func MockRegistry(t *testing.T) *httptest.Server {
 	})
 
 	srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/packages" && r.Method == "GET" {
+			typeFilter := r.URL.Query().Get("type")
+			hasTpl := r.URL.Query().Get("has_templates")
+			query := strings.ToLower(r.URL.Query().Get("q"))
+			allPkgs := []map[string]any{
+				{"name": "@scope/cardo", "version": "1.0.0", "versions": []string{"1.0.0"}, "description": "Cardo template", "has_templates": true},
+				{"name": "@scope/tplpkg", "version": "1.0.0", "versions": []string{"1.0.0"}, "description": "Tplpkg template", "has_templates": true},
+				{"name": "@scope/siblingpkg", "version": "1.0.0", "versions": []string{"1.0.0"}, "description": "Siblingpkg template", "has_templates": true},
+				{"name": "@scope/theme", "version": "1.0.0", "versions": []string{"1.0.0"}, "description": "Theme component", "has_templates": false},
+				{"name": "@scope/utils", "version": "1.0.0", "versions": []string{"1.0.0"}, "description": "Utils component", "has_templates": false},
+			}
+			var res []map[string]any
+			for _, p := range allPkgs {
+				if (typeFilter == "template" || hasTpl == "true") && !p["has_templates"].(bool) {
+					continue
+				}
+				if query != "" {
+					name := strings.ToLower(p["name"].(string))
+					desc := strings.ToLower(p["description"].(string))
+					if !strings.Contains(name, query) && !strings.Contains(desc, query) {
+						continue
+					}
+				}
+				res = append(res, p)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"packages": res, "total": len(res)})
+			return
+		}
+
 		if r.URL.Path == "/v1/resolve" && r.Method == "POST" {
 			var body struct {
 				Packages map[string]string `json:"packages"`

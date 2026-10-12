@@ -5,7 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"mime/multipart"
 	"net/http"
+	"strings"
 
 	"github.com/charmbracelet/log"
 
@@ -20,6 +23,7 @@ type DeployRequest struct {
 	Visibility  string         `json:"visibility,omitempty"`
 	Manifest    map[string]any `json:"manifest"`
 	Bundle      string         `json:"bundle"`
+	ZipBytes    []byte         `json:"-"`
 }
 
 type DeployResponse struct {
@@ -66,6 +70,50 @@ func (c *Client) setAuth(req *http.Request, token string) {
 	}
 }
 
+// truncateSnippet collapses s to a single line and truncates it to n
+// runes, appending "..." when truncated. It keeps service errors readable
+// when the server returns a non-JSON body (e.g. an HTML error page).
+func truncateSnippet(s string, n int) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if r := []rune(s); len(r) > n {
+		return string(r[:n]) + "..."
+	}
+	return s
+}
+
+// authHint annotates 401/403 slides errors: 401 means not logged in (bad,
+// expired or missing token) while 403 means the token is valid but lacks
+// the slides role. It names the TokenSource (flag/env/auth-store/config-file)
+// so the operator knows which credential to refresh.
+func authHint(statusCode int, token string) string {
+	_, src := TokenSource(token)
+	if src == "" {
+		src = "none"
+	}
+	switch statusCode {
+	case http.StatusUnauthorized:
+		return fmt.Sprintf(" (not logged in? token source: %s)", src)
+	case http.StatusForbidden:
+		return fmt.Sprintf(" (missing slides role? token source: %s)", src)
+	default:
+		return ""
+	}
+}
+
+// serviceError maps a non-2xx slides response to an error. JSON API errors
+// keep their message; non-JSON bodies surface as a truncated 200-char raw
+// snippet instead of being dropped.
+func serviceError(statusCode int, status string, raw []byte, token string) error {
+	var apiErr ErrorResponse
+	if json.Unmarshal(raw, &apiErr) == nil && apiErr.Message != "" {
+		return fmt.Errorf("slides service error (%d %s): %s%s", statusCode, apiErr.Error, apiErr.Message, authHint(statusCode, token))
+	}
+	if s := truncateSnippet(string(raw), 200); s != "" {
+		return fmt.Errorf("slides service error: %s — body: %s%s", status, s, authHint(statusCode, token))
+	}
+	return fmt.Errorf("slides service error: %s%s", status, authHint(statusCode, token))
+}
+
 func (c *Client) doJSON(ctx context.Context, method, path, token string, payload any, out any) error {
 	var body *bytes.Reader
 	if payload != nil {
@@ -92,11 +140,8 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		log.Warn("slides request failed", "status", resp.StatusCode, "path", path)
-		var apiErr ErrorResponse
-		if json.NewDecoder(resp.Body).Decode(&apiErr) == nil && apiErr.Message != "" {
-			return fmt.Errorf("slides service error (%d %s): %s", resp.StatusCode, apiErr.Error, apiErr.Message)
-		}
-		return fmt.Errorf("slides service error: %s", resp.Status)
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return serviceError(resp.StatusCode, resp.Status, raw, token)
 	}
 	if out != nil {
 		if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
@@ -107,10 +152,93 @@ func (c *Client) doJSON(ctx context.Context, method, path, token string, payload
 }
 
 func (c *Client) Deploy(ctx context.Context, token string, req *DeployRequest) (*DeployResponse, error) {
+	if len(req.Slug) == 0 || len(req.Slug) > 100 || !slugRe.MatchString(req.Slug) {
+		return nil, fmt.Errorf("invalid slug %q", req.Slug)
+	}
+	if len(req.ZipBytes) > 0 {
+		return c.DeployMultipart(ctx, token, req, req.ZipBytes)
+	}
 	var out DeployResponse
 	if err := c.doJSON(ctx, "POST", "/presentations/deploy", token, req, &out); err != nil {
 		return nil, err
 	}
+	return &out, nil
+}
+
+func (c *Client) DeployMultipart(ctx context.Context, token string, req *DeployRequest, zipBytes []byte) (*DeployResponse, error) {
+	bodyBuf := new(bytes.Buffer)
+	writer := multipart.NewWriter(bodyBuf)
+
+	filePart, err := writer.CreateFormFile("bundle", "bundle.zip")
+	if err != nil {
+		return nil, fmt.Errorf("create bundle form field: %w", err)
+	}
+	if _, err := io.Copy(filePart, bytes.NewReader(zipBytes)); err != nil {
+		return nil, fmt.Errorf("write bundle data: %w", err)
+	}
+
+	if err := writer.WriteField("slug", req.Slug); err != nil {
+		return nil, fmt.Errorf("write slug field: %w", err)
+	}
+	if err := writer.WriteField("title", req.Title); err != nil {
+		return nil, fmt.Errorf("write title field: %w", err)
+	}
+	if req.Description != "" {
+		if err := writer.WriteField("description", req.Description); err != nil {
+			return nil, fmt.Errorf("write description field: %w", err)
+		}
+	}
+	if req.OrgSlug != "" {
+		if err := writer.WriteField("orgSlug", req.OrgSlug); err != nil {
+			return nil, fmt.Errorf("write orgSlug field: %w", err)
+		}
+	}
+	if req.Visibility != "" {
+		if err := writer.WriteField("visibility", req.Visibility); err != nil {
+			return nil, fmt.Errorf("write visibility field: %w", err)
+		}
+	}
+	if req.Manifest != nil {
+		manifestBytes, err := json.Marshal(req.Manifest)
+		if err != nil {
+			return nil, fmt.Errorf("marshal manifest: %w", err)
+		}
+		if err := writer.WriteField("manifest", string(manifestBytes)); err != nil {
+			return nil, fmt.Errorf("write manifest field: %w", err)
+		}
+	}
+
+	if err := writer.Close(); err != nil {
+		return nil, fmt.Errorf("close multipart writer: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.BaseURL+"/presentations/deploy", bodyBuf)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Set("Content-Type", writer.FormDataContentType())
+	httpReq.Header.Set("User-Agent", "unsarep-tui")
+	c.setAuth(httpReq, token)
+
+	resp, err := c.HTTPClient.Do(httpReq)
+	if err != nil {
+		log.Error("slides deploy request failed", "err", err)
+		return nil, fmt.Errorf("slides service unreachable at %s: %w", c.BaseURL, err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		log.Warn("slides deploy failed", "status", resp.StatusCode)
+		raw, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<10))
+		return nil, serviceError(resp.StatusCode, resp.Status, raw, token)
+	}
+
+	var out DeployResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, fmt.Errorf("decode slides deploy response: %w", err)
+	}
+
 	return &out, nil
 }
 

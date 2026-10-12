@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -29,6 +31,9 @@ func newRegistryCmd() *cobra.Command {
 		newRegistryCheckCmd(),
 		newRegistryListCmd(),
 		newRegistryScopeCmd(),
+		newRegistrySyncCmd(),
+		newRegistryBuildCmd(),
+		newRegistryWatchCmd(),
 	)
 	return cmd
 }
@@ -265,3 +270,221 @@ func newRegistryListCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "JSON output")
 	return cmd
 }
+
+func newRegistrySyncCmd() *cobra.Command {
+	var opt registry.SyncOptions
+	var jsonOut bool
+	cmd := &cobra.Command{
+		Use:   "sync [dir]",
+		Short: "Synchronize local components directory for package development and testing",
+		Long: `sync inspects unsareport.toml files in the workspace, links local packages
+and scopes into a root components/ directory using relative symlinks, and downloads
+external dependencies from the registry.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := "."
+			if len(args) > 0 {
+				dir = args[0]
+			}
+			ctx := context.Background()
+			client, err := registry.NewClient()
+			if err != nil {
+				return err
+			}
+			res, err := registry.SyncWorkspace(ctx, client, dir, opt)
+			if err != nil {
+				return err
+			}
+			if opt.Clean {
+				printOK("components directory cleaned.")
+				return nil
+			}
+			if jsonOut {
+				b, _ := json.MarshalIndent(res, "", "  ")
+				fmt.Println(string(b))
+				return nil
+			}
+			t := table.New().
+				Border(lipgloss.RoundedBorder()).
+				Headers("PACKAGE", "VERSION", "SOURCE", "TARGET/PATH")
+			for _, p := range res.Packages {
+				t.Row(p.Name, p.Version, p.Source, p.Path)
+			}
+			fmt.Println(t)
+			printOK("components synchronized successfully (%d package(s)).", len(res.Packages))
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&opt.Clean, "clean", false, "Remove the generated components directory")
+	cmd.Flags().BoolVar(&opt.Check, "check", false, "Verify dependency resolution without modifying files")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output results in JSON format")
+	return cmd
+}
+
+func newRegistryBuildCmd() *cobra.Command {
+	var targetFlag string
+	var outputFlag string
+	var noHooks bool
+
+	cmd := &cobra.Command{
+		Use:   "build [target]",
+		Short: "Compile a package template within a synced workspace",
+		Long: `build compiles a package template (e.g. main.typ) using the synced workspace
+root as the Typst --root directory. It runs package pre- and post-build hooks with
+injected environment variables.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			target, err := resolvePosOrFlag(cmd, "target", pos, "target", targetFlag)
+			if err != nil {
+				return err
+			}
+
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
+
+			wsRoot, err := registry.FindWorkspaceRoot(cwd)
+			if err != nil {
+				return err
+			}
+
+			if target == "" {
+				tmplList, lErr := registry.ListTemplatePackages(wsRoot)
+				if lErr == nil && len(tmplList) > 1 && canPrompt() {
+					inPackage := false
+					for _, tmpl := range tmplList {
+						pkgFull := filepath.Join(wsRoot, tmpl.Dir)
+						if cwd == pkgFull || strings.HasPrefix(cwd, pkgFull+string(os.PathSeparator)) {
+							inPackage = true
+							break
+						}
+					}
+					if !inPackage {
+						var options []huh.Option[string]
+						for _, t := range tmplList {
+							desc := t.Description
+							if desc != "" {
+								desc = " — " + desc
+							}
+							label := fmt.Sprintf("%s (%s)%s", t.Name, t.Dir, desc)
+							options = append(options, huh.NewOption(label, t.Name))
+						}
+						var chosen string
+						form := huh.NewForm(huh.NewGroup(
+							huh.NewSelect[string]().
+								Title("Select package template to build").
+								Options(options...).
+								Value(&chosen),
+						))
+						if err := runForm(form); err != nil {
+							return err
+						}
+						target = chosen
+					}
+				}
+			}
+
+			ctx := context.Background()
+			res, err := registry.BuildTemplate(ctx, wsRoot, registry.BuildOptions{
+				Target:  target,
+				Output:  outputFlag,
+				NoHooks: noHooks,
+			}, cwd)
+			if err != nil {
+				return err
+			}
+
+			relOut, _ := filepath.Rel(wsRoot, res.OutputPath)
+			printOK("Compiled %s template -> %s", res.Target.PkgName, relOut)
+			return nil
+		},
+	}
+	cmd.Flags().StringVar(&targetFlag, "target", "", "Target package name, directory, or typst file")
+	cmd.Flags().StringVarP(&outputFlag, "output", "o", "", "Custom output PDF path")
+	cmd.Flags().BoolVar(&noHooks, "no-hooks", false, "Skip package hooks")
+	return cmd
+}
+
+func newRegistryWatchCmd() *cobra.Command {
+	var targetFlag string
+	var openFlag bool
+
+	cmd := &cobra.Command{
+		Use:   "watch [target]",
+		Short: "Watch a package template for live preview within a synced workspace",
+		Long: `watch compiles and watches a package template with Typst, using the synced
+workspace root as the Typst --root directory.`,
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			pos := ""
+			if len(args) > 0 {
+				pos = args[0]
+			}
+			target, err := resolvePosOrFlag(cmd, "target", pos, "target", targetFlag)
+			if err != nil {
+				return err
+			}
+
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("get working directory: %w", err)
+			}
+
+			wsRoot, err := registry.FindWorkspaceRoot(cwd)
+			if err != nil {
+				return err
+			}
+
+			if target == "" {
+				tmplList, lErr := registry.ListTemplatePackages(wsRoot)
+				if lErr == nil && len(tmplList) > 1 && canPrompt() {
+					inPackage := false
+					for _, tmpl := range tmplList {
+						pkgFull := filepath.Join(wsRoot, tmpl.Dir)
+						if cwd == pkgFull || strings.HasPrefix(cwd, pkgFull+string(os.PathSeparator)) {
+							inPackage = true
+							break
+						}
+					}
+					if !inPackage {
+						var options []huh.Option[string]
+						for _, t := range tmplList {
+							desc := t.Description
+							if desc != "" {
+								desc = " — " + desc
+							}
+							label := fmt.Sprintf("%s (%s)%s", t.Name, t.Dir, desc)
+							options = append(options, huh.NewOption(label, t.Name))
+						}
+						var chosen string
+						form := huh.NewForm(huh.NewGroup(
+							huh.NewSelect[string]().
+								Title("Select package template to watch").
+								Options(options...).
+								Value(&chosen),
+						))
+						if err := runForm(form); err != nil {
+							return err
+						}
+						target = chosen
+					}
+				}
+			}
+
+			ctx := context.Background()
+			return registry.WatchTemplate(ctx, wsRoot, registry.WatchOptions{
+				Target: target,
+				Open:   openFlag,
+			}, cwd)
+		},
+	}
+	cmd.Flags().StringVar(&targetFlag, "target", "", "Target package name, directory, or typst file")
+	cmd.Flags().BoolVar(&openFlag, "open", true, "Open the PDF file with the system default viewer after compilation")
+	return cmd
+}
+

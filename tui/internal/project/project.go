@@ -54,6 +54,41 @@ type ScriptDef struct {
 	Description string         `toml:"description"`
 }
 
+type WorkspaceDef struct {
+	Members  []string `toml:"members,omitempty"`
+	Packages []string `toml:"packages,omitempty"`
+}
+
+type ScopeDef struct {
+	Name        string   `toml:"name"`
+	Description string   `toml:"description,omitempty"`
+	Files       []string `toml:"files"`
+}
+
+type ComponentsDef struct {
+	Files []string `toml:"files"`
+}
+
+type TemplatesDef struct {
+	Files []string `toml:"files"`
+}
+
+type RootFilesDef struct {
+	Files []string `toml:"files"`
+}
+
+type CommandDef struct {
+	Description string     `toml:"description"`
+	Commands    OSCommands `toml:"commands"`
+}
+
+type ConfigSchemaEntry struct {
+	Type     string `toml:"type"`
+	Required bool   `toml:"required"`
+	Default  any    `toml:"default,omitempty"`
+	Doc      string `toml:"doc,omitempty"`
+}
+
 type PackageDecl struct {
 	Name          string   `toml:"name"`
 	Version       string   `toml:"version"`
@@ -62,15 +97,27 @@ type PackageDecl struct {
 	Tags          []string `toml:"tags"`
 	CommandPrefix string   `toml:"command_prefix"`
 }
+
 type SpecConfig struct {
-	Project       ProjectDef               `toml:"project"`
-	Scripts       map[string]ScriptDef     `toml:"scripts"`
-	Hooks         map[string]HookTiming    `toml:"hooks"`
-	Package       *PackageDecl             `toml:"package"`
-	Dependencies  map[string]string        `toml:"dependencies"`
-	PackageConfig map[string]PackageValues `toml:"-"`
+	Project       ProjectDef                   `toml:"project"`
+	Workspace     *WorkspaceDef                `toml:"workspace,omitempty"`
+	Scope         *ScopeDef                    `toml:"scope,omitempty"`
+	Package       *PackageDecl                 `toml:"package,omitempty"`
+	Components    *ComponentsDef               `toml:"components,omitempty"`
+	Templates     *TemplatesDef                `toml:"templates,omitempty"`
+	RootFiles     *RootFilesDef                `toml:"root-files,omitempty"`
+	Commands      map[string]CommandDef        `toml:"commands,omitempty"`
+	ConfigSchema  map[string]ConfigSchemaEntry `toml:"config-schema,omitempty"`
+	Scripts       map[string]ScriptDef         `toml:"scripts"`
+	Hooks         map[string]HookTiming        `toml:"hooks"`
+	Dependencies  map[string]string            `toml:"dependencies"`
+	PackageConfig map[string]PackageValues     `toml:"-"`
 
 	provenance map[string]string
+}
+
+func (c SpecConfig) IsWorkspace() bool {
+	return c.Workspace != nil || c.Scope != nil
 }
 
 func (c SpecConfig) ScriptSource(alias string) string {
@@ -178,6 +225,16 @@ func Load(path string) (SpecConfig, error) {
 	}
 	if cfg.Scripts == nil {
 		cfg.Scripts = map[string]ScriptDef{}
+	}
+	if cfg.Commands != nil {
+		for alias, cDef := range cfg.Commands {
+			if _, exists := cfg.Scripts[alias]; !exists {
+				cfg.Scripts[alias] = ScriptDef{
+					Description: cDef.Description,
+					Commands:    JoinCommands(cDef.Commands),
+				}
+			}
+		}
 	}
 	if cfg.Hooks == nil {
 		cfg.Hooks = map[string]HookTiming{}

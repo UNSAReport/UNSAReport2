@@ -1,0 +1,13 @@
+[project]
+config_version = 1
+
+[package]
+name = "@testscope/sample-pkg"
+version = "0.1.0"
+description = "Sample package for GitHub Action verification"
+
+[components]
+files = ["lib.typ"]
+
+[templates]
+files = []

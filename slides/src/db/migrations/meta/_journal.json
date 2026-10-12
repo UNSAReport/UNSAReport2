@@ -8,6 +8,13 @@
       "when": 1788904017126,
       "tag": "0000_slippery_fallen_one",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790440356656,
+      "tag": "0001_whole_pepper_potts",
+      "breakpoints": true
     }
   ]
 }

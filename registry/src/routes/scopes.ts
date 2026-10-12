@@ -398,7 +398,7 @@ scopesRouter.post(
     }
 
     const matchedFiles = expandGlobs(doc.scope.files, zipPaths);
-    if (matchedFiles.length === 0) {
+    if (doc.scope.files.length > 0 && matchedFiles.length === 0) {
       throw new ValidationError(
         `Declared scope files did not match any files in the archive`,
         { field: 'scope.files' },

@@ -1,0 +1,57 @@
+import { defineConfig } from '@unsa/slides-kit';
+
+// Plantilla cloudlet-pitch: réplica exacta, un layout por slide.
+// Cada layout trae el contenido de la plantilla como defaults;
+// edita props (title, subtitle, items, ...Src) para personalizar.
+// IDs y slots: unsarep slides layouts --theme cloudlet-pitch
+
+export default defineConfig({
+  title: {{.TitleTS}},
+  slug: {{.SlugTS}},
+  theme: 'cloudlet-pitch',
+  visibility: 'private',
+  slides: [
+    {
+      layout: 'cloudlet-pitch/cover',
+    },
+    {
+      layout: 'cloudlet-pitch/agenda',
+    },
+    {
+      layout: 'cloudlet-pitch/introduction',
+    },
+    {
+      layout: 'cloudlet-pitch/problem-statement',
+    },
+    {
+      layout: 'cloudlet-pitch/innovative-solutions',
+    },
+    {
+      layout: 'cloudlet-pitch/services',
+    },
+    {
+      layout: 'cloudlet-pitch/market-size',
+    },
+    {
+      layout: 'cloudlet-pitch/competitors',
+    },
+    {
+      layout: 'cloudlet-pitch/advantages',
+    },
+    {
+      layout: 'cloudlet-pitch/traction',
+    },
+    {
+      layout: 'cloudlet-pitch/accomplishments',
+    },
+    {
+      layout: 'cloudlet-pitch/use-of-funds',
+    },
+    {
+      layout: 'cloudlet-pitch/team',
+    },
+    {
+      layout: 'cloudlet-pitch/thank-you',
+    },
+  ],
+});

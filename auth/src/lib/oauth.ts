@@ -3,6 +3,7 @@ import { config } from '@/config';
 import { db } from '@/db/index';
 import { oauthAccounts, users } from '@/db/schema';
 import { ValidationError } from '@/lib/errors';
+import { assignDefaultRoles } from '@/lib/roles';
 import type { OAuthProvider, OAuthUserInfo } from '@/types';
 
 interface GoogleTokenResponse {
@@ -243,18 +244,29 @@ export async function upsertOAuthUser(provider: string, info: OAuthUserInfo) {
     .from(users)
     .where(eq(users.email, info.email));
 
-  let user = existingUserByEmail;
+  const user = existingUserByEmail;
 
   if (!user) {
-    const [newUser] = await db
-      .insert(users)
-      .values({
-        email: info.email,
-        name: info.name,
-        picture: info.picture || null,
-      })
-      .returning();
-    user = newUser;
+    return await db.transaction(async (tx) => {
+      const [newUser] = await tx
+        .insert(users)
+        .values({
+          email: info.email,
+          name: info.name,
+          picture: info.picture || null,
+        })
+        .returning();
+
+      await tx.insert(oauthAccounts).values({
+        userId: newUser.id,
+        provider,
+        providerId: info.providerId,
+      });
+
+      await assignDefaultRoles(newUser.id, tx);
+
+      return newUser;
+    });
   }
 
   await db.insert(oauthAccounts).values({

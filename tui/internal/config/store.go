@@ -33,7 +33,28 @@ func xdgDir() string {
 func xdgConfigPath() string    { return filepath.Join(xdgDir(), XDGConfigFileName) }
 func defaultTokenPath() string { return filepath.Join(xdgDir(), TokenFileName) }
 
-func writeAtomic(path string, data []byte, perm os.FileMode) error {
+func XDGCacheDir() string {
+	if v := os.Getenv(EnvXDGCacheHome); v != "" {
+		return filepath.Join(v, AppDirName)
+	}
+	if d, err := os.UserCacheDir(); err == nil && d != "" {
+		return filepath.Join(d, AppDirName)
+	}
+	if home, err := os.UserHomeDir(); err == nil && home != "" {
+		return filepath.Join(home, ".cache", AppDirName)
+	}
+	return ""
+}
+
+func XDGUpdateCachePath() string {
+	d := XDGCacheDir()
+	if d == "" {
+		return ""
+	}
+	return filepath.Join(d, UpdateCacheFileName)
+}
+
+func WriteAtomic(path string, data []byte, perm os.FileMode) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, PermDirPrivate); err != nil {
 		return err
@@ -49,6 +70,10 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 		}
 	}
 	return nil
+}
+
+func writeAtomic(path string, data []byte, perm os.FileMode) error {
+	return WriteAtomic(path, data, perm)
 }
 
 func LoadXDGConfig() (*XDGConfig, error) {

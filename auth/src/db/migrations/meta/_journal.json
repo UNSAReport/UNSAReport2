@@ -15,6 +15,13 @@
       "when": 1788904705424,
       "tag": "0001_perfect_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790619000000,
+      "tag": "0002_default_user_roles",
+      "breakpoints": true
     }
   ]
 }

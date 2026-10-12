@@ -26,12 +26,15 @@ tasks:
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+      - slides-kit:typecheck
+      - logger:typecheck
 
   test:
     description: 'Test everything (auth:test stays local-only: needs live OAuth, run via moon run auth:test)'
     deps:
       - registry:test
       - slides:test
+      - slides-kit:test
       - tui:test
 
   db-migrate:
@@ -58,6 +61,18 @@ tasks:
       - website:typecheck
       - api:typecheck
       - schemas:typecheck
+      - slides-kit:typecheck
+      - logger:typecheck
+
+  build:
+    description: 'Build all production artifacts (services, web, slides-kit, tui)'
+    deps:
+      - auth:build
+      - registry:build
+      - slides:build
+      - website:build
+      - slides-kit:build
+      - tui:build
 
   build-tui:
     description: 'Build all multiplatform binaries for unsarep TUI'

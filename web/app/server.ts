@@ -1,6 +1,8 @@
 import path from 'node:path';
 // biome-ignore lint/style/noRestrictedImports: dist/server/server.js is built dynamically
 import server from './dist/server/server.js';
+// biome-ignore lint/style/noRestrictedImports: server.ts runs at web/app root level
+import { getVersionManifest } from './src/lib/version';
 
 const DEFAULT_PORT = 3000;
 const CLIENT_DIR = path.resolve(import.meta.dir, 'dist/client');
@@ -17,6 +19,43 @@ Bun.serve({
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     const pathname = decodeURIComponent(url.pathname);
+
+    if (pathname === '/api/version') {
+      const manifest = await getVersionManifest();
+      return Response.json(manifest, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60',
+        },
+      });
+    }
+
+    if (pathname === '/api/slides' || pathname.startsWith('/api/slides/')) {
+      const targetBase = (
+        process.env.SLIDES_URL || 'http://localhost:3002'
+      ).replace(/\/$/, '');
+      const stripped = pathname.replace(/^\/api\/slides/, '') || '/';
+      const target = new URL(stripped + url.search, targetBase);
+      const headers = new Headers(req.headers);
+      headers.delete('host');
+      if (!headers.has('authorization')) {
+        const cookie = headers.get('cookie') ?? '';
+        const match = cookie.match(/(?:^|;\s*)access_token=([^;]*)/);
+        const token = match ? decodeURIComponent(match[1]) : '';
+        if (token) headers.set('authorization', `Bearer ${token}`);
+      }
+      const init: RequestInit = {
+        method: req.method,
+        headers,
+        redirect: 'manual',
+      };
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        init.body = req.body;
+        // @ts-expect-error Bun supports duplex streaming
+        init.duplex = 'half';
+      }
+      return fetch(target, init);
+    }
 
     const safeRelativePath = path
       .normalize(pathname)

@@ -126,7 +126,7 @@ export type UserContext = z.infer<typeof UserContextSchema>;
 export const ResolvedPackageSchema = z.object({
   name: z.string(),
   version: z.string(),
-  archive_url: z.string().url(),
+  archive_url: z.url(),
   files: z.array(z.string()),
 });
 export type ResolvedPackage = z.infer<typeof ResolvedPackageSchema>;
@@ -134,7 +134,7 @@ export type ResolvedPackage = z.infer<typeof ResolvedPackageSchema>;
 export const PackageVersionSchema = z.object({
   version: z.string(),
   pkgToml: PkgTomlSchema,
-  archive_url: z.string().url().nullable().optional(),
+  archive_url: z.url().nullable().optional(),
   files: z.array(z.string()).optional(),
   createdAt: z.string().optional(),
 });
@@ -146,7 +146,7 @@ export const PackageSchema = z.object({
   description: z.string().nullable().optional(),
   tags: z.array(z.string()).optional(),
   latestVersion: z.string().nullable().optional(),
-  versions: z.array(PackageVersionSchema).optional(),
+  versions: z.array(PackageVersionSchema).or(z.array(z.string())).optional(),
   version: z.string().optional(),
   pkgToml: PkgTomlSchema.optional(),
 });
@@ -243,4 +243,3 @@ export const ScopeInvitationItemSchema = z.object({
   updatedAt: z.string().or(z.date()).optional(),
 });
 export type ScopeInvitationItem = z.infer<typeof ScopeInvitationItemSchema>;
-

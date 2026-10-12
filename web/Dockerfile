@@ -5,6 +5,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock ./
 COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/slides-kit/package.json ./packages/slides-kit/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json
@@ -13,9 +14,25 @@ COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
 COPY web/packages/config/package.json ./web/packages/config/package.json
 RUN bun install --frozen-lockfile
 
+FROM base AS kit-build
+COPY package.json bun.lock ./
+COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/slides-kit/package.json ./packages/slides-kit/package.json
+COPY auth/package.json ./auth/package.json
+COPY registry/package.json ./registry/package.json
+COPY slides/package.json ./slides/package.json
+COPY web/app/package.json ./web/app/package.json
+COPY web/packages/api/package.json ./web/packages/api/package.json
+COPY web/packages/schemas/package.json ./web/packages/schemas/package.json
+COPY web/packages/config/package.json ./web/packages/config/package.json
+COPY packages/slides-kit ./packages/slides-kit
+COPY web/packages/config ./web/packages/config
+RUN bun install --frozen-lockfile && bun --filter @unsa/slides-kit build
+
 FROM base AS build
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/web/app/node_modules ./web/app/node_modules
+COPY --from=kit-build /app/packages/slides-kit/dist ./packages/slides-kit/dist
 COPY package.json bun.lock web/tsconfig.json web/biome.json ./
 COPY packages ./packages
 COPY web/app ./web/app
@@ -25,6 +42,7 @@ RUN bun --filter @unsa/website build
 FROM base AS production-deps
 COPY package.json bun.lock ./
 COPY packages/logger/package.json ./packages/logger/package.json
+COPY packages/slides-kit/package.json ./packages/slides-kit/package.json
 COPY auth/package.json ./auth/package.json
 COPY registry/package.json ./registry/package.json
 COPY web/app/package.json ./web/app/package.json

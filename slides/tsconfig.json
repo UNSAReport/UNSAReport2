@@ -5,7 +5,7 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["src/*", "tests/*"]
     },
     "strict": true,
     "types": ["bun"],

@@ -7,6 +7,7 @@ import (
 
 	"github.com/UNSAReport/tui/internal/config"
 	"github.com/UNSAReport/tui/internal/i18n"
+	"github.com/UNSAReport/tui/internal/updater"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
@@ -148,6 +149,9 @@ Project-centric: detects unsareport.toml via walk-up and resolves the project ro
 		SilenceUsage:  true,
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			i18n.Init()
+			if cmd.Name() != "upgrade" {
+				updater.CheckOnLaunch(cmd.Context())
+			}
 		},
 	}
 	root.PersistentFlags().BoolVar(&noInput, "no-input", false, "Fail instead of prompting, even on a terminal")
@@ -157,6 +161,7 @@ Project-centric: detects unsareport.toml via walk-up and resolves the project ro
 		newDocsCmd(),
 		newRegistryCmd(),
 		newSlidesCmd(),
+		newUpgradeCmd(),
 		newVersionCmd(),
 	)
 	return root
@@ -165,10 +170,22 @@ Project-centric: detects unsareport.toml via walk-up and resolves the project ro
 func newVersionCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
-		Short: "Show version",
+		Short: "Show version and build information",
 		Args:  cobra.NoArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("unsarep %s\n", config.Version)
+			if config.GitCommit != "unknown" || config.GitBranch != "dev" || config.Channel != "stable" || config.BuildDate != "unknown" {
+				fmt.Printf("  channel: %s\n", config.Channel)
+				if config.GitBranch != "unknown" {
+					fmt.Printf("  branch:  %s\n", config.GitBranch)
+				}
+				if config.GitCommit != "unknown" {
+					fmt.Printf("  commit:  %s\n", config.GitCommit)
+				}
+				if config.BuildDate != "unknown" {
+					fmt.Printf("  built:   %s\n", config.BuildDate)
+				}
+			}
 		},
 	}
 }
