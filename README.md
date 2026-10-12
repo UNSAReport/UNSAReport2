@@ -194,7 +194,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: UNSAReport/UNSAReport2/actions/publish@v0.1.1
+      - uses: UNSAReport/UNSAReport2/actions/publish@v0.2.0
         with:
           token: ${{ secrets.UNSAREP_TOKEN }}
           dir: '.'

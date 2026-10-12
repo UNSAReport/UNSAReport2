@@ -34,7 +34,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Publish to UNSAReport Registry
-        uses: UNSAReport/UNSAReport2/actions/publish@v0.1.1
+        uses: UNSAReport/UNSAReport2/actions/publish@v0.2.0
         with:
           token: ${{ secrets.UNSAREP_TOKEN }}
           dir: '.'

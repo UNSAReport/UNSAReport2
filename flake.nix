@@ -30,11 +30,11 @@
       {
         packages.default = pkgs.buildGoModule rec {
           pname = "unsarep";
-          version = "0.1.1";
+          version = "0.2.0";
           src = ./tui;
           subPackages = [ "cmd/unsarep" ];
 
-          vendorHash = "sha256-LOKJll/mrcjyBjGDz1hD49/fucVV+hSxym2dJou4m28=";
+          vendorHash = "sha256-qT8e0pBV83AlaSWbZPpjdXFKyzXYBWnXCQDhXk/Cxcw=";
 
           nativeBuildInputs = [
             pkgs.pkg-config
@@ -49,7 +49,8 @@
                 pkgs.lib.makeBinPath [
                   unstable.typst
                 ]
-              }
+              } \
+              --set UNSAREP_DISABLE_AUTO_UPDATE 1
           '';
 
           ldflags = [
@@ -91,6 +92,7 @@
               sops
               bun
               go
+              golangci-lint
               nodejs
             ])
             (with unstable; [

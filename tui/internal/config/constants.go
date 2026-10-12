@@ -19,7 +19,13 @@ const (
 	CallbackPath          = "/callback"
 )
 
-var Version = "dev"
+var (
+	Version   = "dev"
+	GitCommit = "unknown"
+	GitBranch = "dev"
+	BuildDate = "unknown"
+	Channel   = "stable"
+)
 
 const (
 	DefaultPrompt        = "❯ "
@@ -87,9 +93,13 @@ const (
 	EnvSSHConnection   = "SSH_CONNECTION"
 	EnvDisplay         = "DISPLAY"
 	EnvWaylandDisplay  = "WAYLAND_DISPLAY"
-	EnvLang            = "LANG"
-	EnvLCAll           = "LC_ALL"
-	EnvLCMessages      = "LC_MESSAGES"
+	EnvLang              = "LANG"
+	EnvLCAll             = "LC_ALL"
+	EnvLCMessages        = "LC_MESSAGES"
+	EnvDisableAutoUpdate = "UNSAREP_DISABLE_AUTO_UPDATE"
+	EnvUpdateChannel     = "UNSAREP_UPDATE_CHANNEL"
+	EnvUpdateEndpoint    = "UNSAREP_UPDATE_ENDPOINT"
+	EnvNoUpdateNotifier  = "UNSAREP_NO_UPDATE_NOTIFIER"
 )
 
 const (
@@ -100,8 +110,18 @@ const (
 	CredentialsFileName = "credentials.json"
 	TokenFileName       = "token"
 	CacheFileName       = "registry.json"
+	UpdateCacheFileName = "update_check.json"
 	LockFileName        = "unsareport.lock"
 	ComponentsDirName   = "components"
+)
+
+const (
+	DefaultUpdateEndpoint = "https://unsareport.ynoacamino.tech/api/version"
+	UpdateCheckTTL        = 24 * time.Hour
+	UpdateTimeout         = 15 * time.Second
+	DefaultChecksumFile   = "checksums.txt"
+	ChannelStable         = "stable"
+	ChannelDev            = "dev"
 )
 
 const (
