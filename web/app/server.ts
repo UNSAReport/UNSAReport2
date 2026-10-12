@@ -1,6 +1,8 @@
 import path from 'node:path';
 // biome-ignore lint/style/noRestrictedImports: dist/server/server.js is built dynamically
 import server from './dist/server/server.js';
+// biome-ignore lint/style/noRestrictedImports: server.ts runs at web/app root level
+import { getVersionManifest } from './src/lib/version';
 
 const DEFAULT_PORT = 3000;
 const CLIENT_DIR = path.resolve(import.meta.dir, 'dist/client');
@@ -18,8 +20,16 @@ Bun.serve({
     const url = new URL(req.url);
     const pathname = decodeURIComponent(url.pathname);
 
-    // Proxy /api/slides/* to the slides service (gateway path in prod,
-    // direct service URL locally). Strips the prefix like traefik does.
+    if (pathname === '/api/version') {
+      const manifest = await getVersionManifest();
+      return Response.json(manifest, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'public, max-age=60',
+        },
+      });
+    }
+
     if (pathname === '/api/slides' || pathname.startsWith('/api/slides/')) {
       const targetBase = (
         process.env.SLIDES_URL || 'http://localhost:3002'
@@ -28,8 +38,6 @@ Bun.serve({
       const target = new URL(stripped + url.search, targetBase);
       const headers = new Headers(req.headers);
       headers.delete('host');
-      // The browser sends the web session cookie (HttpOnly, invisible to JS);
-      // the slides service expects a Bearer token, so translate it here.
       if (!headers.has('authorization')) {
         const cookie = headers.get('cookie') ?? '';
         const match = cookie.match(/(?:^|;\s*)access_token=([^;]*)/);

@@ -15,6 +15,8 @@ tasks:
     command: bash ../scripts/build-tui.sh dist/unsarep
     env:
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -30,6 +32,8 @@ tasks:
       GOOS: linux
       GOARCH: amd64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -45,6 +49,8 @@ tasks:
       GOOS: linux
       GOARCH: arm64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -60,6 +66,8 @@ tasks:
       GOOS: darwin
       GOARCH: amd64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -75,6 +83,8 @@ tasks:
       GOOS: darwin
       GOARCH: arm64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -90,6 +100,8 @@ tasks:
       GOOS: windows
       GOARCH: amd64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'
@@ -105,6 +117,8 @@ tasks:
       GOOS: windows
       GOARCH: arm64
       VERSION: '${VERSION:-dev}'
+      CHANNEL: '${CHANNEL:-stable}'
+      COMMIT: '${COMMIT:-unknown}'
     inputs:
       - 'cmd/**/*'
       - 'internal/**/*'

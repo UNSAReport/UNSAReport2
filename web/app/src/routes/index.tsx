@@ -69,7 +69,7 @@ function IndexComponent() {
             <span className="text-[#1351AA]">Defiende.</span>
           </h1>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
-            <p className="max-w-[400px] text-lg text-[#444343] leading-relaxed">
+            <p className="max-w-100 text-lg text-[#444343] leading-relaxed">
               Informes de laboratorio reproducibles, paquetes y plantillas
               versionados, y slides académicas: todo el flujo institucional en
               una sola plataforma.
@@ -80,6 +80,12 @@ function IndexComponent() {
                 className="poster-button poster-button-primary"
               >
                 Mi dashboard
+              </Link>
+              <Link
+                to="/releases"
+                className="poster-button poster-button-outline"
+              >
+                Descargar CLI
               </Link>
               <Link
                 to="/registry"
@@ -137,7 +143,7 @@ function IndexComponent() {
             {differences.map((d) => (
               <div
                 key={d.index}
-                className="poster-row min-h-[100px] md:min-h-[150px] items-start"
+                className="poster-row min-h-25 md:min-h-37.5 items-start"
               >
                 <p className="font-mono text-xs text-[#7A7A7A] pt-2 shrink-0 w-10">
                   {d.index}
@@ -208,6 +214,12 @@ function IndexComponent() {
                 {l.label}
               </a>
             ))}
+            <Link
+              to="/releases"
+              className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
+            >
+              Releases
+            </Link>
             <Link
               to="/auth/login"
               className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
