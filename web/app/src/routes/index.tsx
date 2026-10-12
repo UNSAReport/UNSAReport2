@@ -76,8 +76,14 @@ function IndexComponent() {
             </p>
             <div className="flex flex-wrap items-center gap-6">
               <Link
-                to="/releases"
+                to="/dashboard"
                 className="poster-button poster-button-primary"
+              >
+                Mi dashboard
+              </Link>
+              <Link
+                to="/releases"
+                className="poster-button poster-button-outline"
               >
                 Descargar CLI
               </Link>
@@ -208,6 +214,12 @@ function IndexComponent() {
                 {l.label}
               </a>
             ))}
+            <Link
+              to="/releases"
+              className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
+            >
+              Releases
+            </Link>
             <Link
               to="/auth/login"
               className="text-xs font-bold uppercase tracking-[0.2em] text-[#444343] transition-colors duration-300 hover:text-[#1351AA]"
