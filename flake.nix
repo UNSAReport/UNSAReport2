@@ -75,16 +75,6 @@
         apps.unsarep = self.apps.${system}.default;
 
         devShells.default = pkgs.mkShell {
-          LD_LIBRARY_PATH =
-            with pkgs;
-            lib.makeLibraryPath [
-              stdenv.cc.cc
-              zlib
-              glib
-              libxcb
-              libglvnd
-            ];
-
           packages = pkgs.lib.flatten [
             self.packages.${system}.default
             unstable.typst
